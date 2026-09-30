@@ -1,0 +1,18 @@
+{
+  "name": "Messenger",
+  "short_name": "Messenger",
+  "description": "Plataforma de disparo e agendamento de mensagens personalizadas no WhatsApp e modelos inteligentes.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0C10",
+  "theme_color": "#0A0C10",
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

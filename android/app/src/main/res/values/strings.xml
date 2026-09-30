@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mensseger</string>
+    <string name="title_activity_main">Mensseger</string>
+    <string name="package_name">com.gkdmobility.app</string>
+    <string name="custom_url_scheme">com.gkdmobility.app</string>
+</resources>
