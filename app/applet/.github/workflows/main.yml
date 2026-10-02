@@ -1,0 +1,65 @@
+name: Criar APK Direto
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Baixar codigo
+      uses: actions/checkout@v4
+
+    - name: Configurar Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Configurar Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '21'
+
+    - name: Instalar dependências
+      run: npm install
+
+    - name: Build Web App
+      run: npm run build
+
+    - name: Configurar Capacitor e Android
+      run: |
+        # Sincroniza o Capacitor e cria a pasta android se não existir
+        npx cap add android || true
+        # Gera os ícones personalizados a partir da logo
+        npm run apply-icons || true
+        npx cap sync android
+
+    - name: Decodificar Keystore Fixa a partir do Segredo
+      run: |
+        if [ -n "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
+          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | tr -d '[:space:]' | base64 -d > release.keystore
+          echo "✅ release.keystore decodificado"
+        fi
+
+    - name: Configurar Keystore Fixo
+      run: |
+        mkdir -p ~/.android
+        if [ -f "release.keystore" ]; then
+          cp release.keystore ~/.android/debug.keystore
+          echo "✅ Keystore fixo configurado em ~/.android/debug.keystore"
+        fi
+
+    - name: Compilar APK (Gradle)
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug
+
+    - name: Guardar o APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: Mensseger-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
