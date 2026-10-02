@@ -2,7 +2,13 @@ import fs from 'fs';
 import path from 'path';
 
 async function generateIcons() {
-  let iconSrc = path.resolve('public', 'logo.png');
+  let iconSrc = path.resolve('src', 'assets', 'images', 'Logo.png');
+  if (!fs.existsSync(iconSrc)) {
+    iconSrc = path.resolve('public', 'Logo.png');
+  }
+  if (!fs.existsSync(iconSrc)) {
+    iconSrc = path.resolve('public', 'logo.png');
+  }
   if (!fs.existsSync(iconSrc)) {
     iconSrc = path.resolve('public', 'logo.jpg');
   }
