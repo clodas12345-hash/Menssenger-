@@ -3,7 +3,15 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.gkdmobility.app',
   appName: 'Mensseger',
-  webDir: 'dist'
+  webDir: 'dist',
+  plugins: {
+    LocalNotifications: {
+      smallIcon: 'ic_stat_icon',
+      iconColor: '#34d399',
+      sound: 'default'
+    }
+  }
 };
 
 export default config;
+
