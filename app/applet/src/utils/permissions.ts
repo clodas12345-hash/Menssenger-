@@ -75,6 +75,7 @@ export async function sendBrowserNotification(title: string, options?: Notificat
             schedule: { at: new Date(Date.now() + 100) },
             sound: 'notification.wav',
             smallIcon: 'ic_stat_icon',
+            channelId: 'default',
             actionTypeId: '',
             extra: null
           }
@@ -146,6 +147,18 @@ export async function initializePushNotifications() {
   if (permStatus.receive !== 'granted') {
     console.warn('User denied push permissions!');
     return;
+  }
+
+  // Create default channel for Android 8.0+
+  if (Capacitor.getPlatform() === 'android') {
+    await LocalNotifications.createChannel({
+      id: 'default',
+      name: 'Default',
+      description: 'Default notification channel',
+      importance: 5, // High importance for heads-up notifications
+      visibility: 1,
+      sound: 'notification.wav',
+    }).catch(err => console.warn('Erro ao criar canal de notificação:', err));
   }
 
   await PushNotifications.register();

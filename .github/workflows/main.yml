@@ -35,8 +35,7 @@ jobs:
         # Sincroniza o Capacitor e cria a pasta android se não existir
         npx cap add android || true
         # Gera os ícones personalizados a partir da logo
-        node generate-icons.cjs || true
-        npx @capacitor/assets generate --android || true
+        npm run apply-icons || true
         npx cap sync android
 
     - name: Decodificar Keystore Fixa a partir do Segredo
