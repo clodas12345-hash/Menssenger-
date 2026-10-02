@@ -8,6 +8,7 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+
     steps:
     - name: Baixar codigo
       uses: actions/checkout@v4
@@ -22,7 +23,6 @@ jobs:
       with:
         distribution: 'zulu'
         java-version: '21'
-
 
     - name: Instalar dependências
       run: npm install
@@ -47,7 +47,7 @@ jobs:
           echo "✅ release.keystore decodificado a partir do segredo DEBUG_KEYSTORE_BASE64"
           ls -la release.keystore
         else
-          echo "⚠️ Segredo DEBUG_KEYSTORE_BASE64 não encontrado — build vai usar assinatura aleatória"
+          echo "⚠️ Segredo DEBUG_KEYSTORE_BASE64 não encontrado — build vai usar assinatura padrão do Gradle"
         fi
 
     - name: Configurar Keystore Fixo para Assinatura Consistente
@@ -60,19 +60,22 @@ jobs:
 
     - name: Forçar signingConfig do App para Usar o Keystore Fixo
       run: |
-        if grep -q "android.signingConfigs.debug.storeFile" android/app/build.gradle; then
-          echo "ℹ️ signingConfig já estava forçado — nada a fazer"
-          exit 0
+        if [ -f "$HOME/.android/debug.keystore" ]; then
+          if grep -q "android.signingConfigs.debug.storeFile" android/app/build.gradle; then
+            echo "ℹ️ signingConfig já estava forçado — nada a fazer"
+            exit 0
+          fi
+          cat >> android/app/build.gradle << 'SIGN_EOF'
+android.signingConfigs.debug.storeFile = new File(System.getProperty("user.home") + "/.android/debug.keystore")
+android.signingConfigs.debug.storePassword = "android"
+android.signingConfigs.debug.keyAlias = "androiddebugkey"
+android.signingConfigs.debug.keyPassword = "android"
+android.buildTypes.debug.signingConfig = android.signingConfigs.debug
+SIGN_EOF
+          echo "✅ signingConfig do buildType debug forçado a usar ~/.android/debug.keystore"
+        else
+          echo "ℹ️ release.keystore não disponível — mantendo configuração de assinatura padrão do Android/Gradle"
         fi
-        cat >> android/app/build.gradle << 'EOF'
-
-        android.signingConfigs.debug.storeFile = new File(System.getProperty("user.home") + "/.android/debug.keystore")
-        android.signingConfigs.debug.storePassword = "android"
-        android.signingConfigs.debug.keyAlias = "androiddebugkey"
-        android.signingConfigs.debug.keyPassword = "android"
-        android.buildTypes.debug.signingConfig = android.signingConfigs.debug
-        EOF
-        echo "✅ signingConfig do buildType debug forçado a usar ~/.android/debug.keystore"
 
     - name: Compilar APK (Gradle)
       run: |
@@ -98,4 +101,3 @@ jobs:
       with:
         name: Mensseger-APK
         path: android/app/build/outputs/apk/debug/app-debug.apk
-
