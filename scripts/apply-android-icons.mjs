@@ -2,7 +2,10 @@ import fs from 'fs';
 import path from 'path';
 
 async function generateIcons() {
-  let iconSrc = path.resolve('public', 'logo.png');
+  let iconSrc = path.resolve('public', 'icon2.png');
+  if (!fs.existsSync(iconSrc)) {
+    iconSrc = path.resolve('public', 'logo.png');
+  }
   if (!fs.existsSync(iconSrc)) {
     iconSrc = path.resolve('public', 'logo.jpg');
   }
@@ -13,13 +16,13 @@ async function generateIcons() {
   const resDir = path.resolve('android', 'app', 'src', 'main', 'res');
 
   if (!fs.existsSync(iconSrc)) {
-    console.error('Source icon not found in public/ (tried logo.png, logo.jpg, Mensseger.png)');
+    console.error('Source icon not found in public/ (tried icon2.png, logo.png, logo.jpg, Mensseger.png)');
     return;
   }
   console.log('Using source icon:', iconSrc);
 
   if (!fs.existsSync(resDir)) {
-    console.log('Android res directory not found yet:', resDir);
+    console.log('Android res directory not found yet, skipping icon generation until android platform is added.');
     return;
   }
   console.log('Target res directory:', resDir);

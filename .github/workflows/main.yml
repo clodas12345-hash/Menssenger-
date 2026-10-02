@@ -44,6 +44,7 @@ jobs:
         ls -la public/
         rm -rf $RES/mipmap-anydpi-v26
         rm -f $RES/drawable-v24/ic_launcher_foreground.xml
+        npm run apply-icons || true
         ls -la $RES/mipmap-hdpi/
 
     - name: Decodificar Keystore Fixa a partir do Segredo
