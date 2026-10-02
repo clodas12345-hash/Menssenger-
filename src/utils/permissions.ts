@@ -18,6 +18,25 @@ export interface PermissionItem {
 }
 
 // 1. NOTIFICATIONS (Local & Push)
+export async function ensureNotificationChannel(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await LocalNotifications.createChannel({
+        id: 'gkd_campaigns',
+        name: 'Alertas de Disparos e Campanhas',
+        description: 'Notificações prioritárias para início e término de disparos',
+        importance: 5, // IMPORTANCE_HIGH (5) ativa heads-up banner no Android
+        visibility: 1, // VISIBILITY_PUBLIC (1) exibe na tela de bloqueio
+        vibration: true,
+        lights: true,
+        lightColor: '#D4AF37',
+      });
+    } catch (err) {
+      console.warn('Erro ao configurar canal de notificação:', err);
+    }
+  }
+}
+
 export async function getNotificationPermissionStatus(): Promise<'granted' | 'denied' | 'prompt' | 'unsupported'> {
   if (Capacitor.isNativePlatform()) {
     try {
@@ -39,6 +58,7 @@ export async function getNotificationPermissionStatus(): Promise<'granted' | 'de
 export async function requestNotificationPermission(): Promise<boolean> {
   if (Capacitor.isNativePlatform()) {
     try {
+      await ensureNotificationChannel();
       const status = await LocalNotifications.requestPermissions();
       return status.display === 'granted';
     } catch (err) {
@@ -60,21 +80,23 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 export async function sendBrowserNotification(title: string, options?: NotificationOptions): Promise<any> {
-  // Native logic (Local)
+  // Native logic (Local on Android/iOS via Capacitor)
   if (Capacitor.isNativePlatform()) {
     try {
       const isGranted = await requestNotificationPermission();
       if (!isGranted) return null;
 
+      await ensureNotificationChannel();
+
       await LocalNotifications.schedule({
         notifications: [
           {
             title: title,
-            body: options?.body || 'Nova mensagem do GKD Messenger',
-            id: Math.floor(Math.random() * 10000),
-            schedule: { at: new Date(Date.now() + 100) },
-            sound: 'notification.wav',
+            body: options?.body || 'Nova notificação do GKD Messenger',
+            id: Math.floor(Math.random() * 100000) + 1,
+            channelId: 'gkd_campaigns',
             smallIcon: 'ic_stat_icon',
+            schedule: { allowWhileIdle: true },
             actionTypeId: '',
             extra: null
           }
@@ -87,7 +109,7 @@ export async function sendBrowserNotification(title: string, options?: Notificat
     }
   }
 
-  // Browser logic
+  // Browser / PWA logic
   if (typeof window === 'undefined' || !('Notification' in window)) {
     return null;
   }
@@ -96,19 +118,40 @@ export async function sendBrowserNotification(title: string, options?: Notificat
   }
   try {
     const defaultOptions: NotificationOptions = {
-      icon: 'https://api.iconify.design/lucide:message-square.svg?color=%23d4af37',
-      badge: 'https://api.iconify.design/lucide:bell.svg?color=%23d4af37',
+      icon: '/logo.png',
+      badge: '/favicon.ico',
       silent: false,
+      tag: options?.tag || `gkd-alert-${Date.now()}`,
       ...options,
     };
-    const notification = new Notification(title, defaultOptions);
-        
-    setTimeout(() => {
+
+    // On Android Chrome & mobile PWA, 'new Notification()' throws TypeError (Illegal constructor).
+    // ServiceWorkerRegistration.showNotification MUST be used!
+    if ('serviceWorker' in navigator) {
       try {
-        notification.close();
-      } catch (_) {}
-    }, 10000);
-    return notification;
+        const registration = await navigator.serviceWorker.ready;
+        if (registration && typeof registration.showNotification === 'function') {
+          await registration.showNotification(title, defaultOptions);
+          return true;
+        }
+      } catch (swErr) {
+        console.warn('ServiceWorker showNotification fallback:', swErr);
+      }
+    }
+
+    // Desktop browser fallback
+    try {
+      const notification = new Notification(title, defaultOptions);
+      setTimeout(() => {
+        try {
+          notification.close();
+        } catch (_) {}
+      }, 10000);
+      return notification;
+    } catch (ctorErr) {
+      console.warn('Erro ao instanciar Notification diretamente:', ctorErr);
+      return null;
+    }
   } catch (err) {
     console.warn('Erro ao disparar notificação do navegador:', err);
     return null;

@@ -26,13 +26,32 @@ import {
   SunMoon,
   CalendarCheck2,
   CopyCheck,
-  Filter
+  Filter,
+  Bell,
+  AlertCircle,
+  Info,
+  CheckCircle,
+  XCircle,
+  Radio,
+  Zap,
+  BatteryCharging,
+  Eye,
+  FileCode,
+  FileX
 } from 'lucide-react';
 import { AppSettings, WhatsAppChip, DispatchLogItem, Contact, ScheduledCampaign, MessageTemplate, ContactGroup } from '../types';
 import { safeConfirm } from '../utils/whatsapp';
 import { restoreFromBackup } from '../utils/storage';
 import { downloadFileSafely, handleDownloadBackup } from '../utils/downloadHelper';
 import { BackupDownloadModal } from './BackupDownloadModal';
+import { 
+  getNotificationPermissionStatus, 
+  requestNotificationPermission, 
+  sendBrowserNotification,
+  ensureNotificationChannel,
+  triggerVibration
+} from '../utils/permissions';
+import { playDispatchAlertSound } from '../utils/audio';
 
 interface SettingsModalProps {
   logs?: DispatchLogItem[];
@@ -54,7 +73,7 @@ interface SettingsModalProps {
   onOpenHelp?: () => void;
 }
 
-type TabType = 'general' | 'chips' | 'rules' | 'system';
+type TabType = 'general' | 'notifications' | 'chips' | 'rules' | 'system';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -76,6 +95,71 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onResetChipLogs,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('general');
+
+  // Notification status & diagnostics
+  const [notificationStatus, setNotificationStatus] = useState<'granted' | 'denied' | 'prompt' | 'unsupported'>('prompt');
+  const [testNotifLoading, setTestNotifLoading] = useState<boolean>(false);
+  const [testNotifFeedback, setTestNotifFeedback] = useState<string | null>(null);
+
+  // Auto-check notification status and ensure channel when opened
+  React.useEffect(() => {
+    if (isOpen) {
+      getNotificationPermissionStatus().then(status => {
+        setNotificationStatus(status);
+      });
+      ensureNotificationChannel();
+    }
+  }, [isOpen, activeTab]);
+
+  const handleRequestNotifPermission = async () => {
+    const granted = await requestNotificationPermission();
+    const updated = await getNotificationPermissionStatus();
+    setNotificationStatus(updated);
+    if (granted) {
+      setTestNotifFeedback('✅ Permissão concedida pelo sistema com sucesso!');
+      triggerVibration([100, 50, 100]);
+    } else {
+      setTestNotifFeedback('⚠️ Permissão não concedida. No celular, ative as notificações nas configurações do aplicativo.');
+    }
+  };
+
+  const handleTestNotification = async () => {
+    setTestNotifLoading(true);
+    setTestNotifFeedback(null);
+    try {
+      if (notificationStatus !== 'granted') {
+        const granted = await requestNotificationPermission();
+        const updated = await getNotificationPermissionStatus();
+        setNotificationStatus(updated);
+        if (!granted) {
+          setTestNotifFeedback('⚠️ Permissão negada no aparelho. Vá em Configurações > Aplicativos > GKD Messenger e ative Notificações.');
+          setTestNotifLoading(false);
+          return;
+        }
+      }
+
+      await ensureNotificationChannel();
+      if (soundEnabled) {
+        playDispatchAlertSound();
+      }
+      triggerVibration([200, 100, 200, 100, 300]);
+
+      const res = await sendBrowserNotification('🔔 Teste de Notificação • GKD Messenger', {
+        body: 'Notificação enviada com sucesso! Seu aparelho está configurado para receber alertas de disparos.',
+        tag: `test-notif-${Date.now()}`,
+      });
+
+      if (res) {
+        setTestNotifFeedback('🚀 Notificação disparada com sucesso! Verifique a barra de status ou o topo da tela do seu aparelho.');
+      } else {
+        setTestNotifFeedback('⚠️ O disparo foi solicitado, mas verifique se o modo Não Perturbe ou Economia de Bateria não estão bloqueando o aviso flutuante.');
+      }
+    } catch (err: any) {
+      setTestNotifFeedback(`❌ Erro ao disparar teste: ${err?.message || 'Falha ao processar notificação'}`);
+    } finally {
+      setTestNotifLoading(false);
+    }
+  };
 
   // Form states
   const [maxMessagesPer24Hours, setMaxMessagesPer24Hours] = useState<number>(settings.maxMessagesPer24Hours || 100);
@@ -219,6 +303,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const tabs = [
     { id: 'general' as TabType, label: 'Geral & Ajuda', icon: HelpCircle },
+    { 
+      id: 'notifications' as TabType, 
+      label: 'Notificações & Diretrizes', 
+      icon: Bell, 
+      badge: notificationStatus === 'denied' ? 'Bloqueada' : notificationStatus === 'prompt' ? 'Ativar' : undefined 
+    },
     { id: 'chips' as TabType, label: 'Chips & Limites', icon: Smartphone, badge: isBlocked24h ? 'Bloqueado' : isLimitReached ? 'Limite' : undefined },
     { id: 'rules' as TabType, label: 'Regras & Agenda', icon: ShieldCheck },
     { id: 'system' as TabType, label: 'Backup & Sistema', icon: Database },
@@ -401,10 +491,400 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
 
+                {/* Central de Notificações Shortcut */}
+                <div className="bg-[#14171E] border border-[#D4AF37]/35 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md bg-gradient-to-r from-[#14171E] via-[#14171E] to-[#D4AF37]/10">
+                  <div className="flex items-start space-x-3">
+                    <div className="p-2.5 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 shrink-0">
+                      <Bell className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-bold text-white text-xs uppercase tracking-wider">
+                          Diretrizes de Notificações
+                        </h4>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                          notificationStatus === 'granted' 
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                            : notificationStatus === 'denied'
+                              ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {notificationStatus === 'granted' ? 'Ativas' : notificationStatus === 'denied' ? 'Bloqueadas' : 'Pendente'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        Consulte o que pode e não pode colocar nas notificações e descubra por que elas não sobem no aparelho.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('notifications')}
+                    className="shrink-0 bg-[#1A1D25] hover:bg-[#252932] text-[#D4AF37] hover:text-white font-bold py-2.5 px-4 rounded-xl border border-[#D4AF37]/40 text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Bell className="w-4 h-4 text-[#D4AF37]" />
+                    <span>Ver Diretrizes</span>
+                  </button>
+                </div>
+
               </div>
             )}
 
-            {/* TAB 2: CHIPS & LIMITES */}
+            {/* TAB 2: NOTIFICAÇÕES & DIRETRIZES */}
+            {activeTab === 'notifications' && (
+              <div className="space-y-4 animate-in fade-in duration-200">
+                
+                {/* 1. Status & Teste Prático */}
+                <div className="bg-[#14171E] border border-[#232732] rounded-xl p-4 shadow-md space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#1E222B]">
+                    <div className="flex items-start space-x-3">
+                      <div className={`p-2.5 rounded-xl shrink-0 ${
+                        notificationStatus === 'granted' 
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                          : notificationStatus === 'denied'
+                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                            : 'bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30'
+                      }`}>
+                        <Bell className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-bold text-white text-xs uppercase tracking-wider">
+                            Status das Notificações no Dispositivo
+                          </h4>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                            notificationStatus === 'granted' 
+                              ? 'bg-emerald-500 text-black font-extrabold' 
+                              : notificationStatus === 'denied'
+                                ? 'bg-red-500 text-white font-bold'
+                                : 'bg-[#D4AF37] text-black font-bold'
+                          }`}>
+                            {notificationStatus === 'granted' 
+                              ? '🟢 Autorizadas' 
+                              : notificationStatus === 'denied' 
+                                ? '🔴 Bloqueadas' 
+                                : '🟡 Aguardando Permissão'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {notificationStatus === 'granted'
+                            ? 'O dispositivo está autorizado a receber alertas sonoros, vibração e banner na barra de status.'
+                            : notificationStatus === 'denied'
+                              ? 'As notificações estão desativadas nas permissões do aparelho ou navegador.'
+                              : 'Clique abaixo para solicitar a permissão do sistema e habilitar os alertas.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {notificationStatus !== 'granted' && (
+                        <button
+                          type="button"
+                          onClick={handleRequestNotifPermission}
+                          className="bg-[#D4AF37] hover:bg-[#E5C365] text-black font-bold py-2 px-3.5 rounded-xl text-xs uppercase tracking-wider flex items-center space-x-1.5 transition-all cursor-pointer shadow-md active:scale-95"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Ativar Permissão</span>
+                        </button>
+                      )}
+                      
+                      <button
+                        type="button"
+                        disabled={testNotifLoading}
+                        onClick={handleTestNotification}
+                        className="bg-[#0A0C10] hover:bg-[#1A1D25] text-white font-bold py-2 px-3.5 rounded-xl border border-[#232732] hover:border-[#D4AF37]/50 text-xs uppercase tracking-wider flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                      >
+                        <Radio className={`w-3.5 h-3.5 text-[#D4AF37] ${testNotifLoading ? 'animate-pulse' : ''}`} />
+                        <span>{testNotifLoading ? 'Disparando...' : 'Testar Notificação Agora'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {testNotifFeedback && (
+                    <div className={`p-3 rounded-lg text-xs font-semibold flex items-center space-x-2 animate-fadeIn ${
+                      testNotifFeedback.startsWith('✅') || testNotifFeedback.startsWith('🚀')
+                        ? 'bg-emerald-950/50 border border-emerald-500/40 text-emerald-300'
+                        : 'bg-amber-950/40 border border-amber-500/40 text-amber-300'
+                    }`}>
+                      <Info className="w-4 h-4 shrink-0" />
+                      <span>{testNotifFeedback}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-gray-300 pt-1">
+                    <div className="bg-[#0A0C10] border border-[#1E222B] p-2.5 rounded-lg flex items-center space-x-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Canal Heads-Up de Alta Prioridade</span>
+                    </div>
+                    <div className="bg-[#0A0C10] border border-[#1E222B] p-2.5 rounded-lg flex items-center space-x-2">
+                      <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>Vibração e Áudio de Disparo Ativos</span>
+                    </div>
+                    <div className="bg-[#0A0C10] border border-[#1E222B] p-2.5 rounded-lg flex items-center space-x-2">
+                      <BatteryCharging className="w-4 h-4 text-blue-400 shrink-0" />
+                      <span>Compatível com Android e PWA</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Diagnóstico: Por que a notificação NÃO ESTÁ SUBINDO? */}
+                <div className="bg-[#14171E] border border-red-500/30 rounded-xl p-4 space-y-3 shadow-md bg-gradient-to-br from-[#14171E] via-[#14171E] to-red-950/20">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/40">
+                      <AlertTriangle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-xs uppercase tracking-wider">
+                        Por Que a Notificação Não Está Subindo no Aparelho?
+                      </h4>
+                      <p className="text-[10px] text-gray-400">
+                        Checklist das 5 causas mais comuns de bloqueio na barra de status do celular ou computador:
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    {/* Causa 1 */}
+                    <div className="bg-[#0A0C10] border border-[#232732] p-3 rounded-xl space-y-1.5">
+                      <div className="flex items-center space-x-2 text-red-400 font-bold text-xs">
+                        <span className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center text-[10px]">1</span>
+                        <span>Permissão Bloqueada no Sistema</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        No <strong>Android 13+</strong> ou navegadores, se a permissão foi negada no primeiro prompt, o sistema não exibe mais alertas automaticamente.
+                      </p>
+                      <div className="text-[10px] text-emerald-400 font-medium bg-[#14171E] p-1.5 rounded border border-[#1E222B]">
+                        💡 <strong>Como resolver:</strong> Acesse as Configurações do Android &gt; Apps &gt; GKD Messenger &gt; Notificações &gt; Marque <strong>"Permitir Notificações"</strong>.
+                      </div>
+                    </div>
+
+                    {/* Causa 2 */}
+                    <div className="bg-[#0A0C10] border border-[#232732] p-3 rounded-xl space-y-1.5">
+                      <div className="flex items-center space-x-2 text-amber-400 font-bold text-xs">
+                        <span className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-[10px]">2</span>
+                        <span>Economia de Bateria / App Suspenso</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Fabricantes como <strong>Samsung, Xiaomi (MIUI) e Motorola</strong> fecham aplicativos em segundo plano para poupar bateria assim que a tela apaga.
+                      </p>
+                      <div className="text-[10px] text-emerald-400 font-medium bg-[#14171E] p-1.5 rounded border border-[#1E222B]">
+                        💡 <strong>Como resolver:</strong> Vá em Configurações &gt; Apps &gt; GKD Messenger &gt; Bateria &gt; Selecione <strong>"Sem Restrições"</strong> (ou "Não Otimizar").
+                      </div>
+                    </div>
+
+                    {/* Causa 3 */}
+                    <div className="bg-[#0A0C10] border border-[#232732] p-3 rounded-xl space-y-1.5">
+                      <div className="flex items-center space-x-2 text-blue-400 font-bold text-xs">
+                        <span className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-[10px]">3</span>
+                        <span>Canal de Notificação em Modo Silencioso</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        No Android 8+, notificações precisam de um canal de <strong>Alta Importância (Heads-Up)</strong> para descer da tela. Se estiver em "Silencioso", não sobe.
+                      </p>
+                      <div className="text-[10px] text-emerald-400 font-medium bg-[#14171E] p-1.5 rounded border border-[#1E222B]">
+                        💡 <strong>Resolvido pelo App:</strong> O GKD Messenger força automaticamente a criação do canal prioritário com importância máxima e som ativo.
+                      </div>
+                    </div>
+
+                    {/* Causa 4 */}
+                    <div className="bg-[#0A0C10] border border-[#232732] p-3 rounded-xl space-y-1.5">
+                      <div className="flex items-center space-x-2 text-purple-400 font-bold text-xs">
+                        <span className="w-5 h-5 rounded-full bg-purple-500/20 flex items-center justify-center text-[10px]">4</span>
+                        <span>Modo Não Perturbe (DND) ou Foco</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Se o aparelho estiver no modo <strong>Não Perturbe</strong> ou <strong>Modo Foco</strong>, todas as notificações flutuantes e toques são silenciados pelo celular.
+                      </p>
+                      <div className="text-[10px] text-emerald-400 font-medium bg-[#14171E] p-1.5 rounded border border-[#1E222B]">
+                        💡 <strong>Como resolver:</strong> Desative temporariamente o Não Perturbe ou autorize exceções para o app na central de notificações.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Causa 5 (Navegador) */}
+                  <div className="bg-[#0A0C10] border border-[#232732] p-3 rounded-xl space-y-1">
+                    <div className="flex items-center space-x-2 text-cyan-400 font-bold text-xs">
+                      <span className="w-5 h-5 rounded-full bg-cyan-500/20 flex items-center justify-center text-[10px]">5</span>
+                      <span>Navegador Mobile (Chrome Android / PWA)</span>
+                    </div>
+                    <p className="text-[11px] text-gray-300 leading-relaxed">
+                      O Chrome para Android bloqueia notificações de abas inativas criadas via script comum (exige Service Worker registrado). Para a máxima estabilidade e receber alertas mesmo em segundo plano, utilize o <strong>APK instalado</strong> ou o <strong>PWA adicionado à tela inicial</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. O que PODE colocar nas notificações */}
+                <div className="bg-[#14171E] border border-emerald-500/30 rounded-xl p-4 space-y-3 shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                        <CheckCircle className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white text-xs uppercase tracking-wider">
+                          O Que PODE Colocar nas Notificações (Permitido & Recomendado)
+                        </h4>
+                        <p className="text-[10px] text-gray-400">
+                          Elementos suportados que garantem visualização clara e entrega confiável no celular:
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      Boas Práticas
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Título Curto e Objetivo (20 a 50 caracteres)</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Exemplo: <span className="font-mono text-amber-300 font-bold">🚨 HORA DO DISPARO: "VIP Finanças"</span>. Cabe com folga em qualquer tela de bloqueio e não é cortado pelo sistema.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Corpo Direto ao Ponto (40 a 160 caracteres)</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Exemplo: <span className="text-gray-200">"35 contatos aguardando envio. Toque para iniciar o disparador WhatsApp."</span> Focado na ação imediata sem enrolação.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Emojis Visuais Estratégicos</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Use emojis leves como <span className="text-white">🚨, 🔔, 📲, ⏰, 💬, ✅, 🚀, 👥</span> para dar destaque visual imediato na barra de status do aparelho.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Contadores e Variáveis Úteis</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Número de contatos prontos, horário agendado e nome do chip responsável. Permite que o usuário saiba o contexto do envio sem ter que abrir o app antes.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Tag Única de Agrupamento</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Identificador único que substitui ou atualiza a notificação anterior, evitando poluir a central do celular com dezenas de avisos duplicados.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Alerta Sonoro e Vibração Nativa</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Padrão sonoro e vibração tátil configurados em canal prioritário para chamar a atenção no momento exato em que a campanha estiver pronta.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. O que NÃO PODE colocar nas notificações */}
+                <div className="bg-[#14171E] border border-red-500/30 rounded-xl p-4 space-y-3 shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="p-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/40">
+                        <XCircle className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white text-xs uppercase tracking-wider">
+                          O Que NÃO PODE / NÃO DEVE Colocar nas Notificações (Proibido & Incompatível)
+                        </h4>
+                        <p className="text-[10px] text-gray-400">
+                          Elementos proibidos que causam truncamento, quebra visual ou bloqueio do app:
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/30">
+                      Restrições & Proibições
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-red-400 font-bold text-xs">
+                        <X className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Textos Longos ou Redações Inteiras (&gt; 200 caracteres)</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        O Android corta mensagens compactas após 2 linhas (<span className="text-red-400 font-mono">...</span>). Mensagens compridas ficam incompletas e truncadas.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-red-400 font-bold text-xs">
+                        <X className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Código HTML ou Tags de Estilo (&lt;b&gt;, &lt;br&gt;, &lt;span&gt;)</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Sistemas nativos do Android e Windows <strong>NÃO</strong> interpretam tags HTML. As tags aparecem como texto puro sujo (<span className="text-red-300 font-mono">&lt;b&gt;Texto&lt;/b&gt;</span>).
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-red-400 font-bold text-xs">
+                        <X className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Links URL Soltos no Meio do Texto</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        O Android não transforma URLs soltas no texto em hyperlinks clicáveis na bandeja. O redirecionamento correto deve ser o toque no alerta inteiro.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-red-400 font-bold text-xs">
+                        <X className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Ícone Colorido com Fundo Opaco (smallIcon)</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        No Android, o ícone pequeno de status <strong>DEVE ser branco com transparência</strong> (canal alfa). Se usar imagem colorida com fundo opaco, o Android converte em um <strong>quadrado branco sólido</strong>.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-red-400 font-bold text-xs">
+                        <X className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Anexos de Arquivos Pesados (PDFs, Áudios, Imagens)</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Notificações de sistema não transportam mídias pesadas; servem apenas como sinalizador de disparo para o usuário abrir o app e iniciar o envio.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#0A0C10] rounded-xl border border-[#232732] space-y-1">
+                      <div className="flex items-center space-x-2 text-red-400 font-bold text-xs">
+                        <X className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Senhas, Códigos ou Informações Confidenciais</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        Notificações podem ser lidas por terceiros na tela de bloqueio do celular mesmo sem desbloquear o dispositivo.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB 3: CHIPS & LIMITES */}
             {activeTab === 'chips' && (
               <div className="space-y-4 animate-in fade-in duration-200">
                 

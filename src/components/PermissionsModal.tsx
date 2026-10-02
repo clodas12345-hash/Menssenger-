@@ -14,7 +14,12 @@ import {
   RefreshCw,
   Sparkles,
   Zap,
-  Volume2
+  Volume2,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  AlertTriangle,
+  XCircle
 } from 'lucide-react';
 import {
   getNotificationPermissionStatus,
@@ -65,6 +70,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
     clipboard: 'granted',
     geolocation: 'prompt',
   });
+  const [showNotifGuide, setShowNotifGuide] = useState<boolean>(false);
 
   const checkAllPermissions = async () => {
     setLoading(true);
@@ -250,28 +256,101 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
           {/* List of Permissions */}
           <div className="space-y-2.5">
             {/* 1. NOTIFICAÇÕES */}
-            <div className="bg-[#181B24] border border-[#262A36] rounded-xl p-3.5 flex items-center justify-between gap-3 hover:border-[#383E4E] transition-colors">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0 mt-0.5">
-                  <Bell className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-bold text-white">Notificações no Disparo</span>
-                    {getStatusBadge(permissionsState.notifications)}
+            <div className="bg-[#181B24] border border-[#262A36] rounded-xl p-3.5 flex flex-col gap-2.5 hover:border-[#383E4E] transition-colors">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0 mt-0.5">
+                    <Bell className="w-4 h-4" />
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Alerta instantâneo na tela (pop-up) quando qualquer agendamento atingir a hora exata ou 3 minutos finais.
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-white">Notificações no Disparo</span>
+                      {getStatusBadge(permissionsState.notifications)}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Alerta instantâneo na tela (pop-up) quando qualquer agendamento atingir a hora exata ou 3 minutos finais.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowNotifGuide(!showNotifGuide)}
+                    className="p-1.5 text-gray-400 hover:text-white bg-[#222733] hover:bg-[#2E3445] rounded-lg border border-[#353B4D] transition-colors"
+                    title={showNotifGuide ? 'Ocultar guia de notificações' : 'Ver o que pode/não pode colocar nas notificações'}
+                  >
+                    {showNotifGuide ? <ChevronUp className="w-4 h-4 text-[#D4AF37]" /> : <ChevronDown className="w-4 h-4 text-gray-300" />}
+                  </button>
+                  <button
+                    onClick={handleRequestNotification}
+                    className="bg-[#222733] hover:bg-[#2E3445] text-xs font-semibold text-gray-200 border border-[#353B4D] px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    <Bell className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>Testar / Ativar</span>
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={handleRequestNotification}
-                className="shrink-0 bg-[#222733] hover:bg-[#2E3445] text-xs font-semibold text-gray-200 border border-[#353B4D] px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-              >
-                <Bell className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>Testar / Ativar</span>
-              </button>
+
+              {/* Botão de ajuda rápida / toggle */}
+              <div className="pt-1 border-t border-[#262A36]/60 flex items-center justify-between text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setShowNotifGuide(!showNotifGuide)}
+                  className="text-[#D4AF37] hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                >
+                  <span>{showNotifGuide ? 'Ocultar Diretrizes de Notificação' : '📋 Ver o que pode ou não colocar e por que não sobem'}</span>
+                  {showNotifGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+                <span className="text-[10px] text-gray-500">Android • PWA • PC</span>
+              </div>
+
+              {/* Painel expansível com o que pode e não pode colocar */}
+              {showNotifGuide && (
+                <div className="mt-1 p-3 bg-[#0E1016] border border-[#262A36] rounded-xl space-y-3 text-xs animate-in fade-in duration-200">
+                  {/* Por que não sobe */}
+                  <div className="p-2.5 bg-red-950/30 border border-red-500/30 rounded-lg space-y-1">
+                    <div className="flex items-center gap-1.5 text-red-400 font-bold text-[11px] uppercase tracking-wider">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>Por que a notificação NÃO ESTÁ SUBINDO?</span>
+                    </div>
+                    <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-gray-300">
+                      <li><strong>Permissão bloqueada:</strong> No Android 13+, permissão precisa ser aprovada nas Configurações &gt; Apps &gt; GKD Messenger &gt; Notificações.</li>
+                      <li><strong>Economia de Bateria:</strong> Fabricantes (Samsung/Xiaomi/Motorola) suspendem apps em segundo plano. Mude a bateria do app para <em>"Sem Restrições"</em>.</li>
+                      <li><strong>Modo Não Perturbe (DND):</strong> O celular silencia todas as notificações flutuantes.</li>
+                      <li><strong>Canal de Prioridade:</strong> Agora forçado automaticamente em Alta Prioridade (Heads-Up) pelo GKD Messenger.</li>
+                    </ul>
+                  </div>
+
+                  {/* Pode vs Não Pode */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+                    <div className="p-2 bg-[#14171E] border border-emerald-500/30 rounded-lg space-y-1">
+                      <span className="font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                        <Check className="w-3 h-3 stroke-[3]" /> O Que PODE Colocar
+                      </span>
+                      <ul className="list-disc pl-3.5 space-y-0.5 text-gray-300">
+                        <li>Título curto e objetivo (20 a 50 caracteres)</li>
+                        <li>Corpo informativo direto (40 a 160 caracteres)</li>
+                        <li>Emojis visuais (🚨, 🔔, 📲, ⏰, 💬, ✅)</li>
+                        <li>Nome da campanha e contagem de contatos prontos</li>
+                        <li>Padrão de vibração e som prioritário</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-2 bg-[#14171E] border border-red-500/30 rounded-lg space-y-1">
+                      <span className="font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                        <XCircle className="w-3 h-3" /> O Que NÃO PODE Colocar
+                      </span>
+                      <ul className="list-disc pl-3.5 space-y-0.5 text-gray-300">
+                        <li>Textos longos ou redações (&gt; 200 caracteres, pois são cortados)</li>
+                        <li>Tags HTML (&lt;b&gt;, &lt;br&gt;, pois o Android não formata)</li>
+                        <li>Links soltos no corpo (não viram hyperlinks clicáveis)</li>
+                        <li>Ícone colorido com fundo opaco (fica como quadrado branco no Android)</li>
+                        <li>Senhas ou informações confidenciais</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 2. CÂMERA */}
