@@ -62,19 +62,17 @@ jobs:
       run: |
         if [ -f "$HOME/.android/debug.keystore" ]; then
           if grep -q "android.signingConfigs.debug.storeFile" android/app/build.gradle; then
-            echo "ℹ️ signingConfig já estava forçado — nada a fazer"
+            echo "signingConfig já estava forçado"
             exit 0
           fi
-          cat >> android/app/build.gradle << 'SIGN_EOF'
-android.signingConfigs.debug.storeFile = new File(System.getProperty("user.home") + "/.android/debug.keystore")
-android.signingConfigs.debug.storePassword = "android"
-android.signingConfigs.debug.keyAlias = "androiddebugkey"
-android.signingConfigs.debug.keyPassword = "android"
-android.buildTypes.debug.signingConfig = android.signingConfigs.debug
-SIGN_EOF
-          echo "✅ signingConfig do buildType debug forçado a usar ~/.android/debug.keystore"
+          echo 'android.signingConfigs.debug.storeFile = new File(System.getProperty("user.home") + "/.android/debug.keystore")' >> android/app/build.gradle
+          echo 'android.signingConfigs.debug.storePassword = "android"' >> android/app/build.gradle
+          echo 'android.signingConfigs.debug.keyAlias = "androiddebugkey"' >> android/app/build.gradle
+          echo 'android.signingConfigs.debug.keyPassword = "android"' >> android/app/build.gradle
+          echo 'android.buildTypes.debug.signingConfig = android.signingConfigs.debug' >> android/app/build.gradle
+          echo "signingConfig forçado"
         else
-          echo "ℹ️ release.keystore não disponível — mantendo configuração de assinatura padrão do Android/Gradle"
+          echo "release.keystore não disponível"
         fi
 
     - name: Compilar APK (Gradle)
