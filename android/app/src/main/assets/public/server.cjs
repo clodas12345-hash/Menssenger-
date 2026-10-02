@@ -104,6 +104,56 @@ function generateFallbackTopicTemplates(topicName, hook, presentation, quantity 
       title: `${cleanTopic} - Op\xE7\xE3o 5 (Conversacional)`,
       content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Espero que esteja tudo bem. Queria te passar este comunicado: ${cleanBody || cleanHook} Conte com nosso suporte sempre!`,
       category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 6 (Entusiasta)`,
+      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Tenho uma novidade imperd\xEDvel: ${cleanBody || cleanHook} Estamos ansiosos pelo seu contato!`,
+      category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 7 (Profissional)`,
+      content: `Prezado(a) {primeiro_nome}, {saudacao}. ${intro}Este \xE9 um comunicado importante sobre: ${cleanBody || cleanHook} \xC0 disposi\xE7\xE3o para esclarecimentos.`,
+      category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 8 (Curta e Direta)`,
+      content: `Ol\xE1, {primeiro_nome}. ${intro}${cleanBody || cleanHook} Qualquer coisa, \xE9 s\xF3 dar um al\xF4!`,
+      category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 9 (Informativa)`,
+      content: `{saudacao}! {primeiro_nome}, ${intro}aproveito o momento para informar: ${cleanBody || cleanHook} Se preferir, agendamos um hor\xE1rio!`,
+      category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 10 (Foco em Benef\xEDcio)`,
+      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Voc\xEA n\xE3o pode perder esta oportunidade: ${cleanBody || cleanHook} Vamos conversar?`,
+      category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 11 (Urgente)`,
+      content: `Aten\xE7\xE3o, {primeiro_nome}! {saudacao}! ${intro}Preciso te atualizar sobre: ${cleanBody || cleanHook} Aguardo seu retorno!`,
+      category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 12 (Personalizada)`,
+      content: `Como vai, {primeiro_nome}? {saudacao}! ${intro}Queria destacar isso para voc\xEA: ${cleanBody || cleanHook} Fico no aguardo de not\xEDcias.`,
+      category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 13 (Amig\xE1vel)`,
+      content: `Oi, {primeiro_nome}! ${intro}Tudo certo por aqui, queria s\xF3 te lembrar: ${cleanBody || cleanHook} Abra\xE7os!`,
+      category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 14 (Exclusiva)`,
+      content: `Ol\xE1, {primeiro_nome}! {saudacao}! ${intro}Preparamos isso especialmente para voc\xEA: ${cleanBody || cleanHook} Que tal aproveitar?`,
+      category: cleanTopic
+    },
+    {
+      title: `${cleanTopic} - Op\xE7\xE3o 15 (Conex\xE3o)`,
+      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Notei esse ponto importante: ${cleanBody || cleanHook} Seguimos juntos!`,
+      category: cleanTopic
     }
   ];
   return pool.slice(0, Math.max(1, Math.min(quantity, pool.length)));
@@ -318,7 +368,7 @@ app.post("/api/ai/generate-topic-templates", async (req, res) => {
   const { topicName, hook, presentation, quantity = 5 } = req.body;
   try {
     const prompt = `Voc\xEA \xE9 um consultor e redator profissional de comunica\xE7\xE3o estrat\xE9gica para WhatsApp.
-O usu\xE1rio informou o t\xF3pico da campanha e uma mensagem/frase de impacto. Sua tarefa \xE9 gerar ${quantity} op\xE7\xF5es de mensagens prontas para envio.
+O usu\xE1rio informou o t\xF3pico da campanha e uma mensagem/frase de impacto. Sua tarefa \xE9 gerar EXATAMENTE ${quantity} op\xE7\xF5es de mensagens prontas para envio.
 
 CONTEXTO:
 - T\xF3pico / Campanha: "${topicName}"
@@ -326,8 +376,8 @@ CONTEXTO:
 - Apresenta\xE7\xE3o do Remetente: "${presentation || "N\xE3o informada"}"
 
 DIRETRIZES RIGOROSAS:
-1. OP\xC7\xC3O 1 (Mensagem 1): DEVE SER RIGOROSAMENTE A MENSAGEM ORIGINAL DO USU\xC1RIO, preservando 100% das suas palavras e sentido, apenas adicionando a sauda\xE7\xE3o inicial ({saudacao}, {primeiro_nome}!) e a apresenta\xE7\xE3o se informada.
-2. OP\xC7\xD5ES SEGUINTES (Op\xE7\xE3o 2 at\xE9 Op\xE7\xE3o ${quantity}): DEVEM SER VARIA\xC7\xD5ES REAIS DE COPYWRITING DA MENSAGEM DO USU\xC1RIO!
+1. GERE EXATAMENTE ${quantity} OP\xC7\xD5ES DE MENSAGENS!
+2. GERE TODAS AS OP\xC7\xD5ES COMO VARIA\xC7\xD5ES REAIS DE COPYWRITING DA MENSAGEM DO USU\xC1RIO!
    - REESCREVA a estrutura com vocabul\xE1rio diferente, aberturas variadas e ordem de frases alternada (para prote\xE7\xE3o anti-spam).
    - Mantenha 100% a fidelidade aos fatos, valores e termos que o usu\xE1rio escreveu (N\xC3O invente promo\xE7\xF5es ou valores n\xE3o mencionados).
    - Use vari\xE1veis adequadas: {saudacao} e {primeiro_nome}.
@@ -337,15 +387,11 @@ Responda EXCLUSIVAMENTE no formato JSON:
 {
   "templates": [
     {
-      "title": "${topicName} - Mensagem 1 (Original)",
+      "title": "${topicName} - Op\xE7\xE3o 1",
       "content": "...",
       "category": "${topicName}"
     },
-    {
-      "title": "${topicName} - Op\xE7\xE3o 2 (Direta)",
-      "content": "...",
-      "category": "${topicName}"
-    }
+    ... (devem ter exatamente ${quantity} itens aqui)
   ]
 }`;
     const text = await callGemini(prompt, { responseMimeType: "application/json" });

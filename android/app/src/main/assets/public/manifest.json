@@ -1,6 +1,6 @@
 {
-  "name": "Messenger",
-  "short_name": "Messenger",
+  "name": "Mensseger",
+  "short_name": "Mensseger",
   "description": "Plataforma de disparo e agendamento de mensagens personalizadas no WhatsApp e modelos inteligentes.",
   "start_url": "/",
   "display": "standalone",

@@ -120,48 +120,51 @@ export async function sendBrowserNotification(title: string, options?: Notificat
 export async function initializePushNotifications() {
   if (!Capacitor.isNativePlatform()) return;
 
-  // Add listeners
-  await PushNotifications.addListener('registration', token => {
-    console.info('Push registration success, token: ' + token.value);
-  });
+  try {
+    // Add listeners
+    await PushNotifications.addListener('registration', token => {
+      console.info('Push registration success, token: ' + token.value);
+    });
 
-  await PushNotifications.addListener('registrationError', err => {
-    console.error('Push registration error: ' + err.error);
-  });
+    await PushNotifications.addListener('registrationError', err => {
+      console.error('Push registration error: ' + err.error);
+    });
 
-  await PushNotifications.addListener('pushNotificationReceived', notification => {
-    console.info('Push notification received: ', notification);
-  });
+    await PushNotifications.addListener('pushNotificationReceived', notification => {
+      console.info('Push notification received: ', notification);
+    });
 
-  await PushNotifications.addListener('pushNotificationActionPerformed', notification => {
-    console.info('Push notification action performed', notification);
-  });
+    await PushNotifications.addListener('pushNotificationActionPerformed', notification => {
+      console.info('Push notification action performed', notification);
+    });
 
-  // Request permissions
-  let permStatus = await PushNotifications.checkPermissions();
+    // Request permissions
+    let permStatus = await PushNotifications.checkPermissions();
 
-  if (permStatus.receive === 'prompt') {
-    permStatus = await PushNotifications.requestPermissions();
+    if (permStatus.receive === 'prompt') {
+      permStatus = await PushNotifications.requestPermissions();
+    }
+
+    if (permStatus.receive !== 'granted') {
+      console.warn('User denied push permissions!');
+    } else {
+      await PushNotifications.register();
+    }
+
+    // Create default channel for Android 8.0+
+    if (Capacitor.getPlatform() === 'android') {
+      await LocalNotifications.createChannel({
+        id: 'default',
+        name: 'Default',
+        description: 'Default notification channel',
+        importance: 5, // High importance for heads-up notifications
+        visibility: 1,
+        sound: 'notification.wav',
+      }).catch(err => console.warn('Erro ao criar canal de notificação:', err));
+    }
+  } catch (err) {
+    console.error('Erro ao inicializar notificações push:', err);
   }
-
-  if (permStatus.receive !== 'granted') {
-    console.warn('User denied push permissions!');
-    return;
-  }
-
-  // Create default channel for Android 8.0+
-  if (Capacitor.getPlatform() === 'android') {
-    await LocalNotifications.createChannel({
-      id: 'default',
-      name: 'Default',
-      description: 'Default notification channel',
-      importance: 5, // High importance for heads-up notifications
-      visibility: 1,
-      sound: 'notification.wav',
-    }).catch(err => console.warn('Erro ao criar canal de notificação:', err));
-  }
-
-  await PushNotifications.register();
 }
 
 // 2. VIBRATION
