@@ -37,6 +37,7 @@ jobs:
         node generate-icons.cjs || true
         npx @capacitor/assets generate --android || true
         npx cap sync android
+        npm run apply-icons || true
 
     - name: Decodificar Keystore Fixa a partir do Segredo
       run: |
