@@ -84,25 +84,23 @@ export async function sendBrowserNotification(title: string, options?: Notificat
   if (Capacitor.isNativePlatform()) {
     try {
       const isGranted = await requestNotificationPermission();
-      if (!isGranted) return null;
-
-      await ensureNotificationChannel();
-
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            title: title,
-            body: options?.body || 'Nova notificação do GKD Messenger',
-            id: Math.floor(Math.random() * 1000000) + 1,
-            smallIcon: 'ic_stat_icon',
-            sound: 'default'
-          }
-        ]
-      });
-      return true;
+      if (isGranted) {
+        await ensureNotificationChannel();
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              title: title,
+              body: options?.body || 'Nova notificação do GKD Messenger',
+              id: Math.floor(Math.random() * 1000000) + 1,
+              smallIcon: 'ic_stat_icon',
+              sound: 'default'
+            }
+          ]
+        });
+        return true;
+      }
     } catch (err) {
-      console.warn('Erro ao disparar notificação nativa:', err);
-      return null;
+      console.warn('Erro ao disparar notificação nativa, tentando fallback web:', err);
     }
   }
 
