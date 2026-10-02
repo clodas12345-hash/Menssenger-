@@ -33,12 +33,7 @@ import {
   clearDeletedTemplatesAndTopics
 } from './utils/storage';
 import { playNotificationSound, playDispatchAlertSound } from './utils/audio';
-import { 
-  sendBrowserNotification, 
-  triggerVibration, 
-  requestPersistentStorage,
-  requestNotificationPermission 
-} from './utils/permissions';
+import { sendBrowserNotification, triggerVibration, requestPersistentStorage, requestNotificationPermission, initializePushNotifications } from "./utils/permissions";
 import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime } from './utils/whatsapp';
 import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
@@ -79,6 +74,7 @@ export default function App() {
   // Auto-lock persistent storage memory on startup
   useEffect(() => {
     requestPersistentStorage();
+    initializePushNotifications();
   }, []);
 
   // Application Data States - Synchronously initialized with in-memory caching to avoid layout thrashing
@@ -119,9 +115,9 @@ export default function App() {
       const currentLogs = getDispatchLogs();
       const newLogs = currentLogs.filter(l => {
         if (l.chipId === 'chip_1') return false;
-        const cName = cleanChipName(l.chipName || '').toLowerCase();
+        const cName = cleanChipName((l.chipName as string) || '').toLowerCase();
         if (cName.includes('business') || cName.includes('principal')) return false;
-        if (!l.chipId && !l.chipName) return false;
+        if (!l.chipId && !(l.chipName as string)) return false;
         return true;
       });
       setLogs(newLogs);
@@ -359,9 +355,9 @@ export default function App() {
       const activeContactGroupNames = new Set(contacts.map(c => (c.group || 'Agenda de Contatos').trim().toLowerCase()));
 
       let validGroups = currentGroups.filter(g => {
-        const lower = g.name.trim().toLowerCase();
+        const lower = (g.name as string).trim().toLowerCase();
         const isSystem = lower === 'agenda de contatos' || lower === 'geral' || lower === 'sem campanha' || lower === 'agenda de contatos (sem campanha)';
-        if (isInvalidCategoryName(g.name)) {
+        if (isInvalidCategoryName((g.name as string))) {
           groupsChanged = true;
           return false; 
         }
@@ -372,7 +368,7 @@ export default function App() {
         return true;
       });
 
-      const existingGroupNames = new Set(validGroups.map(g => g.name.trim().toLowerCase()));
+      const existingGroupNames = new Set(validGroups.map(g => (g.name as string).trim().toLowerCase()));
       const newGroupsToAdd: ContactGroup[] = [];
       const processedGroupsInContacts = new Set<string>();
 
@@ -400,7 +396,7 @@ export default function App() {
 
       if (groupsChanged) {
         const finalGroups = [...validGroups, ...newGroupsToAdd];
-        if (!finalGroups.some((g) => g.name.trim().toLowerCase() === 'agenda de contatos')) {
+        if (!finalGroups.some((g) => (g.name as string).trim().toLowerCase() === 'agenda de contatos')) {
           finalGroups.unshift({ id: 'grp_agenda', name: 'Agenda de Contatos', color: 'bg-emerald-500' });
         }
         setGroups(finalGroups);
@@ -416,7 +412,7 @@ export default function App() {
     if (!groups || groups.length === 0) return;
 
     let migrated = false;
-    const validGroupSet = new Set(groups.map(g => g.name.trim().toLowerCase()));
+    const validGroupSet = new Set(groups.map(g => (g.name as string).trim().toLowerCase()));
     validGroupSet.add('agenda de contatos');
 
     const updated = contacts.map(c => {
@@ -598,7 +594,7 @@ export default function App() {
         currentContacts.map((c) => (c.group || 'Agenda de Contatos').trim().toLowerCase())
       );
       const updatedGroups = prevGroups.filter((g) => {
-        const lower = g.name.trim().toLowerCase();
+        const lower = (g.name as string).trim().toLowerCase();
         const isSystem =
           lower === 'agenda de contatos' ||
           lower === 'geral' ||
@@ -845,7 +841,7 @@ export default function App() {
       else if (l.status === 'pendente') totalPending++;
       else if (l.status === 'pulado') totalSkipped++;
 
-      const chipName = cleanChipName(l.chipName || l.chipId || 'Business');
+      const chipName = cleanChipName((l.chipName as string) || l.chipId || 'Business');
       chipStats[chipName] = (chipStats[chipName] || 0) + 1;
 
       if (l.campaignTitle) {
@@ -979,15 +975,15 @@ export default function App() {
   const handleAddSingleContact = React.useCallback((contact: Contact) => {
     const { cleanName, detectedGroup } = processContactName(contact.name);
 
-    const isIgnored = isIgnoredSequenceTag(contact.group || '');
+    const isIgnored = isIgnoredSequenceTag((contact.group as string) || '');
     const isGenericGroup = isIgnored || 
-                           !contact.group || 
-                           contact.group === 'Geral' || 
-                           contact.group === 'Agenda de Contatos' || 
-                           contact.group === 'sem_campanha' ||
-                           contact.group.toLowerCase().includes('sem campanha');
+                           !(contact.group as string) || 
+                           (contact.group as string) === 'Geral' || 
+                           (contact.group as string) === 'Agenda de Contatos' || 
+                           (contact.group as string) === 'sem_campanha' ||
+                           (contact.group as string).toLowerCase().includes('sem campanha');
 
-    let finalGroup = (detectedGroup && isGenericGroup) ? detectedGroup : (isIgnored ? 'Agenda de Contatos' : (contact.group || detectedGroup || 'Agenda de Contatos'));
+    let finalGroup = (detectedGroup && isGenericGroup) ? detectedGroup : (isIgnored ? 'Agenda de Contatos' : ((contact.group as string) || detectedGroup || 'Agenda de Contatos'));
     if (isIgnoredSequenceTag(finalGroup)) {
       finalGroup = 'Agenda de Contatos';
     }
@@ -995,7 +991,7 @@ export default function App() {
     // Register group in state if new and not generic/ignored
     if (finalGroup && finalGroup !== 'Geral' && finalGroup !== 'Agenda de Contatos' && !isIgnoredSequenceTag(finalGroup)) {
       setGroups((prevGroups) => {
-        const existingLower = new Set(prevGroups.map((g) => g.name.toLowerCase()));
+        const existingLower = new Set(prevGroups.map((g) => (g.name as string).toLowerCase()));
         if (!existingLower.has(finalGroup.toLowerCase())) {
           const gLower = finalGroup.toLowerCase();
           const isCg = gLower.includes('corre e ganhe') || gLower.includes('cg');
@@ -1051,16 +1047,16 @@ export default function App() {
     const newGroupNames = Array.from(new Set(processedContacts.map((c) => (c.group || '').trim()).filter(Boolean)));
     if (newGroupNames.length > 0) {
       setGroups((prevGroups) => {
-        const existingLower = new Set(prevGroups.map((g) => g.name.toLowerCase()));
+        const existingLower = new Set(prevGroups.map((g) => (g.name as string).toLowerCase()));
         const toAdd: ContactGroup[] = [];
-        newGroupNames.forEach((gName) => {
-          if (!existingLower.has(gName.toLowerCase())) {
-            const gLower = gName.toLowerCase();
+        newGroupNames.forEach(gName => {
+          if (!existingLower.has((gName as string).toLowerCase())) {
+            const gLower = (gName as string).toLowerCase();
             const isCg = gLower.includes('corre e ganhe') || gLower.includes('cg');
             const isTx0 = gLower.includes('taxa zero') || gLower.includes('tx0');
             toAdd.push({
               id: `grp_auto_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-              name: gName,
+              name: (gName as string),
               color: isCg ? 'bg-emerald-600' : isTx0 ? 'bg-blue-600' : 'bg-[#A88B4B]',
             });
           }
@@ -1142,7 +1138,7 @@ export default function App() {
   const handleDeleteGroup = React.useCallback((groupId: string) => {
     // Fallback: try finding by ID first, then by name (for legacy groups)
     const groupToDelete = groups.find(g => g.id === groupId) || 
-                        groups.find(g => g.name.toLowerCase() === groupId.toLowerCase());
+                        groups.find(g => (g.name as string).toLowerCase() === groupId.toLowerCase());
     
     if (!groupToDelete) return;
     
@@ -1162,8 +1158,8 @@ export default function App() {
     saveContacts(updatedContacts);
 
     // 2. Update groups
-    const updatedGroups = groups.filter((g) => g.id !== groupToDelete.id && g.name.toLowerCase() !== lowerTarget);
-    if (!updatedGroups.some((g) => g.name.trim().toLowerCase() === 'agenda de contatos')) {
+    const updatedGroups = groups.filter((g) => g.id !== groupToDelete.id && (g.name as string).toLowerCase() !== lowerTarget);
+    if (!updatedGroups.some((g) => (g.name as string).trim().toLowerCase() === 'agenda de contatos')) {
       updatedGroups.unshift({
         id: 'grp_agenda',
         name: 'Agenda de Contatos',
@@ -1178,7 +1174,7 @@ export default function App() {
 
   const handleUpdateGroup = React.useCallback((groupId: string, newName: string, color: string) => {
     const groupToUpdate = groups.find(g => g.id === groupId) ||
-                        groups.find(g => g.name.toLowerCase() === groupId.toLowerCase());
+                        groups.find(g => (g.name as string).toLowerCase() === groupId.toLowerCase());
                         
     if (!groupToUpdate) return;
     
@@ -1196,7 +1192,7 @@ export default function App() {
 
     // 2. Update groups
     const updatedGroups = groups.map((g) => {
-      if (g.id === groupToUpdate.id || g.name.toLowerCase() === lowerOld) {
+      if (g.id === groupToUpdate.id || (g.name as string).toLowerCase() === lowerOld) {
         return { ...g, name: newName.trim(), color };
       }
       return g;
@@ -1209,7 +1205,7 @@ export default function App() {
 
   const handleAddGroup = React.useCallback((name: string, color: string) => {
     setGroups((prev) => {
-      const exists = prev.some(g => g.name.toLowerCase() === name.toLowerCase());
+      const exists = prev.some(g => (g.name as string).toLowerCase() === name.toLowerCase());
       if (exists) {
         showToast('Esta categoria já existe.');
         return prev;
@@ -1273,10 +1269,10 @@ export default function App() {
   const handleDeleteTopic = (category: string) => {
     if (!category) return;
     addDeletedTopic(category);
-    const lower = category.trim().toLowerCase();
-    const toDelete = templates.filter((t) => t && t.category && t.category.trim().toLowerCase() === lower);
+    const lower = (category as string).trim().toLowerCase();
+    const toDelete = templates.filter((t) => t && (t.category as string) && (t.category as string).trim().toLowerCase() === lower);
     addDeletedTemplateIds(toDelete.map((t) => t.id));
-    updateTemplatesState(templates.filter((t) => t && (!t.category || t.category.trim().toLowerCase() !== lower)));
+    updateTemplatesState(templates.filter((t) => t && (!(t.category as string) || (t.category as string).trim().toLowerCase() !== lower)));
     showToast(`🗑️ Tópico "${category}" excluído com sucesso!`);
   };
 
@@ -1323,7 +1319,7 @@ export default function App() {
     if (campaignToDelete) {
       if (campaignToDelete.templateId && campaignToDelete.templateId.startsWith('topic_cat_') && campaignToDelete.categoryName) {
         const catName = campaignToDelete.categoryName;
-        const templatesToDelete = templates.filter(t => t.category === catName).map(t => t.id);
+        const templatesToDelete = templates.filter(t => (t.category as string) === catName).map(t => t.id);
         if (templatesToDelete.length > 0) {
           handleDeleteMultipleTemplates(templatesToDelete);
         }
