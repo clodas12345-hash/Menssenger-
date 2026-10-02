@@ -2,12 +2,12 @@ import fs from 'fs';
 import path from 'path';
 
 async function generateIcons() {
-  let iconSrc = path.resolve('public', 'icon2.png');
-  if (!fs.existsSync(iconSrc)) {
-    iconSrc = path.resolve('public', 'logo.png');
-  }
+  let iconSrc = path.resolve('public', 'logo.png');
   if (!fs.existsSync(iconSrc)) {
     iconSrc = path.resolve('public', 'logo.jpg');
+  }
+  if (!fs.existsSync(iconSrc)) {
+    iconSrc = path.resolve('public', 'icon2.png');
   }
   if (!fs.existsSync(iconSrc)) {
     iconSrc = path.resolve('public', 'Mensseger.png');
@@ -16,7 +16,7 @@ async function generateIcons() {
   const resDir = path.resolve('android', 'app', 'src', 'main', 'res');
 
   if (!fs.existsSync(iconSrc)) {
-    console.error('Source icon not found in public/ (tried icon2.png, logo.png, logo.jpg, Mensseger.png)');
+    console.error('Source icon not found in public/ (tried logo.png, logo.jpg, icon2.png, Mensseger.png)');
     return;
   }
   console.log('Using source icon:', iconSrc);
@@ -71,6 +71,33 @@ async function generateIcons() {
     }
   }
 
+  // Ensure mipmap-anydpi-v26 adaptive icon XMLs exist
+  const anydpiDir = path.join(resDir, 'mipmap-anydpi-v26');
+  if (!fs.existsSync(anydpiDir)) {
+    fs.mkdirSync(anydpiDir, { recursive: true });
+  }
+  const icLauncherXml = `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>`;
+  fs.writeFileSync(path.join(anydpiDir, 'ic_launcher.xml'), icLauncherXml);
+  fs.writeFileSync(path.join(anydpiDir, 'ic_launcher_round.xml'), icLauncherXml);
+
+  // Ensure values/ic_launcher_background.xml exists
+  const valuesDir = path.join(resDir, 'values');
+  if (!fs.existsSync(valuesDir)) {
+    fs.mkdirSync(valuesDir, { recursive: true });
+  }
+  const bgXml = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>`;
+  const bgPath = path.join(valuesDir, 'ic_launcher_background.xml');
+  if (!fs.existsSync(bgPath)) {
+    fs.writeFileSync(bgPath, bgXml);
+  }
+
   // Generate notification small icon (ic_stat_icon.png) for status bar / notifications
   const statIconSizes = [
     { dir: 'drawable', size: 24 },
@@ -104,7 +131,7 @@ async function generateIcons() {
     }
   }
 
-  console.log('✅ Android icons & notification small icons successfully injected!');
+  console.log('✅ Android adaptive icons, launchers & notification small icons successfully injected!');
 }
 
 generateIcons().catch(console.error);

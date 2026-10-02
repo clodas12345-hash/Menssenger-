@@ -95,10 +95,7 @@ export async function sendBrowserNotification(title: string, options?: Notificat
             body: options?.body || 'Nova notificação do GKD Messenger',
             id: Math.floor(Math.random() * 100000) + 1,
             channelId: 'gkd_campaigns',
-            smallIcon: 'ic_stat_icon',
             schedule: { allowWhileIdle: true },
-            actionTypeId: '',
-            extra: null
           }
         ]
       });
