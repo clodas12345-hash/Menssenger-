@@ -991,7 +991,7 @@ export default function App() {
     // Register group in state if new and not generic/ignored
     if (finalGroup && finalGroup !== 'Geral' && finalGroup !== 'Agenda de Contatos' && !isIgnoredSequenceTag(finalGroup)) {
       setGroups((prevGroups) => {
-        const existingLower = new Set(prevGroups.map((g) => (g.name as string).toLowerCase()));
+        const existingLower = new Set(prevGroups.map((g) => ((g.name as string) || '').toLowerCase()));
         if (!existingLower.has(finalGroup.toLowerCase())) {
           const gLower = finalGroup.toLowerCase();
           const isCg = gLower.includes('corre e ganhe') || gLower.includes('cg');
@@ -1047,16 +1047,18 @@ export default function App() {
     const newGroupNames = Array.from(new Set(processedContacts.map((c) => (c.group || '').trim()).filter(Boolean)));
     if (newGroupNames.length > 0) {
       setGroups((prevGroups) => {
-        const existingLower = new Set(prevGroups.map((g) => (g.name as string).toLowerCase()));
+        const existingLower = new Set(prevGroups.map((g) => ((g.name as string) || '').toLowerCase()));
         const toAdd: ContactGroup[] = [];
         newGroupNames.forEach(gName => {
-          if (!existingLower.has((gName as string).toLowerCase())) {
-            const gLower = (gName as string).toLowerCase();
+          if (!gName) return;
+          const gNameStr = String(gName);
+          if (!existingLower.has(gNameStr.toLowerCase())) {
+            const gLower = gNameStr.toLowerCase();
             const isCg = gLower.includes('corre e ganhe') || gLower.includes('cg');
             const isTx0 = gLower.includes('taxa zero') || gLower.includes('tx0');
             toAdd.push({
               id: `grp_auto_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-              name: (gName as string),
+              name: gNameStr,
               color: isCg ? 'bg-emerald-600' : isTx0 ? 'bg-blue-600' : 'bg-[#A88B4B]',
             });
           }
@@ -1138,11 +1140,11 @@ export default function App() {
   const handleDeleteGroup = React.useCallback((groupId: string) => {
     // Fallback: try finding by ID first, then by name (for legacy groups)
     const groupToDelete = groups.find(g => g.id === groupId) || 
-                        groups.find(g => (g.name as string).toLowerCase() === groupId.toLowerCase());
+                        groups.find(g => ((g.name as string) || '').toLowerCase() === (groupId || '').toLowerCase());
     
-    if (!groupToDelete) return;
+    if (!groupToDelete || !groupToDelete.name) return;
     
-    const lowerTarget = groupToDelete.name.trim().toLowerCase();
+    const lowerTarget = (groupToDelete.name || '').trim().toLowerCase();
     if (lowerTarget === 'agenda de contatos' || lowerTarget === 'geral' || lowerTarget === 'sem campanha') {
       return;
     }
@@ -1158,8 +1160,8 @@ export default function App() {
     saveContacts(updatedContacts);
 
     // 2. Update groups
-    const updatedGroups = groups.filter((g) => g.id !== groupToDelete.id && (g.name as string).toLowerCase() !== lowerTarget);
-    if (!updatedGroups.some((g) => (g.name as string).trim().toLowerCase() === 'agenda de contatos')) {
+    const updatedGroups = groups.filter((g) => g.id !== groupToDelete.id && ((g.name as string) || '').toLowerCase() !== lowerTarget);
+    if (!updatedGroups.some((g) => ((g.name as string) || '').trim().toLowerCase() === 'agenda de contatos')) {
       updatedGroups.unshift({
         id: 'grp_agenda',
         name: 'Agenda de Contatos',
@@ -1174,11 +1176,11 @@ export default function App() {
 
   const handleUpdateGroup = React.useCallback((groupId: string, newName: string, color: string) => {
     const groupToUpdate = groups.find(g => g.id === groupId) ||
-                        groups.find(g => (g.name as string).toLowerCase() === groupId.toLowerCase());
+                        groups.find(g => ((g.name as string) || '').toLowerCase() === (groupId || '').toLowerCase());
                         
-    if (!groupToUpdate) return;
+    if (!groupToUpdate || !groupToUpdate.name) return;
     
-    const lowerOld = groupToUpdate.name.trim().toLowerCase();
+    const lowerOld = (groupToUpdate.name || '').trim().toLowerCase();
 
     // 1. Update contacts
     const updatedContacts = contacts.map((c) => {
