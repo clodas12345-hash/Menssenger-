@@ -11,13 +11,16 @@ export const GKDLogo: React.FC<GKDLogoProps> = ({ className = '', variant = 'com
     return (
       <div className={`relative flex items-center gap-2 p-0 m-0 bg-white transition-colors rounded-lg border border-slate-200/60 shrink-0 select-none overflow-hidden ${className}`}>
         <img 
-          src="/logo.jpg" 
+          src="/logo.png" 
           alt="GKD Mobility Logo" 
           className="w-8 h-8 object-cover block" 
           onError={(e) => {
             const target = e.currentTarget;
             if (!target.dataset.triedFallback) {
               target.dataset.triedFallback = 'true';
+              target.src = '/logo.jpg';
+            } else if (target.dataset.triedFallback === 'true') {
+              target.dataset.triedFallback = 'second';
               target.src = '/Mensseger.png';
             }
           }}
@@ -31,13 +34,16 @@ export const GKDLogo: React.FC<GKDLogoProps> = ({ className = '', variant = 'com
   return (
     <div className={`bg-white rounded-2xl p-0 m-0 shadow-sm border border-slate-200/80 text-slate-900 flex flex-col items-center text-center select-none overflow-hidden ${className}`}>
       <img 
-        src="/logo.jpg" 
+        src="/logo.png" 
         alt="GKD Mobility Logo" 
         className="w-full h-24 object-cover block" 
         onError={(e) => {
           const target = e.currentTarget;
           if (!target.dataset.triedFallback) {
             target.dataset.triedFallback = 'true';
+            target.src = '/logo.jpg';
+          } else if (target.dataset.triedFallback === 'true') {
+            target.dataset.triedFallback = 'second';
             target.src = '/Mensseger.png';
           }
         }}

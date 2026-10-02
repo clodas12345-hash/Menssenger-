@@ -76,13 +76,16 @@ export const Navbar: React.FC<NavbarProps> = React.memo(({
           >
             <div className="bg-white rounded-xl shadow-md border border-slate-200/50 flex items-center justify-center shrink-0 w-12 h-12 sm:w-13 sm:h-13 overflow-hidden active:scale-90 transition-transform">
               <img 
-                src="/logo.jpg" 
+                src="/logo.png" 
                 alt="GKD Mobility Logo" 
                 className="w-full h-full object-cover block" 
                 onError={(e) => {
                   const target = e.currentTarget;
                   if (!target.dataset.triedFallback) {
                     target.dataset.triedFallback = 'true';
+                    target.src = '/logo.jpg';
+                  } else if (target.dataset.triedFallback === 'true') {
+                    target.dataset.triedFallback = 'second';
                     target.src = '/Mensseger.png';
                   }
                 }}

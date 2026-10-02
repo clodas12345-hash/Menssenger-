@@ -50,13 +50,16 @@ export const LogoInfoModal: React.FC<LogoInfoModalProps> = ({ isOpen, onClose })
           title="Toque para fechar"
         >
           <img 
-            src="/logo.jpg" 
+            src="/logo.png" 
             alt="GKD Mobility Logo" 
             className="w-full h-auto object-contain block m-0 p-0 select-none" 
             onError={(e) => {
               const target = e.currentTarget;
               if (!target.dataset.triedFallback) {
                 target.dataset.triedFallback = 'true';
+                target.src = '/logo.jpg';
+              } else if (target.dataset.triedFallback === 'true') {
+                target.dataset.triedFallback = 'second';
                 target.src = '/Mensseger.png';
               }
             }}
