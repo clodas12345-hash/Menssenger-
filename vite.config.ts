@@ -11,12 +11,12 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
+        includeAssets: ['favicon.ico', 'logo.png', 'logo.jpg'],
         manifest: {
           id: '/',
-          name: 'GKD Mobility • Soluções em Mensagens',
-          short_name: 'GKD Mobility',
-          description: 'Plataforma de disparo e agendamento de mensagens personalizadas no WhatsApp com foco em soluções de mobilidade.',
+          name: 'Mensseger • Soluções em Mensagens',
+          short_name: 'Mensseger',
+          description: 'Plataforma de disparo e agendamento de mensagens personalizadas no WhatsApp, suporte VCF e modelos inteligentes.',
           theme_color: '#0A0C10',
           background_color: '#0A0C10',
           display: 'standalone',
@@ -25,22 +25,27 @@ export default defineConfig(() => {
           scope: '/',
           icons: [
             {
-              src: '/logo.jpg',
-              sizes: '512x512',
-              type: 'image/jpeg',
+              src: '/logo.png',
+              sizes: '192x192',
+              type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/logo.jpg',
+              src: '/logo.png',
               sizes: '512x512',
-              type: 'image/jpeg',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: '/logo.png',
+              sizes: '512x512',
+              type: 'image/png',
               purpose: 'maskable',
             },
           ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       })
     ],

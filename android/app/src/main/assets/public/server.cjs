@@ -22,6 +22,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 
 // server.ts
+var import_http = __toESM(require("http"), 1);
 var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
 var import_fs = __toESM(require("fs"), 1);
@@ -30,6 +31,7 @@ var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
 import_dotenv.default.config();
 var app = (0, import_express.default)();
+var httpServer = import_http.default.createServer(app);
 var PORT = 3e3;
 app.use(import_express.default.json());
 var getGeminiClient = () => {
@@ -581,7 +583,10 @@ Retorne EXCLUSIVAMENTE um JSON:
 async function start() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await (0, import_vite.createServer)({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: { server: httpServer }
+      },
       appType: "spa"
     });
     app.use(vite.middlewares);
@@ -606,8 +611,8 @@ async function start() {
       res.sendFile(import_path.default.join(distPath, "index.html"));
     });
   }
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor ZapAgendador rodando em http://0.0.0.0:${PORT}`);
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    console.log(`Servidor Mensseger rodando em http://0.0.0.0:${PORT}`);
   });
 }
 start();

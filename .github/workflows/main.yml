@@ -38,6 +38,14 @@ jobs:
         npm run apply-icons || true
         npx cap sync android
 
+    - name: Forçar ícone personalizado
+      run: |
+        RES=android/app/src/main/res
+        ls -la public/
+        rm -rf $RES/mipmap-anydpi-v26
+        rm -f $RES/drawable-v24/ic_launcher_foreground.xml
+        ls -la $RES/mipmap-hdpi/
+
     - name: Decodificar Keystore Fixa a partir do Segredo
       run: |
         echo "Tamanho do segredo (deve ser próximo de 3664):"

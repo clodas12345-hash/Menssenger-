@@ -1,3 +1,4 @@
+import http from "http";
 import express from "express";
 import path from "path";
 import fs from "fs";
@@ -8,6 +9,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
+const httpServer = http.createServer(app);
 const PORT = 3000;
 
 app.use(express.json());
@@ -648,7 +650,10 @@ async function start() {
   // Vite middleware in development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: { server: httpServer },
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
@@ -675,8 +680,8 @@ async function start() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor ZapAgendador rodando em http://0.0.0.0:${PORT}`);
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    console.log(`Servidor Mensseger rodando em http://0.0.0.0:${PORT}`);
   });
 }
 
