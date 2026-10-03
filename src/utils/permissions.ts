@@ -473,6 +473,15 @@ export async function syncLocalNotifications(campaigns: ScheduledCampaign[]): Pr
   if (!Capacitor.isNativePlatform()) return;
 
   try {
+    // 0. Ensure high-priority notification channel is active
+    await ensureNotificationChannel();
+
+    // Ensure permissions are requested
+    let permStatus = await LocalNotifications.checkPermissions();
+    if (permStatus.display !== 'granted') {
+      permStatus = await LocalNotifications.requestPermissions();
+    }
+
     // 1. Get all pending notifications and cancel them to avoid duplicates
     const pending = await LocalNotifications.getPending();
     if (pending.notifications && pending.notifications.length > 0) {
@@ -482,7 +491,12 @@ export async function syncLocalNotifications(campaigns: ScheduledCampaign[]): Pr
 
     // 2. Schedule each active/scheduled campaign whose scheduledAt is in the future
     const now = Date.now();
-    const activeCamps = campaigns.filter(c => c.status === 'agendado' && new Date(c.scheduledAt).getTime() > now);
+    const activeCamps = campaigns.filter(c => 
+      c.status !== 'concluido' && 
+      c.status !== 'cancelado' && 
+      (c.progress?.sent || 0) < c.contactIds.length && 
+      new Date(c.scheduledAt).getTime() > now
+    );
 
     for (const camp of activeCamps) {
       const id = getIntegerIdFromString(camp.id);
@@ -497,12 +511,34 @@ export async function syncLocalNotifications(campaigns: ScheduledCampaign[]): Pr
             smallIcon: 'ic_stat_icon',
             channelId: 'gkd_campaigns',
             sound: 'default',
-            schedule: { at: scheduledTime }
+            schedule: { at: scheduledTime, allowWhileIdle: true },
+            extra: {
+              campaignId: camp.id
+            }
           }
         ]
       });
     }
   } catch (err) {
     console.warn('Erro ao sincronizar notificações locais:', err);
+  }
+}
+
+export function registerNotificationListeners(onOpenCampaign?: (campaignId: string) => void): void {
+  if (!Capacitor.isNativePlatform()) return;
+
+  try {
+    LocalNotifications.removeAllListeners().then(() => {
+      LocalNotifications.addListener('localNotificationActionPerformed', (notificationAction) => {
+        const extra = notificationAction.notification.extra;
+        if (extra && extra.campaignId && onOpenCampaign) {
+          onOpenCampaign(extra.campaignId);
+        }
+      });
+    }).catch(err => {
+      console.warn('Erro ao registrar ouvintes de notificação:', err);
+    });
+  } catch (err) {
+    console.warn('Erro ao inicializar listeners:', err);
   }
 }

@@ -357,10 +357,10 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
                             onClick={() => onLaunchCampaign(camp)}
                             className="h-11 px-4 text-[#0A0C10] rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 uppercase tracking-wider shadow-md active:scale-95 cursor-pointer"
                             style={{ backgroundColor: chipColor, color: '#0A0C10', boxShadow: `0 4px 12px ${chipColor}33` }}
-                            title="Abrir Disparador"
+                            title={camp.status === 'em_andamento' ? "Continuar Disparos" : "Abrir Disparador"}
                           >
                             <Play className="w-4 h-4 fill-current" />
-                            <span className="hidden sm:inline">Disparar</span>
+                            <span className="hidden sm:inline">{camp.status === 'em_andamento' ? 'Continuar' : 'Disparar'}</span>
                           </button>
 
                           <button

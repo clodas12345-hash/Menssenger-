@@ -175,7 +175,7 @@ export const WelcomeTutorialModal: React.FC<WelcomeTutorialModalProps> = ({
 
             <div className="space-y-2">
               <h3 className="text-xl sm:text-2xl font-bold text-white tracking-wide">
-                {isEditingName ? 'Alterar Assinatura do Remetente' : 'Boas-vindas ao ZapAgendador!'}
+                {isEditingName ? 'Alterar Assinatura do Remetente' : 'Boas-vindas ao Mensseger!'}
               </h3>
               <p className="text-xs sm:text-sm text-gray-300">
                 {isEditingName
@@ -239,7 +239,7 @@ export const WelcomeTutorialModal: React.FC<WelcomeTutorialModalProps> = ({
               <div className="bg-gradient-to-r from-[#A88B4B]/10 via-transparent to-emerald-500/10 border border-[#A88B4B]/30 rounded-xl p-4">
                 <h3 className="text-base font-bold text-white mb-2 flex items-center space-x-2">
                   <Zap className="w-5 h-5 text-[#D4AF37]" />
-                  <span>Como o ZapAgendador Funciona na Prática?</span>
+                  <span>Como o Mensseger Funciona na Prática?</span>
                 </h3>
                 <p className="text-gray-300 text-xs leading-relaxed">
                   O sistema foi desenhado para ser um <strong>disparador semi-automático e humanizado</strong> via WhatsApp Web ou Aplicativo Desktop. Ao invés de usar robôs invasivos que causam banimentos instantâneos, ele utiliza um fluxo seguro de 4 etapas:

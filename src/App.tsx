@@ -33,7 +33,17 @@ import {
   clearDeletedTemplatesAndTopics
 } from './utils/storage';
 import { playNotificationSound, playDispatchAlertSound } from './utils/audio';
-import { sendAppNotification, sendBrowserNotification, triggerVibration, requestPersistentStorage, requestNotificationPermission, initializePushNotifications, syncLocalNotifications } from "./utils/permissions";
+import { 
+  sendAppNotification, 
+  sendBrowserNotification, 
+  triggerVibration, 
+  requestPersistentStorage, 
+  requestNotificationPermission, 
+  initializePushNotifications, 
+  syncLocalNotifications,
+  ensureNotificationChannel,
+  registerNotificationListeners
+} from "./utils/permissions";
 import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime } from './utils/whatsapp';
 import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
@@ -71,10 +81,19 @@ export default function App() {
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState<boolean>(false);
   const [reportPreviewHtml, setReportPreviewHtml] = useState<string | null>(null);
 
-  // Auto-lock persistent storage memory on startup
+  // Auto-lock persistent storage memory & initialize native notifications on startup
   useEffect(() => {
     requestPersistentStorage();
+    ensureNotificationChannel();
+    requestNotificationPermission();
     initializePushNotifications();
+    registerNotificationListeners((campId) => {
+      const currentCamps = getCampaigns();
+      const found = currentCamps.find(c => c.id === campId);
+      if (found) {
+        setActiveDispatcherCampaign(found);
+      }
+    });
   }, []);
 
   // Application Data States - Synchronously initialized with in-memory caching to avoid layout thrashing
@@ -926,18 +945,22 @@ export default function App() {
       setCampaigns((prevCampaigns) => {
         let changed = false;
         const updated = prevCampaigns.map((camp) => {
-          if (camp.status === 'agendado') {
-            const scheduledTime = new Date(camp.scheduledAt).getTime();
-            const diffMs = scheduledTime - now;
+          const total = camp.contactIds.length;
+          const sent = camp.progress?.sent || 0;
+          const isPending = camp.status !== 'concluido' && camp.status !== 'cancelado' && sent < total;
 
-            // Trigger popup only when exact scheduled time is reached or within 3 minutes
-            if (scheduledTime <= now + 3 * 60 * 1000 && !autoOpenedCampaignsRef.current.has(camp.id)) {
+          if (isPending) {
+            const scheduledTime = new Date(camp.scheduledAt).getTime();
+
+            // Trigger when exact scheduled time is reached (<= now) and not yet notified in this session
+            if (scheduledTime <= now && !autoOpenedCampaignsRef.current.has(camp.id)) {
               if (!campaignToTrigger) {
                 campaignToTrigger = camp;
               }
             }
 
-            if (scheduledTime <= now + 3 * 60 * 1000) {
+            // Only transition from 'agendado' to 'em_andamento' once the scheduled time has ACTUALLY arrived
+            if (scheduledTime <= now && camp.status === 'agendado') {
               changed = true;
               return { ...camp, status: 'em_andamento' as const };
             }
@@ -959,11 +982,11 @@ export default function App() {
         setActiveDispatcherCampaign(camp);
         setDueCampaignAlert(camp);
 
-        // 1. Browser Web Notification
-        sendBrowserNotification(`🚨 HORA DO DISPARO: "${camp.title}"`, {
-          body: `Agendamento pronto com ${camp.contactIds.length} contato(s). Clique para abrir o disparador!`,
-          tag: `campaign-${camp.id}`,
-          requireInteraction: true,
+        // 1. Unified App Notification (Android Native LocalNotification + Web Notification + In-App Event)
+        sendAppNotification(`🚨 HORA DO DISPARO: "${camp.title}"`, {
+          body: `Agendamento pronto com ${camp.contactIds.length} contato(s). Toque para abrir o disparador!`,
+          id: Math.abs(camp.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000 + 1,
+          type: 'scheduledTrigger'
         });
 
         // 2. Urgent Sound Alert
@@ -976,7 +999,7 @@ export default function App() {
 
         // 4. Tab Title Alert
         try {
-          const originalTitle = 'GKD Messenger';
+          const originalTitle = 'Mensseger';
           document.title = `🚨 DISPARO PRONTO: ${camp.title}`;
           setTimeout(() => {
             document.title = originalTitle;
@@ -986,7 +1009,7 @@ export default function App() {
     };
 
     checkScheduledCampaigns();
-    const timer = setInterval(checkScheduledCampaigns, 5000); // Check every 5s for optimal performance
+    const timer = setInterval(checkScheduledCampaigns, 1000); // Check every second for exact second-level precision
     return () => clearInterval(timer);
   }, [settings.soundEnabled]);
 
@@ -1977,7 +2000,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-[#1F2229] bg-[#0A0C10] py-6 text-center text-xs text-gray-500">
-        <p>ZapAgendador • Gerenciador de Disparos e Mensagens WhatsApp Prontas</p>
+        <p>Mensseger • Gerenciador de Disparos e Mensagens GKD</p>
       </footer>
 
       {/* Modals */}

@@ -49,6 +49,19 @@ async function generateIcons() {
     console.log('Sharp not installed, will use fallback copying.');
   }
 
+  // Pre-process source logo: trim excess white borders to have an exact bounding box
+  let trimmedLogoBuffer;
+  if (sharp) {
+    try {
+      trimmedLogoBuffer = await sharp(iconSrc)
+        .trim({ background: '#FFFFFF', threshold: 15 })
+        .toBuffer();
+    } catch (err) {
+      console.warn('Trim failed, using original source:', err);
+      trimmedLogoBuffer = fs.readFileSync(iconSrc);
+    }
+  }
+
   for (const item of sizes) {
     const targetFolder = path.join(resDir, item.dir);
     if (!fs.existsSync(targetFolder)) {
@@ -56,20 +69,46 @@ async function generateIcons() {
     }
 
     if (sharp) {
-      await sharp(iconSrc)
-        .resize(item.size, item.size, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
-        .png()
-        .toFile(path.join(targetFolder, 'ic_launcher.png'));
+      // Legacy square & round icons (with safe margin ~75% of total size)
+      const legacyLogoSize = Math.max(16, Math.round(item.size * 0.76));
+      const resizedLegacyLogo = await sharp(trimmedLogoBuffer)
+        .resize(legacyLogoSize, legacyLogoSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+        .toBuffer();
 
-      await sharp(iconSrc)
-        .resize(item.size, item.size, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      const legacyCanvas = await sharp({
+        create: {
+          width: item.size,
+          height: item.size,
+          channels: 3,
+          background: { r: 255, g: 255, b: 255 }
+        }
+      })
+        .composite([{ input: resizedLegacyLogo, gravity: 'center' }])
         .png()
-        .toFile(path.join(targetFolder, 'ic_launcher_round.png'));
+        .toBuffer();
 
-      await sharp(iconSrc)
-        .resize(item.fgSize, item.fgSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      fs.writeFileSync(path.join(targetFolder, 'ic_launcher.png'), legacyCanvas);
+      fs.writeFileSync(path.join(targetFolder, 'ic_launcher_round.png'), legacyCanvas);
+
+      // Adaptive icon foreground: strictly within Android 60-64% safe zone (center 66dp of 108dp viewport)
+      const fgLogoSize = Math.max(32, Math.round(item.fgSize * 0.60));
+      const resizedFgLogo = await sharp(trimmedLogoBuffer)
+        .resize(fgLogoSize, fgLogoSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+        .toBuffer();
+
+      const fgCanvas = await sharp({
+        create: {
+          width: item.fgSize,
+          height: item.fgSize,
+          channels: 4,
+          background: { r: 255, g: 255, b: 255, alpha: 0 }
+        }
+      })
+        .composite([{ input: resizedFgLogo, gravity: 'center' }])
         .png()
-        .toFile(path.join(targetFolder, 'ic_launcher_foreground.png'));
+        .toBuffer();
+
+      fs.writeFileSync(path.join(targetFolder, 'ic_launcher_foreground.png'), fgCanvas);
     } else {
       fs.copyFileSync(iconSrc, path.join(targetFolder, 'ic_launcher.png'));
       fs.copyFileSync(iconSrc, path.join(targetFolder, 'ic_launcher_round.png'));
