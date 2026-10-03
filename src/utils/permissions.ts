@@ -17,15 +17,17 @@ export interface PermissionItem {
   details?: string;
 }
 
+export const NOTIFICATION_CHANNEL_ID = 'gkd_campaigns_v2';
+
 // 1. NOTIFICATIONS (Local & Push)
 export async function ensureNotificationChannel(): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     try {
       await LocalNotifications.createChannel({
-        id: 'gkd_campaigns',
+        id: NOTIFICATION_CHANNEL_ID,
         name: 'Alertas de Disparos e Campanhas',
-        description: 'Notificações prioritárias para início e término de disparos',
-        importance: 5, // IMPORTANCE_HIGH (5) ativa heads-up banner no Android
+        description: 'Notificações prioritárias com alerta sonoro e banner para início e término de disparos',
+        importance: 5, // IMPORTANCE_HIGH (5) ativa heads-up banner e som no Android
         visibility: 1, // VISIBILITY_PUBLIC (1) exibe na tela de bloqueio
         vibration: true,
         lights: true,
@@ -37,13 +39,42 @@ export async function ensureNotificationChannel(): Promise<void> {
   }
 }
 
+export async function getExactAlarmPermissionStatus(): Promise<'granted' | 'denied' | 'unsupported'> {
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    try {
+      const res = await LocalNotifications.checkExactNotificationSetting();
+      return res.exact_alarm === 'granted' ? 'granted' : 'denied';
+    } catch (err) {
+      console.warn('Erro ao verificar permissão de alarme exato:', err);
+      return 'granted';
+    }
+  }
+  return 'granted';
+}
+
+export async function requestExactAlarmPermission(): Promise<boolean> {
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    try {
+      const check = await LocalNotifications.checkExactNotificationSetting();
+      if (check.exact_alarm === 'granted') return true;
+      const res = await LocalNotifications.changeExactNotificationSetting();
+      return res.exact_alarm === 'granted';
+    } catch (err) {
+      console.warn('Erro ao solicitar permissão de alarme exato:', err);
+      return false;
+    }
+  }
+  return true;
+}
+
 export async function getNotificationPermissionStatus(): Promise<'granted' | 'denied' | 'prompt' | 'unsupported'> {
   if (Capacitor.isNativePlatform()) {
     try {
       await ensureNotificationChannel();
       const status = await LocalNotifications.checkPermissions();
-      if (status.display === 'granted') return 'granted';
-      if (status.display === 'denied') return 'denied';
+      const enabledRes = await LocalNotifications.areEnabled().catch(() => ({ value: true }));
+      if (status.display === 'granted' && enabledRes.value !== false) return 'granted';
+      if (status.display === 'denied' || enabledRes.value === false) return 'denied';
       return 'prompt';
     } catch (err) {
       console.warn('Erro ao verificar permissão nativa:', err);
@@ -61,7 +92,8 @@ export async function requestNotificationPermission(): Promise<boolean> {
     try {
       await ensureNotificationChannel();
       const status = await LocalNotifications.requestPermissions();
-      return status.display === 'granted';
+      const enabledRes = await LocalNotifications.areEnabled().catch(() => ({ value: true }));
+      return status.display === 'granted' && enabledRes.value !== false;
     } catch (err) {
       console.warn('Erro ao solicitar permissão nativa:', err);
     }
@@ -84,7 +116,7 @@ import { NotificationPreferences } from '../types';
 
 export async function sendAppNotification(
   title: string, 
-  options?: { body?: string; id?: number; type?: keyof NotificationPreferences }
+  options?: { body?: string; id?: number; type?: keyof NotificationPreferences; extra?: Record<string, any> }
 ): Promise<boolean> {
   if (options?.type) {
     try {
@@ -118,17 +150,20 @@ export async function sendAppNotification(
       if (permStatus.display === 'granted') {
         const validId = (options?.id && !isNaN(options.id) && Number.isInteger(options.id))
           ? options.id
-          : Math.floor(Math.random() * 1000000) + 1;
+          : Math.floor(Math.random() * 900000) + 100000;
 
         await LocalNotifications.schedule({
           notifications: [
             {
               title,
               body: options?.body || '',
+              largeBody: options?.body || '',
               id: validId,
               smallIcon: 'ic_stat_icon',
-              channelId: 'gkd_campaigns',
-              sound: 'default'
+              iconColor: '#D4AF37',
+              channelId: NOTIFICATION_CHANNEL_ID,
+              autoCancel: true,
+              extra: options?.extra || undefined
             }
           ]
         });
@@ -137,6 +172,8 @@ export async function sendAppNotification(
     } catch (capErr) {
       console.warn('LocalNotifications.schedule falhou:', capErr);
     }
+    // Return early on native platform so WebView Notification API doesn't conflict or fail
+    return dispatched;
   }
 
   // 3. Web Browser / PWA Notification API
@@ -458,13 +495,22 @@ export async function openBatteryOptimizationSettings(): Promise<void> {
   }
 }
 
-// Convert string ID to positive integer
-function getIntegerIdFromString(str: string): number {
+// Convert string ID to positive integer for scheduled alarms (range: 1 to 500,000)
+export function getCampaignScheduleId(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return (Math.abs(hash) % 1000000) + 1;
+  return (Math.abs(hash) % 500000) + 1;
+}
+
+// Convert string ID to positive integer for immediate foreground notifications (range: 500,001 to 999,999)
+export function getCampaignImmediateId(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return (Math.abs(hash) % 499999) + 500001;
 }
 
 // Sync all future scheduled campaigns as native local notifications
@@ -480,45 +526,65 @@ export async function syncLocalNotifications(campaigns: ScheduledCampaign[]): Pr
     if (permStatus.display !== 'granted') {
       permStatus = await LocalNotifications.requestPermissions();
     }
+    if (permStatus.display !== 'granted') return;
 
-    // 1. Get all pending notifications and cancel them to avoid duplicates
-    const pending = await LocalNotifications.getPending();
-    if (pending.notifications && pending.notifications.length > 0) {
-      const toCancel = pending.notifications.map(n => ({ id: n.id }));
-      await LocalNotifications.cancel({ notifications: toCancel });
-    }
-
-    // 2. Schedule each active/scheduled campaign whose scheduledAt is in the future or current minute
     const now = Date.now();
-    const activeCamps = campaigns.filter(c => 
+
+    // 1. Identify campaigns that are scheduled for the future (> now + 2000ms)
+    const futureCamps = campaigns.filter(c => 
       c.status !== 'concluido' && 
       c.status !== 'cancelado' && 
       (c.progress?.sent || 0) < c.contactIds.length && 
-      (new Date(c.scheduledAt).getTime() > now || (c.status === 'agendado' && new Date(c.scheduledAt).getTime() > now - 59000))
+      new Date(c.scheduledAt).getTime() > now + 2000
     );
 
-    for (const camp of activeCamps) {
-      const id = getIntegerIdFromString(camp.id);
-      const rawMs = new Date(camp.scheduledAt).getTime();
-      // Guarantee trigger time is strictly after current time so Android LocalNotificationManager never drops it
-      const safeMs = Math.max(rawMs, Date.now() + 3000);
-      const scheduledTime = new Date(safeMs);
+    // 2. Identify campaigns that are still active (either future OR due/em_andamento right now)
+    // We MUST NOT call LocalNotifications.cancel() on a campaign that just became due,
+    // because LocalNotifications.cancel() calls dismissVisibleNotification(id) in Android!
+    const allActiveIds = new Set(
+      campaigns
+        .filter(c => c.status !== 'concluido' && c.status !== 'cancelado' && (c.progress?.sent || 0) < c.contactIds.length)
+        .map(c => getCampaignScheduleId(c.id))
+    );
+
+    // 3. Only cancel pending scheduled notifications that belong to deleted, cancelled, or completed campaigns
+    const pending = await LocalNotifications.getPending();
+    if (pending.notifications && pending.notifications.length > 0) {
+      const toCancel = pending.notifications
+        .filter(n => !allActiveIds.has(n.id))
+        .map(n => ({ id: n.id }));
+      if (toCancel.length > 0) {
+        await LocalNotifications.cancel({ notifications: toCancel });
+      }
+    }
+
+    // 4. Schedule or update future campaigns in batch
+    if (futureCamps.length > 0) {
+      const notificationsToSchedule = futureCamps.map(camp => {
+        const id = getCampaignScheduleId(camp.id);
+        const rawMs = new Date(camp.scheduledAt).getTime();
+        const safeMs = Math.max(rawMs, Date.now() + 2000);
+        const scheduledTime = new Date(safeMs);
+        const bodyText = `Agendamento pronto com ${camp.contactIds.length} contato(s). Toque para abrir o disparador!`;
+
+        return {
+          title: `🚨 HORA DO DISPARO: "${camp.title}"`,
+          body: bodyText,
+          largeBody: bodyText,
+          id,
+          smallIcon: 'ic_stat_icon',
+          iconColor: '#D4AF37',
+          channelId: NOTIFICATION_CHANNEL_ID,
+          autoCancel: true,
+          schedule: { at: scheduledTime, allowWhileIdle: true },
+          extra: {
+            campaignId: camp.id
+          }
+        };
+      });
 
       await LocalNotifications.schedule({
-        notifications: [
-          {
-            title: `🚨 HORA DO DISPARO: "${camp.title}"`,
-            body: `Agendamento pronto com ${camp.contactIds.length} contato(s). Toque para abrir o disparador!`,
-            id,
-            smallIcon: 'ic_stat_icon',
-            channelId: 'gkd_campaigns',
-            sound: 'default',
-            schedule: { at: scheduledTime, allowWhileIdle: true },
-            extra: {
-              campaignId: camp.id
-            }
-          }
-        ]
+        notifications: notificationsToSchedule
       });
     }
   } catch (err) {

@@ -42,7 +42,8 @@ import {
   initializePushNotifications, 
   syncLocalNotifications,
   ensureNotificationChannel,
-  registerNotificationListeners
+  registerNotificationListeners,
+  getCampaignImmediateId
 } from "./utils/permissions";
 import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime } from './utils/whatsapp';
 import { cleanPhoneNumber } from './utils/vcfParser';
@@ -985,8 +986,9 @@ export default function App() {
         // 1. Unified App Notification (Android Native LocalNotification + Web Notification + In-App Event)
         sendAppNotification(`🚨 HORA DO DISPARO: "${camp.title}"`, {
           body: `Agendamento pronto com ${camp.contactIds.length} contato(s). Toque para abrir o disparador!`,
-          id: Math.abs(camp.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000 + 1,
-          type: 'scheduledTrigger'
+          id: getCampaignImmediateId(camp.id),
+          type: 'scheduledTrigger',
+          extra: { campaignId: camp.id }
         });
 
         // 2. Urgent Sound Alert
