@@ -423,3 +423,86 @@ export async function requestAllPermissions(): Promise<{
     geolocation: geo,
   };
 }
+
+import { BatteryOptimization } from '@capawesome-team/capacitor-android-battery-optimization';
+import { ScheduledCampaign } from '../types';
+
+export async function isBatteryOptimizationExempt(): Promise<boolean> {
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    try {
+      const isEnabled = await BatteryOptimization.isBatteryOptimizationEnabled();
+      return !isEnabled;
+    } catch (err) {
+      console.warn('Erro ao verificar otimização de bateria:', err);
+    }
+  }
+  return true;
+}
+
+export async function requestIgnoreBatteryOptimization(): Promise<void> {
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    try {
+      await BatteryOptimization.requestIgnoreBatteryOptimization();
+    } catch (err) {
+      console.warn('Erro ao solicitar isenção de otimização de bateria:', err);
+    }
+  }
+}
+
+export async function openBatteryOptimizationSettings(): Promise<void> {
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    try {
+      await BatteryOptimization.openBatteryOptimizationSettings();
+    } catch (err) {
+      console.warn('Erro ao abrir configurações de otimização de bateria:', err);
+    }
+  }
+}
+
+// Convert string ID to positive integer
+function getIntegerIdFromString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return (Math.abs(hash) % 1000000) + 1;
+}
+
+// Sync all future scheduled campaigns as native local notifications
+export async function syncLocalNotifications(campaigns: ScheduledCampaign[]): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+
+  try {
+    // 1. Get all pending notifications and cancel them to avoid duplicates
+    const pending = await LocalNotifications.getPending();
+    if (pending.notifications && pending.notifications.length > 0) {
+      const toCancel = pending.notifications.map(n => ({ id: n.id }));
+      await LocalNotifications.cancel({ notifications: toCancel });
+    }
+
+    // 2. Schedule each active/scheduled campaign whose scheduledAt is in the future
+    const now = Date.now();
+    const activeCamps = campaigns.filter(c => c.status === 'agendado' && new Date(c.scheduledAt).getTime() > now);
+
+    for (const camp of activeCamps) {
+      const id = getIntegerIdFromString(camp.id);
+      const scheduledTime = new Date(camp.scheduledAt);
+
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title: `🚨 HORA DO DISPARO: "${camp.title}"`,
+            body: `Agendamento pronto com ${camp.contactIds.length} contato(s). Toque para abrir o disparador!`,
+            id,
+            smallIcon: 'ic_stat_icon',
+            channelId: 'gkd_campaigns',
+            sound: 'default',
+            schedule: { at: scheduledTime }
+          }
+        ]
+      });
+    }
+  } catch (err) {
+    console.warn('Erro ao sincronizar notificações locais:', err);
+  }
+}

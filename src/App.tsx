@@ -33,7 +33,7 @@ import {
   clearDeletedTemplatesAndTopics
 } from './utils/storage';
 import { playNotificationSound, playDispatchAlertSound } from './utils/audio';
-import { sendAppNotification, sendBrowserNotification, triggerVibration, requestPersistentStorage, requestNotificationPermission, initializePushNotifications } from "./utils/permissions";
+import { sendAppNotification, sendBrowserNotification, triggerVibration, requestPersistentStorage, requestNotificationPermission, initializePushNotifications, syncLocalNotifications } from "./utils/permissions";
 import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime } from './utils/whatsapp';
 import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
@@ -107,6 +107,11 @@ export default function App() {
       });
     }
   }, []);
+
+  // Sync scheduled campaigns as native local notifications whenever they change
+  useEffect(() => {
+    syncLocalNotifications(campaigns);
+  }, [campaigns]);
 
   // One-time Reset Business chip counter as requested by user
   useEffect(() => {

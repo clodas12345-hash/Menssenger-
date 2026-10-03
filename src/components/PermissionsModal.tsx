@@ -19,7 +19,8 @@ import {
   ChevronUp,
   Check,
   AlertTriangle,
-  XCircle
+  XCircle,
+  BatteryCharging
 } from 'lucide-react';
 import {
   getNotificationPermissionStatus,
@@ -37,7 +38,10 @@ import {
   getClipboardPermissionStatus,
   getGeolocationPermissionStatus,
   requestGeolocationPermission,
-  requestAllPermissions
+  requestAllPermissions,
+  isBatteryOptimizationExempt,
+  requestIgnoreBatteryOptimization,
+  openBatteryOptimizationSettings
 } from '../utils/permissions';
 import { playDispatchAlertSound } from '../utils/audio';
 
@@ -61,6 +65,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
     storage: { persisted: boolean; usageMb: number; quotaMb: number };
     clipboard: 'granted' | 'denied' | 'prompt' | 'unsupported';
     geolocation: 'granted' | 'denied' | 'prompt' | 'unsupported';
+    batteryExempt: boolean;
   }>({
     notifications: 'prompt',
     camera: 'prompt',
@@ -69,13 +74,14 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
     storage: { persisted: false, usageMb: 0, quotaMb: 0 },
     clipboard: 'granted',
     geolocation: 'prompt',
+    batteryExempt: true,
   });
   const [showNotifGuide, setShowNotifGuide] = useState<boolean>(false);
 
   const checkAllPermissions = async () => {
     setLoading(true);
     try {
-      const [notif, cam, mic, cont, stor, clip, geo] = await Promise.all([
+      const [notif, cam, mic, cont, stor, clip, geo, batt] = await Promise.all([
         getNotificationPermissionStatus(),
         getCameraPermissionStatus(),
         getMicrophonePermissionStatus(),
@@ -83,6 +89,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
         getStoragePersistenceStatus(),
         getClipboardPermissionStatus(),
         getGeolocationPermissionStatus(),
+        isBatteryOptimizationExempt(),
       ]);
 
       setPermissionsState({
@@ -93,6 +100,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
         storage: stor,
         clipboard: clip,
         geolocation: geo,
+        batteryExempt: batt,
       });
     } catch (err) {
       console.warn('Erro ao atualizar permissões:', err);
@@ -177,6 +185,26 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
     const granted = await requestGeolocationPermission();
     await checkAllPermissions();
     onShowToast(granted ? '📍 Localização autorizada para ajuste de fuso horário!' : '⚠️ Localização não concedida.');
+  };
+
+  const handleRequestBatteryExemption = async () => {
+    try {
+      await requestIgnoreBatteryOptimization();
+      setTimeout(async () => {
+        const isExempt = await isBatteryOptimizationExempt();
+        if (isExempt) {
+          onShowToast('🔋 Isenção de bateria autorizada com sucesso!');
+        } else {
+          onShowToast('🔋 Abrindo Configurações de Bateria. Marque o GKD Messenger como "Sem Restrições".');
+          await openBatteryOptimizationSettings();
+        }
+        await checkAllPermissions();
+      }, 1000);
+    } catch (_) {
+      onShowToast('🔋 Abrindo Configurações de Bateria.');
+      await openBatteryOptimizationSettings();
+      await checkAllPermissions();
+    }
   };
 
   const getStatusBadge = (status: 'granted' | 'denied' | 'prompt' | 'unsupported') => {
@@ -505,6 +533,39 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
               >
                 <MapPin className="w-3.5 h-3.5 text-rose-400" />
                 <span>Sincronizar</span>
+              </button>
+            </div>
+
+            {/* 8. OTIMIZAÇÃO DE BATERIA */}
+            <div className="bg-[#181B24] border border-[#262A36] rounded-xl p-3.5 flex items-center justify-between gap-3 hover:border-[#383E4E] transition-colors">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+                  <BatteryCharging className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-white">Otimização de Bateria</span>
+                    {permissionsState.batteryExempt ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#34d399] bg-[#34d399]/10 border border-[#34d399]/30 px-2 py-0.5 rounded-full">
+                        <CheckCircle2 className="w-3 h-3" /> Isenção Ativa
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                        Restrita pelo Android
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Permite que o sistema operacional mantenha os disparos agendados funcionando em segundo plano ou com o app fechado.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleRequestBatteryExemption}
+                className="shrink-0 bg-[#222733] hover:bg-[#2E3445] text-xs font-semibold text-gray-200 border border-[#353B4D] px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <BatteryCharging className="w-3.5 h-3.5 text-[#34d399]" />
+                <span>Remover Restrição</span>
               </button>
             </div>
           </div>
