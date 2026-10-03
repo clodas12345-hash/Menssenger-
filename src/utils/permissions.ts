@@ -40,6 +40,7 @@ export async function ensureNotificationChannel(): Promise<void> {
 export async function getNotificationPermissionStatus(): Promise<'granted' | 'denied' | 'prompt' | 'unsupported'> {
   if (Capacitor.isNativePlatform()) {
     try {
+      await ensureNotificationChannel();
       const status = await LocalNotifications.checkPermissions();
       if (status.display === 'granted') return 'granted';
       if (status.display === 'denied') return 'denied';
@@ -57,9 +58,24 @@ export async function getNotificationPermissionStatus(): Promise<'granted' | 'de
 
 export async function requestNotificationPermission(): Promise<boolean> {
   if (Capacitor.isNativePlatform()) {
-    const status = await LocalNotifications.requestPermissions();
-    return status.display === 'granted';
+    try {
+      await ensureNotificationChannel();
+      const status = await LocalNotifications.requestPermissions();
+      return status.display === 'granted';
+    } catch (err) {
+      console.warn('Erro ao solicitar permissão nativa:', err);
+    }
   }
+
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    try {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    } catch (err) {
+      console.warn('Erro ao solicitar permissão de notificação:', err);
+    }
+  }
+
   return false;
 }
 
@@ -81,6 +97,7 @@ export async function sendAppNotification(
 
   if (Capacitor.isNativePlatform()) {
     try {
+      await ensureNotificationChannel();
       await LocalNotifications.schedule({
         notifications: [
           {
@@ -88,6 +105,7 @@ export async function sendAppNotification(
             body: options?.body || '',
             id: options?.id || Math.floor(Math.random() * 1000000) + 1,
             smallIcon: 'ic_stat_icon',
+            channelId: 'gkd_campaigns',
             sound: 'default'
           }
         ]
@@ -98,13 +116,34 @@ export async function sendAppNotification(
     }
   }
 
-  // Fallback para ambiente Web / Preview
-  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+  // Fallback para ambiente Web / Preview / PWA
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    if (Notification.permission !== 'granted') {
+      const isGranted = await requestNotificationPermission();
+      if (!isGranted) return;
+    }
+
     try {
-      new Notification(title, {
+      const notifOptions: NotificationOptions = {
         body: options?.body || '',
-        icon: '/Logo.png'
-      });
+        icon: '/Logo.png',
+        badge: '/favicon.ico',
+        tag: `gkd-alert-${options?.id || Date.now()}`
+      };
+
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          if (registration && typeof registration.showNotification === 'function') {
+            await registration.showNotification(title, notifOptions);
+            return;
+          }
+        } catch (swErr) {
+          console.warn('ServiceWorker showNotification fallback:', swErr);
+        }
+      }
+
+      new Notification(title, notifOptions);
     } catch (err) {
       console.warn('Erro ao disparar notificação web:', err);
     }
