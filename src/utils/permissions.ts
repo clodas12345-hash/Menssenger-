@@ -85,73 +85,108 @@ import { NotificationPreferences } from '../types';
 export async function sendAppNotification(
   title: string, 
   options?: { body?: string; id?: number; type?: keyof NotificationPreferences }
-) {
+): Promise<boolean> {
   if (options?.type) {
     try {
       const settings = getSettings();
       if (settings?.notificationToggles && settings.notificationToggles[options.type] === false) {
-        return; // Disabled by user in settings
+        return false; // Disabled by user in settings
       }
     } catch (_) {}
   }
 
+  // 1. Dispatch custom event for real-time in-app toast feedback
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new CustomEvent('gkd_app_notification', {
+        detail: { title, body: options?.body }
+      }));
+    } catch (_) {}
+  }
+
+  let dispatched = false;
+
+  // 2. Native Capacitor Local Notifications
   if (Capacitor.isNativePlatform()) {
     try {
       await ensureNotificationChannel();
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            title,
-            body: options?.body || '',
-            id: options?.id || Math.floor(Math.random() * 1000000) + 1,
-            smallIcon: 'ic_stat_icon',
-            channelId: 'gkd_campaigns',
-            sound: 'default'
-          }
-        ]
-      });
-      return;
+      let permStatus = await LocalNotifications.checkPermissions();
+      if (permStatus.display !== 'granted') {
+        permStatus = await LocalNotifications.requestPermissions();
+      }
+
+      if (permStatus.display === 'granted') {
+        const validId = (options?.id && !isNaN(options.id) && Number.isInteger(options.id))
+          ? options.id
+          : Math.floor(Math.random() * 1000000) + 1;
+
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              title,
+              body: options?.body || '',
+              id: validId,
+              smallIcon: 'ic_stat_icon',
+              channelId: 'gkd_campaigns',
+              sound: 'default',
+              schedule: { at: new Date(Date.now() + 100) }
+            }
+          ]
+        });
+        dispatched = true;
+      }
     } catch (capErr) {
       console.warn('LocalNotifications.schedule falhou:', capErr);
     }
   }
 
-  // Fallback para ambiente Web / Preview / PWA
+  // 3. Web Browser / PWA Notification API
   if (typeof window !== 'undefined' && 'Notification' in window) {
-    if (Notification.permission !== 'granted') {
-      const isGranted = await requestNotificationPermission();
-      if (!isGranted) return;
-    }
-
     try {
-      const notifOptions: NotificationOptions = {
-        body: options?.body || '',
-        icon: '/Logo.png',
-        badge: '/favicon.ico',
-        tag: `gkd-alert-${options?.id || Date.now()}`
-      };
-
-      if ('serviceWorker' in navigator) {
-        try {
-          const registration = await navigator.serviceWorker.ready;
-          if (registration && typeof registration.showNotification === 'function') {
-            await registration.showNotification(title, notifOptions);
-            return;
-          }
-        } catch (swErr) {
-          console.warn('ServiceWorker showNotification fallback:', swErr);
-        }
+      let permission = Notification.permission;
+      if (permission !== 'granted') {
+        permission = await Notification.requestPermission();
       }
 
-      new Notification(title, notifOptions);
+      if (permission === 'granted') {
+        const notifOptions: NotificationOptions = {
+          body: options?.body || '',
+          icon: '/Logo.png',
+          badge: '/favicon.ico',
+          tag: `gkd-alert-${options?.id || Date.now()}`
+        };
+
+        let swDispatched = false;
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          try {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration && registration.active && typeof registration.showNotification === 'function') {
+              await registration.showNotification(title, notifOptions);
+              swDispatched = true;
+              dispatched = true;
+            }
+          } catch (swErr) {
+            console.warn('ServiceWorker showNotification erro:', swErr);
+          }
+        }
+
+        if (!swDispatched) {
+          new Notification(title, notifOptions);
+          dispatched = true;
+        }
+      }
     } catch (err) {
       console.warn('Erro ao disparar notificação web:', err);
     }
   }
+
+  return dispatched;
 }
 
 export async function sendBrowserNotification(title: string, options?: NotificationOptions): Promise<any> {
-  return sendAppNotification(title, { body: options?.body, id: options?.tag ? parseInt(options.tag, 10) : undefined });
+  const parsedId = options?.tag ? parseInt(options.tag.replace(/\D/g, ''), 10) : undefined;
+  const validId = (parsedId && !isNaN(parsedId)) ? parsedId : undefined;
+  return sendAppNotification(title, { body: options?.body, id: validId });
 }
 
 // Push Registration Logic

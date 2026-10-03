@@ -145,6 +145,20 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
+  // Listen for global notification events to display in-app toast
+  useEffect(() => {
+    const handleAppNotif = (e: any) => {
+      if (e.detail?.title) {
+        const text = e.detail.body ? `${e.detail.title} • ${e.detail.body}` : e.detail.title;
+        showToast(text);
+      }
+    };
+    window.addEventListener('gkd_app_notification', handleAppNotif);
+    return () => {
+      window.removeEventListener('gkd_app_notification', handleAppNotif);
+    };
+  }, []);
+
   const [ruleViolationModal, setRuleViolationModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -819,7 +833,7 @@ export default function App() {
     });
 
     const campaignsInRange = campaigns.filter((c) => {
-      const d = new Date(c.createdAt || c.scheduledAt);
+      const d = new Date(c.scheduledAt || c.createdAt);
       return d >= start && d <= end;
     });
 
