@@ -19,7 +19,7 @@
     "@capacitor/local-notifications": "^6.1.1",
     "@capacitor/push-notifications": "^6.0.3",
     "@capacitor/share": "^6.0.3",
-    "@capawesome-team/capacitor-android-battery-optimization": "^8.0.1",
+    "@capawesome-team/capacitor-android-battery-optimization": "^6.0.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
