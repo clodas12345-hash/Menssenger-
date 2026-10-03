@@ -562,18 +562,20 @@ export function isCategorySimilar(categoryCandidate: string, selectedGroupName: 
 
   if (!targetNorm || !searchNorm) return false;
 
-  // Exact normalized match (e.g. "cg05150" === "cg05150")
+  // Exact normalized match (e.g. "cg05150" === "cg05150" or "1" === "1")
   if (targetNorm === searchNorm) return true;
 
-  // Inclusion
-  if (targetNorm.includes(searchNorm) || searchNorm.includes(targetNorm)) return true;
+  // Inclusion only when both strings have at least 3 characters (prevents "1" matching "cg10150")
+  if (targetNorm.length >= 3 && searchNorm.length >= 3) {
+    if (targetNorm.includes(searchNorm) || searchNorm.includes(targetNorm)) return true;
+  }
 
   // Token based matching
-  const targetTokens = categoryCandidate.toLowerCase().split(/[\s\-\/_]+/);
-  const searchTokens = selectedGroupName.toLowerCase().split(/[\s\-\/_]+/);
+  const targetTokens = categoryCandidate.toLowerCase().split(/[\s\-\/_]+/).filter(Boolean);
+  const searchTokens = selectedGroupName.toLowerCase().split(/[\s\-\/_]+/).filter(Boolean);
 
   const keySearchTokens = searchTokens.filter(t => t.length >= 2);
-  if (keySearchTokens.length > 0 && keySearchTokens.every(t => targetNorm.includes(normalizeCategory(t)))) {
+  if (keySearchTokens.length > 0 && targetTokens.length > 0 && keySearchTokens.every(t => targetTokens.some(tt => normalizeCategory(tt) === normalizeCategory(t)))) {
     return true;
   }
 

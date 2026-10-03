@@ -26,81 +26,119 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
   if (!isOpen) return null;
 
+  const rephraseBodyText = (text: string, idx: number): string => {
+    let res = text.trim();
+    // Apply subtle, natural lexical variations per index while keeping numbers/facts 100% intact
+    const rules: Array<[RegExp, string[]]> = [
+      [/\bvocê tem\b/gi, ['você conta com', 'está disponível para você', 'já está liberado no seu perfil', 'você possui', 'separamos para você']],
+      [/\baproveite\b/gi, ['garanta já', 'não deixe passar', 'aproveite ao máximo', 'tire proveito', 'vem garantir']],
+      [/\bcorridas\b/gi, ['viagens', 'corridas', 'atendimentos', 'corridas completas', 'viagens realizadas']],
+      [/\bganhar\b/gi, ['garantir', 'receber', 'faturar', 'conquistar', 'embolsar']],
+      [/\bganhe\b/gi, ['garanta', 'receba', 'fature', 'conquiste', 'assegure']],
+      [/\bbônus\b/gi, ['bônus', 'incentivo extra', 'recompensa', 'valor extra', 'premiação']],
+      [/\bpromoção\b/gi, ['campanha', 'condição especial', 'oportunidade', 'oferta ativa', 'promoção']],
+      [/\bdúvida\b/gi, ['dúvida', 'pergunta', 'questão', 'precisar de ajuda', 'qualquer ponto']],
+      [/\bimportante\b/gi, ['essencial', 'especial', 'relevante', 'de destaque', 'importante']],
+    ];
+
+    if (idx > 0) {
+      rules.forEach(([regex, replacements], rIdx) => {
+        const chosen = replacements[(idx + rIdx) % replacements.length];
+        res = res.replace(regex, (match) => {
+          // Preserve initial capitalization if original word was capitalized
+          if (match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
+            return chosen.charAt(0).toUpperCase() + chosen.slice(1);
+          }
+          return chosen;
+        });
+      });
+    }
+
+    return res;
+  };
+
   const generateLocalVariations = (
     cleanTopic: string,
     cleanHook: string,
     presentation: string,
     reqQty: number
   ) => {
-    const intro = presentation.trim() ? `${presentation.trim()}: ` : '';
+    const intro = presentation.trim() ? `${presentation.trim()} — ` : '';
     const cleanBody = cleanHook
       .replace(/^(\{saudacao\}|\{saudação\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, '')
       .trim() || cleanHook;
 
-    const variationTemplates = [
+    const b = (i: number) => rephraseBodyText(cleanBody, i);
+
+    const firstOption = {
+      tag: 'Original e Direta',
+      content: `{saudacao}, {primeiro_nome}! ${intro}${b(0)}`
+    };
+
+    const diversePool = [
       {
-        tag: 'Direta e Objetiva',
-        content: `Olá, {primeiro_nome}! {saudacao}! ${intro}Passando para te avisar: ${cleanBody} Se precisar de qualquer ajuda, conte comigo!`
+        tag: 'Pergunta Engajadora',
+        content: `{primeiro_nome}, tudo certo por aí? {saudacao}!\n\nJá viu essa novidade? ${intro}${b(1)}\n\nQualquer dúvida, me dá um alô!`
       },
       {
-        tag: 'Cordial e Preventiva',
-        content: `{saudacao}, {primeiro_nome}! Tudo bem? ${intro}Gostaria de compartilhar uma informação importante: ${cleanBody} Estamos 100% à disposição por aqui!`
+        tag: 'Destaque Rápido (2 Linhas)',
+        content: `🚀 ${intro}${b(2)}\n\n{saudacao}, {primeiro_nome}! Se precisar de suporte com isso, conta comigo.`
       },
       {
-        tag: 'Ágil e Prática',
-        content: `{primeiro_nome}, {saudacao}! ${intro}Lembrete rápido para você: ${cleanBody} Qualquer dúvida é só me chamar!`
+        tag: 'Formato em Tópico',
+        content: `Olá, {primeiro_nome}! {saudacao}!\n\n📌 *Resumo importante para você:*\n${intro}${b(3)}\n\nBora aproveitar? Estou por aqui!`
       },
       {
-        tag: 'Conversacional e Atenciosa',
-        content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Espero que esteja tudo bem. Queria te passar este comunicado: ${cleanBody} Conte com nosso suporte sempre!`
+        tag: 'Parceria e Próxima',
+        content: `Fala, {primeiro_nome}! {saudacao}! Como estão os trabalhos hoje?\n\nPassando pra fortalecer sua rotina: ${intro}${b(4)} Tamo junto!`
       },
       {
-        tag: 'Foco na Oportunidade',
-        content: `{saudacao}, {primeiro_nome}! ${intro}Atenção para esta oportunidade incrível: ${cleanBody} Não deixe de aproveitar hoje mesmo!`
+        tag: 'Foco no Resultado',
+        content: `{saudacao}! Passando com uma excelente notícia para o seu dia, {primeiro_nome}: ${intro}${b(5)} Aproveite para impulsionar seus ganhos!`
       },
       {
-        tag: 'Informativa e Clara',
-        content: `Olá {primeiro_nome}, {saudacao}! ${intro}Aviso importante para você: ${cleanBody} Se precisar de orientação, estou à disposição.`
+        tag: 'Lembrete Prático',
+        content: `Oi {primeiro_nome}! 👋 {saudacao}!\n\nSó passando para você não deixar passar: ${intro}${b(6)}\n\nPrecisando de orientação, é só chamar.`
       },
       {
-        tag: 'Lembrete Amigável',
-        content: `Oi {primeiro_nome}! {saudacao}! ${intro}Passando rápido para lembrar: ${cleanBody} Dúvidas? Fale comigo!`
+        tag: 'Exclusiva VIP',
+        content: `{primeiro_nome}, {saudacao}! Seu contato foi selecionado na campanha *${cleanTopic}*:\n\n✨ ${intro}${b(7)}\n\nFico à disposição se quiser saber mais!`
       },
       {
-        tag: 'Estratégica e Prioritária',
-        content: `{saudacao}, {primeiro_nome}! ${intro}Recado prioritário: ${cleanBody} Bora aproveitar essa oportunidade?`
+        tag: 'Curta e Sem Rodeios',
+        content: `{saudacao}, {primeiro_nome}! Recado jogo rápido: ${intro}${b(8)} Qualquer coisa, me chama!`
       },
       {
-        tag: 'Motivacional e Positiva',
-        content: `Olá, {primeiro_nome}! {saudacao}! ${intro}Excelente dia pra você! Olha só: ${cleanBody} Sucesso e ótimos resultados!`
+        tag: 'Consultiva e Atenciosa',
+        content: `Espero que seu dia esteja ótimo, {primeiro_nome}! ({saudacao})\n\nQuero compartilhar esse ponto com você: ${intro}${b(9)}\n\nConte com nosso time!`
       },
       {
-        tag: 'Exclusiva e Personalizada',
-        content: `{saudacao}, {primeiro_nome}! ${intro}Selecionamos esta mensagem especial para você: ${cleanBody} Qualquer ajuda extra, me avise!`
+        tag: 'Alerta de Oportunidade',
+        content: `⚡ *Atenção, {primeiro_nome}!* {saudacao}!\n\n${intro}${b(10)}\n\nNão deixe para a última hora, qualquer dúvida estou online!`
       },
       {
-        tag: 'Urgente e Relevante',
-        content: `Atenção, {primeiro_nome}! {saudacao}! ${intro}Informação relevante: ${cleanBody} Aproveite enquanto está disponível!`
+        tag: 'Conversa Natural',
+        content: `Oi, {primeiro_nome}, tudo bem? {saudacao}! Vi seu perfil aqui e lembrei de te avisar: ${intro}${b(11)} Depois me conta se deu tudo certo!`
       },
       {
-        tag: 'Proativa e Direta',
-        content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Estou passando para te manter atualizado: ${cleanBody} Conte comigo no que precisar!`
+        tag: 'Motivacional',
+        content: `Excelente jornada hoje, {primeiro_nome}! {saudacao}!\n\nPra somar nos seus resultados: ${intro}${b(12)}\n\nÓtimas corridas e sucesso!`
       },
       {
-        tag: 'Suporte e Parceria',
-        content: `{saudacao}, {primeiro_nome}! ${intro}Como seu parceiro por aqui, venho te lembrar: ${cleanBody} Qualquer dúvida, estou online!`
+        tag: 'Check-in Rápido',
+        content: `{primeiro_nome}! {saudacao}! Passando em 1 minutinho só para confirmar se você já viu:\n👉 ${intro}${b(13)}\n\nEstou à disposição!`
       },
       {
-        tag: 'Ação Rápida',
-        content: `Olá {primeiro_nome}! {saudacao}! ${intro}Recado de ação rápida: ${cleanBody} Vamos em frente?`
-      },
-      {
-        tag: 'Fechamento Eficiente',
-        content: `{saudacao}, {primeiro_nome}! ${intro}Último lembrete: ${cleanBody} Fico no seu aguardo para te ajudar!`
+        tag: 'Fechamento de Meta',
+        content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯\n\n${intro}${b(14)}\n\nSe precisar de apoio, fala comigo!`
       }
     ];
 
-    return variationTemplates.slice(0, Math.max(1, Math.min(15, reqQty))).map((vt, i) => ({
+    // Shuffle diversePool slightly on each call while keeping diversity so repeated clicks offer fresh combinations
+    const shuffled = [...diversePool].sort(() => Math.random() - 0.5);
+    const combined = [firstOption, ...shuffled];
+
+    return combined.slice(0, Math.max(1, Math.min(15, reqQty))).map((vt, i) => ({
       title: `${cleanTopic} - Opção ${i + 1} (${vt.tag})`,
       content: vt.content,
       category: cleanTopic,

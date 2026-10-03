@@ -1042,9 +1042,18 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
     });
   }, [groupedTemplates, selectedGroup]);
 
-  // Auto-select topic category and activate Fixed Random campaign by default
+  const hasAutoSelectedTopicRef = React.useRef<boolean>(false);
+
+  // Auto-select topic category and activate Fixed Random campaign by default ONCE upon entering Step 2
   React.useEffect(() => {
-    if (step === 2 && allCategories.length > 0) {
+    if (step !== 2) {
+      hasAutoSelectedTopicRef.current = false;
+      return;
+    }
+
+    if (step === 2 && allCategories.length > 0 && !hasAutoSelectedTopicRef.current) {
+      hasAutoSelectedTopicRef.current = true;
+
       let targetCat: string | undefined;
       if (selectedGroup && selectedGroup !== 'all' && selectedGroup !== 'sem_campanha') {
         targetCat = allCategories.find(cat => isCategorySimilar(cat, selectedGroup));
@@ -1053,7 +1062,7 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
         targetCat = allCategories[0];
       }
 
-      if (targetCat && (!activeTopic || (selectedGroup && selectedGroup !== 'all' && !isCategorySimilar(activeTopic, selectedGroup)))) {
+      if (targetCat && !activeTopic) {
         setActiveTopic(targetCat);
       }
 

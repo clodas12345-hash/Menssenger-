@@ -71,6 +71,32 @@ const callGemini = async (prompt: string, config: any = {}) => {
 };
 
 // Strategic Templates Fallback Generator
+function rephraseServerBodyText(text: string, idx: number): string {
+  let res = text.trim();
+  const rules: Array<[RegExp, string[]]> = [
+    [/\bvocê tem\b/gi, ['você conta com', 'está disponível para você', 'já está liberado no seu perfil', 'você possui', 'separamos para você']],
+    [/\baproveite\b/gi, ['garanta já', 'não deixe passar', 'aproveite ao máximo', 'tire proveito', 'vem garantir']],
+    [/\bcorridas\b/gi, ['viagens', 'corridas', 'atendimentos', 'corridas completas', 'viagens realizadas']],
+    [/\bganhar\b/gi, ['garantir', 'receber', 'faturar', 'conquistar', 'embolsar']],
+    [/\bganhe\b/gi, ['garanta', 'receba', 'fature', 'conquiste', 'assegure']],
+    [/\bbônus\b/gi, ['bônus', 'incentivo extra', 'recompensa', 'valor extra', 'premiação']],
+    [/\bpromoção\b/gi, ['campanha', 'condição especial', 'oportunidade', 'oferta ativa', 'promoção']],
+  ];
+
+  if (idx > 0) {
+    rules.forEach(([regex, replacements], rIdx) => {
+      const chosen = replacements[(idx + rIdx) % replacements.length];
+      res = res.replace(regex, (match) => {
+        if (match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
+          return chosen.charAt(0).toUpperCase() + chosen.slice(1);
+        }
+        return chosen;
+      });
+    });
+  }
+  return res;
+}
+
 function generateFallbackTopicTemplates(
   topicName: string,
   hook: string,
@@ -79,97 +105,90 @@ function generateFallbackTopicTemplates(
 ) {
   const cleanTopic = topicName?.trim() || 'Tópico Estratégico';
   const cleanHook = hook?.trim() || 'Aproveite esta condição especial!';
-  const intro = presentation?.trim() ? `${presentation.trim()}: ` : '';
+  const intro = presentation?.trim() ? `${presentation.trim()} — ` : '';
 
-  // 1. Mensagem Original Fiel
-  const originalMessage = cleanHook.includes('{primeiro_nome}') || cleanHook.includes('{nome}')
-    ? `${intro}${cleanHook}`
-    : `{saudacao}, {primeiro_nome}! ${intro}${cleanHook}`;
-
-  // Criar variações reais e naturais do texto do usuário
   const cleanBody = cleanHook
     .replace(/^(\{saudacao\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, '')
-    .trim();
+    .trim() || cleanHook;
 
-  const pool = [
+  const b = (i: number) => rephraseServerBodyText(cleanBody, i);
+
+  const firstOption = {
+    title: `${cleanTopic} - Opção 1 (Original e Direta)`,
+    content: `{saudacao}, {primeiro_nome}! ${intro}${b(0)}`,
+    category: cleanTopic,
+  };
+
+  const diversePool = [
     {
-      title: `${cleanTopic} - Mensagem 1 (Original)`,
-      content: originalMessage,
-      category: cleanTopic,
+      tag: 'Pergunta Engajadora',
+      content: `{primeiro_nome}, tudo certo por aí? {saudacao}!\n\nJá viu essa novidade? ${intro}${b(1)}\n\nQualquer dúvida, me dá um alô!`,
     },
     {
-      title: `${cleanTopic} - Opção 2 (Direta e Objetiva)`,
-      content: `Olá, {primeiro_nome}! {saudacao}! ${intro}Passando para te avisar: ${cleanBody || cleanHook} Se precisar de qualquer ajuda, conte comigo!`,
-      category: cleanTopic,
+      tag: 'Destaque Rápido (2 Linhas)',
+      content: `🚀 ${intro}${b(2)}\n\n{saudacao}, {primeiro_nome}! Se precisar de suporte com isso, conta comigo.`,
     },
     {
-      title: `${cleanTopic} - Opção 3 (Cordial e Preventiva)`,
-      content: `{saudacao}, {primeiro_nome}! Tudo bem? ${intro}Gostaria de compartilhar uma informação importante: ${cleanBody || cleanHook} Estamos 100% à disposição por aqui!`,
-      category: cleanTopic,
+      tag: 'Formato em Tópico',
+      content: `Olá, {primeiro_nome}! {saudacao}!\n\n📌 *Resumo importante para você:*\n${intro}${b(3)}\n\nBora aproveitar? Estou por aqui!`,
     },
     {
-      title: `${cleanTopic} - Opção 4 (Ágil e Prática)`,
-      content: `{primeiro_nome}, {saudacao}! ${intro}Lembrete rápido para você: ${cleanBody || cleanHook} Qualquer dúvida é só me chamar!`,
-      category: cleanTopic,
+      tag: 'Parceria e Próxima',
+      content: `Fala, {primeiro_nome}! {saudacao}! Como estão os trabalhos hoje?\n\nPassando pra fortalecer sua rotina: ${intro}${b(4)} Tamo junto!`,
     },
     {
-      title: `${cleanTopic} - Opção 5 (Conversacional)`,
-      content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Espero que esteja tudo bem. Queria te passar este comunicado: ${cleanBody || cleanHook} Conte com nosso suporte sempre!`,
-      category: cleanTopic,
+      tag: 'Foco no Resultado',
+      content: `{saudacao}! Passando com uma excelente notícia para o seu dia, {primeiro_nome}: ${intro}${b(5)} Aproveite para impulsionar seus ganhos!`,
     },
     {
-      title: `${cleanTopic} - Opção 6 (Entusiasta)`,
-      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Tenho uma novidade imperdível: ${cleanBody || cleanHook} Estamos ansiosos pelo seu contato!`,
-      category: cleanTopic,
+      tag: 'Lembrete Prático',
+      content: `Oi {primeiro_nome}! 👋 {saudacao}!\n\nSó passando para você não deixar passar: ${intro}${b(6)}\n\nPrecisando de orientação, é só chamar.`,
     },
     {
-      title: `${cleanTopic} - Opção 7 (Profissional)`,
-      content: `Prezado(a) {primeiro_nome}, {saudacao}. ${intro}Este é um comunicado importante sobre: ${cleanBody || cleanHook} À disposição para esclarecimentos.`,
-      category: cleanTopic,
+      tag: 'Exclusiva VIP',
+      content: `{primeiro_nome}, {saudacao}! Seu contato foi selecionado na campanha *${cleanTopic}*:\n\n✨ ${intro}${b(7)}\n\nFico à disposição se quiser saber mais!`,
     },
     {
-      title: `${cleanTopic} - Opção 8 (Curta e Direta)`,
-      content: `Olá, {primeiro_nome}. ${intro}${cleanBody || cleanHook} Qualquer coisa, é só dar um alô!`,
-      category: cleanTopic,
+      tag: 'Curta e Sem Rodeios',
+      content: `{saudacao}, {primeiro_nome}! Recado jogo rápido: ${intro}${b(8)} Qualquer coisa, me chama!`,
     },
     {
-      title: `${cleanTopic} - Opção 9 (Informativa)`,
-      content: `{saudacao}! {primeiro_nome}, ${intro}aproveito o momento para informar: ${cleanBody || cleanHook} Se preferir, agendamos um horário!`,
-      category: cleanTopic,
+      tag: 'Consultiva e Atenciosa',
+      content: `Espero que seu dia esteja ótimo, {primeiro_nome}! ({saudacao})\n\nQuero compartilhar esse ponto com você: ${intro}${b(9)}\n\nConte com nosso time!`,
     },
     {
-      title: `${cleanTopic} - Opção 10 (Foco em Benefício)`,
-      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Você não pode perder esta oportunidade: ${cleanBody || cleanHook} Vamos conversar?`,
-      category: cleanTopic,
+      tag: 'Alerta de Oportunidade',
+      content: `⚡ *Atenção, {primeiro_nome}!* {saudacao}!\n\n${intro}${b(10)}\n\nNão deixe para a última hora, qualquer dúvida estou online!`,
     },
     {
-      title: `${cleanTopic} - Opção 11 (Urgente)`,
-      content: `Atenção, {primeiro_nome}! {saudacao}! ${intro}Preciso te atualizar sobre: ${cleanBody || cleanHook} Aguardo seu retorno!`,
-      category: cleanTopic,
+      tag: 'Conversa Natural',
+      content: `Oi, {primeiro_nome}, tudo bem? {saudacao}! Vi seu perfil aqui e lembrei de te avisar: ${intro}${b(11)} Depois me conta se deu tudo certo!`,
     },
     {
-      title: `${cleanTopic} - Opção 12 (Personalizada)`,
-      content: `Como vai, {primeiro_nome}? {saudacao}! ${intro}Queria destacar isso para você: ${cleanBody || cleanHook} Fico no aguardo de notícias.`,
-      category: cleanTopic,
+      tag: 'Motivacional',
+      content: `Excelente jornada hoje, {primeiro_nome}! {saudacao}!\n\nPra somar nos seus resultados: ${intro}${b(12)}\n\nÓtimas corridas e sucesso!`,
     },
     {
-      title: `${cleanTopic} - Opção 13 (Amigável)`,
-      content: `Oi, {primeiro_nome}! ${intro}Tudo certo por aqui, queria só te lembrar: ${cleanBody || cleanHook} Abraços!`,
-      category: cleanTopic,
+      tag: 'Check-in Rápido',
+      content: `{primeiro_nome}! {saudacao}! Passando em 1 minutinho só para confirmar se você já viu:\n👉 ${intro}${b(13)}\n\nEstou à disposição!`,
     },
     {
-      title: `${cleanTopic} - Opção 14 (Exclusiva)`,
-      content: `Olá, {primeiro_nome}! {saudacao}! ${intro}Preparamos isso especialmente para você: ${cleanBody || cleanHook} Que tal aproveitar?`,
-      category: cleanTopic,
-    },
-    {
-      title: `${cleanTopic} - Opção 15 (Conexão)`,
-      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Notei esse ponto importante: ${cleanBody || cleanHook} Seguimos juntos!`,
-      category: cleanTopic,
+      tag: 'Fechamento de Meta',
+      content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯\n\n${intro}${b(14)}\n\nSe precisar de apoio, fala comigo!`,
     },
   ];
 
-  return pool.slice(0, Math.max(1, Math.min(quantity, pool.length)));
+  const shuffled = [...diversePool].sort(() => Math.random() - 0.5);
+  const fullList = [
+    firstOption,
+    ...shuffled.map((item, idx) => ({
+      title: `${cleanTopic} - Opção ${idx + 2} (${item.tag})`,
+      content: item.content,
+      category: cleanTopic,
+    }))
+  ];
+
+  return fullList.slice(0, Math.max(1, Math.min(quantity, fullList.length)));
 }
 
 // Fallback General Templates

@@ -448,11 +448,18 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
 
     let effectiveMainStatus: 'agendado' | 'em_andamento' | 'concluido' | 'cancelado' = status;
     let shouldResetProgress = false;
-    if (scheduledDateObj.getTime() > Date.now()) {
+    let finalScheduledDate = scheduledDateObj;
+
+    // If user scheduled for the current minute or future, re-arm as 'agendado'
+    if (scheduledDateObj.getTime() > Date.now() - 59000) {
       if (status === 'concluido' || status === 'cancelado') {
         shouldResetProgress = true;
       }
       effectiveMainStatus = 'agendado';
+      // If selected time is in the current minute (where :00 seconds already passed), set 4s ahead so native & web alarms fire
+      if (scheduledDateObj.getTime() <= Date.now() + 2000) {
+        finalScheduledDate = new Date(Date.now() + 4000);
+      }
     }
 
     const baseTitleClean = title.trim().replace(/\s*\(Parte\s+\d+\)$/i, '');
@@ -460,7 +467,7 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
     const updatedMain: ScheduledCampaign = {
       ...campaign,
       title: relatedParts.length > 1 ? `${baseTitleClean} (${campaign.title.match(/Parte\s+\d+/i)?.[0] || 'Parte 1'})` : baseTitleClean,
-      scheduledAt: scheduledDateObj.toISOString(),
+      scheduledAt: finalScheduledDate.toISOString(),
       intervalSeconds: Math.max(1, Number(intervalSeconds) || 8),
       sendMode,
       status: effectiveMainStatus,
@@ -494,14 +501,18 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
         const isCurrent = p.id === campaign.id;
         const partTag = p.title.match(/Parte\s+\d+/i)?.[0];
         
-        const finalScheduledAt = isCurrent ? scheduledDateObj.toISOString() : validTime;
+        let finalScheduledAt = isCurrent ? finalScheduledDate.toISOString() : validTime;
         let pStatus = p.status;
         let pResetProgress = false;
-        if (new Date(finalScheduledAt).getTime() > Date.now()) {
+        const partMs = new Date(finalScheduledAt).getTime();
+        if (partMs > Date.now() - 59000) {
           if (p.status === 'concluido' || p.status === 'cancelado') {
             pResetProgress = true;
           }
           pStatus = 'agendado';
+          if (partMs <= Date.now() + 2000) {
+            finalScheduledAt = new Date(Date.now() + 4000).toISOString();
+          }
         }
 
         const newPart: ScheduledCampaign = {

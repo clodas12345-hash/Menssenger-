@@ -128,8 +128,7 @@ export async function sendAppNotification(
               id: validId,
               smallIcon: 'ic_stat_icon',
               channelId: 'gkd_campaigns',
-              sound: 'default',
-              schedule: { at: new Date(Date.now() + 100) }
+              sound: 'default'
             }
           ]
         });
@@ -489,18 +488,21 @@ export async function syncLocalNotifications(campaigns: ScheduledCampaign[]): Pr
       await LocalNotifications.cancel({ notifications: toCancel });
     }
 
-    // 2. Schedule each active/scheduled campaign whose scheduledAt is in the future
+    // 2. Schedule each active/scheduled campaign whose scheduledAt is in the future or current minute
     const now = Date.now();
     const activeCamps = campaigns.filter(c => 
       c.status !== 'concluido' && 
       c.status !== 'cancelado' && 
       (c.progress?.sent || 0) < c.contactIds.length && 
-      new Date(c.scheduledAt).getTime() > now
+      (new Date(c.scheduledAt).getTime() > now || (c.status === 'agendado' && new Date(c.scheduledAt).getTime() > now - 59000))
     );
 
     for (const camp of activeCamps) {
       const id = getIntegerIdFromString(camp.id);
-      const scheduledTime = new Date(camp.scheduledAt);
+      const rawMs = new Date(camp.scheduledAt).getTime();
+      // Guarantee trigger time is strictly after current time so Android LocalNotificationManager never drops it
+      const safeMs = Math.max(rawMs, Date.now() + 3000);
+      const scheduledTime = new Date(safeMs);
 
       await LocalNotifications.schedule({
         notifications: [
