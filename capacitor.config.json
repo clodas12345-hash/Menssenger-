@@ -1,0 +1,12 @@
+{
+  "appId": "com.gkdmobility.app",
+  "appName": "Mensseger",
+  "webDir": "dist",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#34d399",
+      "sound": "default"
+    }
+  }
+}

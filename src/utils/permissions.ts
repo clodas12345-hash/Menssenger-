@@ -160,7 +160,6 @@ export async function sendAppNotification(
               largeBody: options?.body || '',
               id: validId,
               smallIcon: 'ic_stat_icon',
-              iconColor: '#D4AF37',
               channelId: NOTIFICATION_CHANNEL_ID,
               autoCancel: true,
               extra: options?.extra || undefined
@@ -573,7 +572,6 @@ export async function syncLocalNotifications(campaigns: ScheduledCampaign[]): Pr
           largeBody: bodyText,
           id,
           smallIcon: 'ic_stat_icon',
-          iconColor: '#D4AF37',
           channelId: NOTIFICATION_CHANNEL_ID,
           autoCancel: true,
           schedule: { at: scheduledTime, allowWhileIdle: true },

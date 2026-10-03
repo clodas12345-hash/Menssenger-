@@ -143,14 +143,19 @@ async function generateIcons() {
     fs.writeFileSync(bgPath, bgXml);
   }
 
-  // Generate notification small icon (ic_stat_icon.png) for status bar / notifications
+  // Generate notification small icon (ic_stat_icon.png) as monochromatic white silhouette on transparent background
   const statIconSizes = [
     { dir: 'drawable', size: 24 },
     { dir: 'drawable-mdpi', size: 24 },
     { dir: 'drawable-hdpi', size: 36 },
     { dir: 'drawable-xhdpi', size: 48 },
     { dir: 'drawable-xxhdpi', size: 72 },
-    { dir: 'drawable-xxxhdpi', size: 96 }
+    { dir: 'drawable-xxxhdpi', size: 96 },
+    { dir: 'mipmap-mdpi', size: 24 },
+    { dir: 'mipmap-hdpi', size: 36 },
+    { dir: 'mipmap-xhdpi', size: 48 },
+    { dir: 'mipmap-xxhdpi', size: 72 },
+    { dir: 'mipmap-xxxhdpi', size: 96 }
   ];
 
   for (const item of statIconSizes) {
@@ -159,18 +164,29 @@ async function generateIcons() {
       fs.mkdirSync(targetFolder, { recursive: true });
     }
     if (sharp) {
-      const img = sharp(iconSrc).resize(item.size, item.size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } });
-      const meta = await img.metadata();
-      let alphaBuffer;
-      if (meta.hasAlpha) {
-        alphaBuffer = await img.clone().extractChannel('alpha').raw().toBuffer();
-      } else {
-        const grey = await img.clone().greyscale().raw().toBuffer({ resolveWithObject: true });
-        alphaBuffer = Buffer.alloc(grey.data.length);
-        for (let i = 0; i < grey.data.length; i++) {
-          const val = grey.data[i];
-          alphaBuffer[i] = val < 240 ? Math.min(255, (255 - val) * 1.5) : 0;
+      const innerSize = Math.max(16, Math.round(item.size * 0.88));
+      const resized = await sharp(trimmedLogoBuffer)
+        .resize(innerSize, innerSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+        .toBuffer();
+
+      const padded = await sharp({
+        create: {
+          width: item.size,
+          height: item.size,
+          channels: 3,
+          background: { r: 255, g: 255, b: 255 }
         }
+      })
+        .composite([{ input: resized, gravity: 'center' }])
+        .greyscale()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      const alphaBuffer = Buffer.alloc(padded.data.length);
+      for (let i = 0; i < padded.data.length; i++) {
+        const val = padded.data[i];
+        // Any non-white pixel becomes white silhouette with smooth anti-aliased alpha
+        alphaBuffer[i] = val < 242 ? Math.min(255, Math.round((255 - val) * 1.6)) : 0;
       }
 
       const whiteRgb = await sharp({
