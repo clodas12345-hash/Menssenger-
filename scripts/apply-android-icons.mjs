@@ -120,8 +120,31 @@ async function generateIcons() {
       fs.mkdirSync(targetFolder, { recursive: true });
     }
     if (sharp) {
-      await sharp(iconSrc)
-        .resize(item.size, item.size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      const img = sharp(iconSrc).resize(item.size, item.size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } });
+      const meta = await img.metadata();
+      let alphaBuffer;
+      if (meta.hasAlpha) {
+        alphaBuffer = await img.clone().extractChannel('alpha').raw().toBuffer();
+      } else {
+        const grey = await img.clone().greyscale().raw().toBuffer({ resolveWithObject: true });
+        alphaBuffer = Buffer.alloc(grey.data.length);
+        for (let i = 0; i < grey.data.length; i++) {
+          const val = grey.data[i];
+          alphaBuffer[i] = val < 240 ? Math.min(255, (255 - val) * 1.5) : 0;
+        }
+      }
+
+      const whiteRgb = await sharp({
+        create: {
+          width: item.size,
+          height: item.size,
+          channels: 3,
+          background: { r: 255, g: 255, b: 255 }
+        }
+      }).raw().toBuffer();
+
+      await sharp(whiteRgb, { raw: { width: item.size, height: item.size, channels: 3 } })
+        .joinChannel(alphaBuffer, { raw: { width: item.size, height: item.size, channels: 1 } })
         .png()
         .toFile(path.join(targetFolder, 'ic_stat_icon.png'));
     } else {

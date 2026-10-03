@@ -29,6 +29,7 @@ import { toDatetimeLocal } from '../utils/dateParser';
 import { getTodayDateString } from '../utils/storage';
 import { copyImageDataUrlToClipboard, shareImageFile, downloadImageFile, isWebShareFileSupported } from '../utils/imageSharing';
 import { RealTimeCounter } from './RealTimeCounter';
+import { sendAppNotification } from '../utils/permissions';
 
 export const DispatcherModal = React.forwardRef((props: any, ref) => {
   const {
@@ -94,6 +95,14 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
   useEffect(() => {
     setSelectedChipId(defaultTargetChipId);
   }, [defaultTargetChipId]);
+
+  useEffect(() => {
+    if (isOpen && campaign) {
+      sendAppNotification('🚀 Disparo de Mensagens Iniciado', {
+        body: `Em andamento: "${campaign.title || 'Campanha'}" (${campaign.contactIds?.length || 0} contatos).`
+      });
+    }
+  }, [isOpen, campaign?.id]);
 
   const [sessionCounts, setSessionCounts] = useState({ business: 0, suporte: 0 });
   const [baseDailyCounts, setBaseDailyCounts] = useState({ business: 0, suporte: 0 });

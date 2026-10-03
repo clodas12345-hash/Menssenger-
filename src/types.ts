@@ -123,6 +123,20 @@ export interface ProjectArchive {
   campaigns: ScheduledCampaign[];
 }
 
+export interface NotificationPreferences {
+  listImport?: boolean;          // Importação de Lista de Contatos
+  campaignStart?: boolean;       // Início de Disparo de Mensagens
+  campaignComplete?: boolean;    // Conclusão de Disparo
+  scheduledTrigger?: boolean;    // Horário de Disparo Agendado
+  backupRestore?: boolean;       // Restauração de Backup
+  duplicateContact?: boolean;    // Alerta de Contato Duplicado
+  chipSwitch?: boolean;          // Troca de Linha/Chip Ativo
+  settingsSave?: boolean;        // Salvamento de Configurações
+  reportExport?: boolean;        // Exportação de Relatório/Auditoria
+  activeFilter?: boolean;        // Alerta de Filtros Ativos
+  invalidPhone?: boolean;        // Formato de Telefone Inválido
+}
+
 export interface AppSettings {
   defaultCountryCode: string; // e.g. "55" for Brazil
   defaultIntervalSeconds: number;
@@ -151,4 +165,5 @@ export interface AppSettings {
   hideAlreadyScheduled?: boolean;
   historicalSentCount?: number;
   totalSentCount?: number;
+  notificationToggles?: NotificationPreferences;
 }

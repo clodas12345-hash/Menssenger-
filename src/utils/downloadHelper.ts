@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { sendAppNotification } from './permissions';
 
 export interface BackupOptions {
   contacts?: any[];
@@ -96,6 +97,11 @@ export const handleDownloadBackup = async (customData?: BackupOptions) => {
     // Limpa o link do DOM e libera a memória
     downloadAnchor.remove();
     URL.revokeObjectURL(url);
+
+    sendAppNotification('📊 Relatório / Backup Exportado', {
+      body: `Arquivo ${fileName} gerado e salvo com sucesso.`,
+      type: 'reportExport'
+    });
 
     return { success: true, fileName };
   } catch (error) {

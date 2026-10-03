@@ -57,100 +57,62 @@ export async function getNotificationPermissionStatus(): Promise<'granted' | 'de
 
 export async function requestNotificationPermission(): Promise<boolean> {
   if (Capacitor.isNativePlatform()) {
+    const status = await LocalNotifications.requestPermissions();
+    return status.display === 'granted';
+  }
+  return false;
+}
+
+import { getSettings } from './storage';
+import { NotificationPreferences } from '../types';
+
+export async function sendAppNotification(
+  title: string, 
+  options?: { body?: string; id?: number; type?: keyof NotificationPreferences }
+) {
+  if (options?.type) {
     try {
-      await ensureNotificationChannel();
-      const status = await LocalNotifications.requestPermissions();
-      return status.display === 'granted';
-    } catch (err) {
-      console.warn('Erro ao solicitar permissão nativa:', err);
-      return false;
+      const settings = getSettings();
+      if (settings?.notificationToggles && settings.notificationToggles[options.type] === false) {
+        return; // Disabled by user in settings
+      }
+    } catch (_) {}
+  }
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title,
+            body: options?.body || '',
+            id: options?.id || Math.floor(Math.random() * 1000000) + 1,
+            smallIcon: 'ic_stat_icon',
+            sound: 'default'
+          }
+        ]
+      });
+      return;
+    } catch (capErr) {
+      console.warn('LocalNotifications.schedule falhou:', capErr);
     }
   }
 
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return false;
-  }
-  try {
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
-  } catch (err) {
-    console.warn('Erro ao solicitar permissão de notificação:', err);
-    return false;
+  // Fallback para ambiente Web / Preview
+  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, {
+        body: options?.body || '',
+        icon: '/Logo.png'
+      });
+    } catch (err) {
+      console.warn('Erro ao disparar notificação web:', err);
+    }
   }
 }
 
 export async function sendBrowserNotification(title: string, options?: NotificationOptions): Promise<any> {
-  // Native logic (Local on Android/iOS via Capacitor)
-  if (Capacitor.isNativePlatform()) {
-    try {
-      const isGranted = await requestNotificationPermission();
-      if (isGranted) {
-        await ensureNotificationChannel();
-        await LocalNotifications.schedule({
-          notifications: [
-            {
-              title: title,
-              body: options?.body || 'Nova notificação do GKD Messenger',
-              id: Math.floor(Math.random() * 1000000) + 1,
-              smallIcon: 'ic_stat_icon',
-              sound: 'default'
-            }
-          ]
-        });
-        return true;
-      }
-    } catch (err) {
-      console.warn('Erro ao disparar notificação nativa, tentando fallback web:', err);
-    }
-  }
-
-  // Browser / PWA logic
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return null;
-  }
-  if (Notification.permission !== 'granted') {
-    return null;
-  }
-  try {
-    const defaultOptions: NotificationOptions = {
-      icon: '/logo.png',
-      badge: '/favicon.ico',
-      silent: false,
-      tag: options?.tag || `gkd-alert-${Date.now()}`,
-      ...options,
-    };
-
-    // On Android Chrome & mobile PWA, 'new Notification()' throws TypeError (Illegal constructor).
-    // ServiceWorkerRegistration.showNotification MUST be used!
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        if (registration && typeof registration.showNotification === 'function') {
-          await registration.showNotification(title, defaultOptions);
-          return true;
-        }
-      } catch (swErr) {
-        console.warn('ServiceWorker showNotification fallback:', swErr);
-      }
-    }
-
-    // Desktop browser fallback
-    try {
-      const notification = new Notification(title, defaultOptions);
-      setTimeout(() => {
-        try {
-          notification.close();
-        } catch (_) {}
-      }, 10000);
-      return notification;
-    } catch (ctorErr) {
-      console.warn('Erro ao instanciar Notification diretamente:', ctorErr);
-      return null;
-    }
-  } catch (err) {
-    console.warn('Erro ao disparar notificação do navegador:', err);
-    return null;
-  }
+  return sendAppNotification(title, { body: options?.body, id: options?.tag ? parseInt(options.tag, 10) : undefined });
 }
 
 // Push Registration Logic

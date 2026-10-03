@@ -33,7 +33,7 @@ import {
   clearDeletedTemplatesAndTopics
 } from './utils/storage';
 import { playNotificationSound, playDispatchAlertSound } from './utils/audio';
-import { sendBrowserNotification, triggerVibration, requestPersistentStorage, requestNotificationPermission, initializePushNotifications } from "./utils/permissions";
+import { sendAppNotification, sendBrowserNotification, triggerVibration, requestPersistentStorage, requestNotificationPermission, initializePushNotifications } from "./utils/permissions";
 import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime } from './utils/whatsapp';
 import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
@@ -1090,6 +1090,10 @@ export default function App() {
       }
       uniqueContacts.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
       saveContacts(uniqueContacts);
+      sendAppNotification('📥 Lista de Contatos Importada!', {
+        body: `${processedContacts.length} contato(s) importados e organizados com sucesso.`,
+        type: 'listImport'
+      });
       return uniqueContacts;
     });
   }, []);
@@ -1636,6 +1640,11 @@ export default function App() {
         if (dueCampaignAlert?.id === campaignId) {
           setDueCampaignAlert(null);
         }
+        const completedCamp = prevCampaigns.find(c => c.id === campaignId);
+        sendAppNotification('🎉 Disparo Concluído!', {
+          body: `O disparo para a campanha "${completedCamp?.title || 'Campanha'}" foi concluído com sucesso.`,
+          type: 'campaignComplete'
+        });
       }
 
       return updated;

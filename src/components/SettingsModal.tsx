@@ -39,7 +39,7 @@ import {
   FileCode,
   FileX
 } from 'lucide-react';
-import { AppSettings, WhatsAppChip, DispatchLogItem, Contact, ScheduledCampaign, MessageTemplate, ContactGroup } from '../types';
+import { AppSettings, WhatsAppChip, DispatchLogItem, Contact, ScheduledCampaign, MessageTemplate, ContactGroup, NotificationPreferences } from '../types';
 import { safeConfirm } from '../utils/whatsapp';
 import { restoreFromBackup } from '../utils/storage';
 import { downloadFileSafely, handleDownloadBackup } from '../utils/downloadHelper';
@@ -47,6 +47,7 @@ import { BackupDownloadModal } from './BackupDownloadModal';
 import { 
   getNotificationPermissionStatus, 
   requestNotificationPermission, 
+  sendAppNotification,
   sendBrowserNotification,
   ensureNotificationChannel,
   triggerVibration
@@ -210,6 +211,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isBackupModalOpen, setIsBackupModalOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [notificationToggles, setNotificationToggles] = useState<NotificationPreferences>(
+    settings.notificationToggles || {
+      listImport: true,
+      campaignStart: true,
+      campaignComplete: true,
+      scheduledTrigger: true,
+      backupRestore: true,
+      duplicateContact: true,
+      chipSwitch: true,
+      settingsSave: true,
+      reportExport: true,
+      activeFilter: true,
+      invalidPhone: true,
+    }
+  );
+
   if (!isOpen) return null;
 
   const handleAddChip = () => {
@@ -255,6 +272,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         const json = JSON.parse(event.target?.result as string);
         const result = restoreFromBackup(json);
         if (result.success) {
+          sendAppNotification('💾 Backup Restaurado', {
+            body: 'Seus dados, contatos e mensagens foram restaurados com sucesso!'
+          });
           setImportStatus('Backup restaurado! Atualizando dados...');
           setTimeout(() => {
             if (onRefreshData) onRefreshData();
@@ -297,7 +317,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       sortOldestContactedFirst,
       showOnlySkipped,
       hideAlreadyScheduled,
+      notificationToggles,
     });
+    if (activeChipId !== settings.activeChipId) {
+      const chipObj = chips.find(c => c.id === activeChipId);
+      const chipName = chipObj ? chipObj.name : 'Padrão';
+      sendAppNotification('📱 Linha/Chip Ativo Alterado', {
+        body: `O chip principal do disparo agora é: ${chipName}`,
+        type: 'chipSwitch'
+      });
+    } else {
+      sendAppNotification('⚙️ Configurações Salvas', {
+        body: 'Suas preferências e parâmetros do GKD Messenger foram atualizados.',
+        type: 'settingsSave'
+      });
+    }
     onClose();
   };
 
@@ -534,6 +568,89 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {activeTab === 'notifications' && (
               <div className="space-y-4 animate-in fade-in duration-200">
                 
+                {/* Painel de Eventos Nativos Ticar/Desmarcar */}
+                <div className="bg-[#14171E] border border-[#A88B4B]/40 rounded-xl p-4 space-y-3 shadow-md">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#232732] pb-3">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="p-1.5 rounded-lg bg-[#A88B4B]/20 text-[#A88B4B] border border-[#A88B4B]/40 shrink-0">
+                        <Sliders className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white text-xs uppercase tracking-wider">
+                          Eventos de Notificação Nátiva (Marcar / Desmarcar)
+                        </h4>
+                        <p className="text-[10px] text-gray-400">
+                          Escolha exatamente quais alertas o aplicativo deve subir para a sua barra de ferramentas do Android:
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setNotificationToggles({
+                          listImport: true, campaignStart: true, campaignComplete: true, scheduledTrigger: true,
+                          backupRestore: true, duplicateContact: true, chipSwitch: true, settingsSave: true,
+                          reportExport: true, activeFilter: true, invalidPhone: true
+                        })}
+                        className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                      >
+                        Marcar Todas
+                      </button>
+                      <span className="text-gray-600">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setNotificationToggles({
+                          listImport: false, campaignStart: false, campaignComplete: false, scheduledTrigger: false,
+                          backupRestore: false, duplicateContact: false, chipSwitch: false, settingsSave: false,
+                          reportExport: false, activeFilter: false, invalidPhone: false
+                        })}
+                        className="text-[10px] font-bold text-red-400 hover:text-red-300 underline cursor-pointer"
+                      >
+                        Desmarcar Todas
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {[
+                      { key: 'listImport', label: '📥 Importação de Lista de Contatos', desc: 'Ao carregar novos contatos VCF/CSV' },
+                      { key: 'campaignStart', label: '🚀 Início de Disparo de Mensagens', desc: 'Ao iniciar a execução do disparador' },
+                      { key: 'campaignComplete', label: '🎉 Conclusão de Disparo de Campanha', desc: 'Ao finalizar todos os envios da lista' },
+                      { key: 'scheduledTrigger', label: '🚨 Horário de Disparo Agendado', desc: 'Ao atingir o horário de um disparo agendado' },
+                      { key: 'backupRestore', label: '💾 Restauração de Backup', desc: 'Ao restaurar dados via arquivo JSON' },
+                      { key: 'duplicateContact', label: '⚠️ Alerta de Contato Duplicado', desc: 'Ao tentar reenviar para quem já recebeu mensagem' },
+                      { key: 'chipSwitch', label: '📱 Troca de Linha / Chip Ativo', desc: 'Ao alterar o chip principal de envio' },
+                      { key: 'settingsSave', label: '⚙️ Salvamento de Configurações', desc: 'Ao atualizar e salvar opções no painel' },
+                      { key: 'reportExport', label: '📊 Exportação de Relatório / Auditoria', desc: 'Ao gerar e baixar relatórios de envio' },
+                      { key: 'activeFilter', label: '🔍 Alerta de Filtro Ativo', desc: 'Ao detectar filtros ocultando contatos da tela' },
+                      { key: 'invalidPhone', label: '📞 Telefone com Formato Inválido', desc: 'Ao detectar contatos com número malformatado' },
+                    ].map((item) => {
+                      const isChecked = notificationToggles[item.key as keyof NotificationPreferences] !== false;
+                      return (
+                        <label
+                          key={item.key}
+                          className={`flex items-start space-x-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                            isChecked 
+                              ? 'bg-[#181C26] border-[#A88B4B]/50 text-white' 
+                              : 'bg-[#0A0C10] border-[#1E222B] text-gray-500 opacity-70'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => setNotificationToggles(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                            className="mt-0.5 rounded border-gray-700 bg-gray-900 text-[#A88B4B] focus:ring-[#A88B4B] w-4 h-4 cursor-pointer"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-bold truncate">{item.label}</div>
+                            <div className="text-[10px] text-gray-400 truncate">{item.desc}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* 1. Status & Teste Prático */}
                 <div className="bg-[#14171E] border border-[#232732] rounded-xl p-4 shadow-md space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#1E222B]">
