@@ -124,7 +124,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
       await checkAllPermissions();
       onShowToast('✨ Permissões solicitadas e atualizadas com sucesso!');
     } catch (err) {
-      onShowToast('⚠️ Verifique as permissões no navegador.');
+      onShowToast('⚠️ Verifique as permissões nas configurações do aparelho.');
     } finally {
       setLoading(false);
     }
@@ -139,9 +139,9 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
       });
       playDispatchAlertSound();
       triggerVibration([150, 100, 150]);
-      onShowToast('🔔 Permissão de notificação concedida com teste disparado!');
+      onShowToast('🔔 Permissão de notificação nativa concedida!');
     } else {
-      onShowToast('⚠️ Permissão de notificação negada no navegador.');
+      onShowToast('⚠️ Permissão de notificação negada no aparelho.');
     }
   };
 
@@ -175,7 +175,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
     const persisted = await requestPersistentStorage();
     await checkAllPermissions();
     if (persisted) {
-      onShowToast('💾 Memória Blindada: Seus contatos e agendamentos não serão apagados pelo navegador!');
+      onShowToast('💾 Memória Blindada: Seus contatos e agendamentos estão protegidos no dispositivo!');
     } else {
       onShowToast('💾 Armazenamento local sincronizado e ativo.');
     }
@@ -218,7 +218,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
       case 'denied':
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded-full">
-            <AlertCircle className="w-3 h-3" /> Bloqueado no Navegador
+            <AlertCircle className="w-3 h-3" /> Bloqueado no Aparelho
           </span>
         );
       case 'unsupported':
@@ -451,7 +451,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
                     )}
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    Impede que o navegador apague seus contatos, modelos e agendamentos caso falte espaço no aparelho.
+                    Impede que o sistema limpe seus contatos, modelos e agendamentos caso falte espaço no aparelho.
                     {permissionsState.storage.usageMb > 0 && ` (${permissionsState.storage.usageMb} MB em uso)`}
                   </p>
                 </div>

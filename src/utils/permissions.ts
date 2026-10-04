@@ -80,11 +80,7 @@ export async function getNotificationPermissionStatus(): Promise<'granted' | 'de
       console.warn('Erro ao verificar permissão nativa:', err);
     }
   }
-
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return 'unsupported';
-  }
-  return Notification.permission as 'granted' | 'denied' | 'prompt';
+  return 'unsupported';
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
@@ -98,16 +94,6 @@ export async function requestNotificationPermission(): Promise<boolean> {
       console.warn('Erro ao solicitar permissão nativa:', err);
     }
   }
-
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    try {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    } catch (err) {
-      console.warn('Erro ao solicitar permissão de notificação:', err);
-    }
-  }
-
   return false;
 }
 
@@ -127,95 +113,44 @@ export async function sendAppNotification(
     } catch (_) {}
   }
 
-  // 1. Dispatch custom event for real-time in-app toast feedback
-  if (typeof window !== 'undefined') {
-    try {
-      window.dispatchEvent(new CustomEvent('gkd_app_notification', {
-        detail: { title, body: options?.body }
-      }));
-    } catch (_) {}
+  // Exclusively Native Capacitor Notifications (Android/iOS)
+  if (!Capacitor.isNativePlatform()) {
+    return false;
   }
 
-  let dispatched = false;
-
-  // 2. Native Capacitor Local Notifications
-  if (Capacitor.isNativePlatform()) {
-    try {
-      await ensureNotificationChannel();
-      let permStatus = await LocalNotifications.checkPermissions();
-      if (permStatus.display !== 'granted') {
-        permStatus = await LocalNotifications.requestPermissions();
-      }
-
-      if (permStatus.display === 'granted') {
-        const validId = (options?.id && !isNaN(options.id) && Number.isInteger(options.id))
-          ? options.id
-          : Math.floor(Math.random() * 900000) + 100000;
-
-        await LocalNotifications.schedule({
-          notifications: [
-            {
-              title,
-              body: options?.body || '',
-              largeBody: options?.body || '',
-              id: validId,
-              smallIcon: 'ic_stat_icon',
-              channelId: NOTIFICATION_CHANNEL_ID,
-              autoCancel: true,
-              extra: options?.extra || undefined
-            }
-          ]
-        });
-        dispatched = true;
-      }
-    } catch (capErr) {
-      console.warn('LocalNotifications.schedule falhou:', capErr);
+  try {
+    await ensureNotificationChannel();
+    let permStatus = await LocalNotifications.checkPermissions();
+    if (permStatus.display !== 'granted') {
+      permStatus = await LocalNotifications.requestPermissions();
     }
-    // Return early on native platform so WebView Notification API doesn't conflict or fail
-    return dispatched;
-  }
 
-  // 3. Web Browser / PWA Notification API
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    try {
-      let permission = Notification.permission;
-      if (permission !== 'granted') {
-        permission = await Notification.requestPermission();
-      }
+    if (permStatus.display === 'granted') {
+      const validId = (options?.id && !isNaN(options.id) && Number.isInteger(options.id))
+        ? options.id
+        : Math.floor(Math.random() * 900000) + 100000;
 
-      if (permission === 'granted') {
-        const notifOptions: NotificationOptions = {
-          body: options?.body || '',
-          icon: '/Logo.png',
-          badge: '/favicon.ico',
-          tag: `gkd-alert-${options?.id || Date.now()}`
-        };
-
-        let swDispatched = false;
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-          try {
-            const registration = await navigator.serviceWorker.getRegistration();
-            if (registration && registration.active && typeof registration.showNotification === 'function') {
-              await registration.showNotification(title, notifOptions);
-              swDispatched = true;
-              dispatched = true;
-            }
-          } catch (swErr) {
-            console.warn('ServiceWorker showNotification erro:', swErr);
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title,
+            body: options?.body || '',
+            largeBody: options?.body || '',
+            id: validId,
+            smallIcon: 'ic_stat_icon',
+            channelId: NOTIFICATION_CHANNEL_ID,
+            autoCancel: true,
+            extra: options?.extra || undefined
           }
-        }
-
-        if (!swDispatched) {
-          new Notification(title, notifOptions);
-          dispatched = true;
-        }
-      }
-    } catch (err) {
-      console.warn('Erro ao disparar notificação web:', err);
+        ]
+      });
+      return true;
     }
+  } catch (capErr) {
+    console.warn('LocalNotifications.schedule falhou:', capErr);
   }
 
-  return dispatched;
+  return false;
 }
 
 export async function sendBrowserNotification(title: string, options?: NotificationOptions): Promise<any> {

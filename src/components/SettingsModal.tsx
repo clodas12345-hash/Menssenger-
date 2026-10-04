@@ -685,10 +685,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                         <p className="text-[11px] text-gray-400 mt-0.5">
                           {notificationStatus === 'granted'
-                            ? 'O dispositivo está autorizado a receber alertas sonoros, vibração e banner na barra de status.'
+                            ? 'O dispositivo está autorizado a receber alertas sonoros, vibração e banner nativo na barra de status.'
                             : notificationStatus === 'denied'
-                              ? 'As notificações estão desativadas nas permissões do aparelho ou navegador.'
-                              : 'Clique abaixo para solicitar a permissão do sistema e habilitar os alertas.'}
+                              ? 'As notificações estão desativadas nas permissões do aparelho.'
+                              : 'Clique abaixo para solicitar a permissão nativa do Android e habilitar os alertas.'}
                         </p>
                       </div>
                     </div>
@@ -768,7 +768,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span>Permissão Bloqueada no Sistema</span>
                       </div>
                       <p className="text-[11px] text-gray-300 leading-relaxed">
-                        No <strong>Android 13+</strong> ou navegadores, se a permissão foi negada no primeiro prompt, o sistema não exibe mais alertas automaticamente.
+                        No <strong>Android 13+</strong>, se a permissão foi negada no primeiro prompt, o sistema não exibe mais alertas automaticamente.
                       </p>
                       <div className="text-[10px] text-emerald-400 font-medium bg-[#14171E] p-1.5 rounded border border-[#1E222B]">
                         💡 <strong>Como resolver:</strong> Acesse as Configurações do Android &gt; Apps &gt; GKD Messenger &gt; Notificações &gt; Marque <strong>"Permitir Notificações"</strong>.
