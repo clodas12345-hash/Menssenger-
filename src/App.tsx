@@ -43,13 +43,15 @@ import {
   syncLocalNotifications,
   ensureNotificationChannel,
   registerNotificationListeners,
-  getCampaignImmediateId
+  getCampaignImmediateId,
+  triggerPushMessageNotification
 } from "./utils/permissions";
 import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime } from './utils/whatsapp';
 import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
 import { processContactName, enrichContacts, isIgnoredSequenceTag, isInvalidCategoryName } from './utils/contactProcessor';
 import { downloadFileSafely, handleDownloadBackup } from './utils/downloadHelper';
+import { testFirestoreConnection } from './firebase';
 import { Send, X, Bell, CheckCircle2, AlertCircle, Shield, Printer } from 'lucide-react';
 
 import { Navbar } from './components/Navbar';
@@ -84,10 +86,34 @@ export default function App() {
 
   // Auto-lock persistent storage memory & initialize native notifications on startup
   useEffect(() => {
+    testFirestoreConnection();
     requestPersistentStorage();
     ensureNotificationChannel();
     requestNotificationPermission();
-    initializePushNotifications();
+    initializePushNotifications((data) => {
+      const targetId = data.campaignId || data.conversationId;
+      if (targetId) {
+        const currentCamps = getCampaigns();
+        const found = currentCamps.find(c => c.id === targetId);
+        if (found) {
+          setActiveDispatcherCampaign(found);
+          return;
+        }
+      }
+      if (data.phone) {
+        const currentSettings = getSettings();
+        const url = buildWhatsAppLink(data.phone, '', currentSettings.sendMode);
+        openWhatsAppLink(url);
+      } else if (data.contactId) {
+        const currentContacts = getContacts();
+        const foundContact = currentContacts.find(c => c.id === data.contactId);
+        if (foundContact) {
+          const currentSettings = getSettings();
+          const url = buildWhatsAppLink(foundContact.phone, '', currentSettings.sendMode);
+          openWhatsAppLink(url);
+        }
+      }
+    });
     registerNotificationListeners((campId) => {
       const currentCamps = getCampaigns();
       const found = currentCamps.find(c => c.id === campId);
@@ -251,6 +277,12 @@ export default function App() {
     const url = buildWhatsAppLink(contact.phone, text, settings.sendMode);
     openWhatsAppLink(url);
     setPendingConfirmContact({ contact, message: text });
+    triggerPushMessageNotification({
+      senderName: settings.mentorName || 'Mensseger',
+      messageSnippet: text,
+      contactId: contact.id,
+      phone: contact.phone,
+    });
   };
 
   const handleSendWhatsAppToContact = (contact: Contact, customMsg?: string) => {
@@ -1719,6 +1751,14 @@ export default function App() {
           const updated = { ...prev, totalSentCount: newTotal };
           saveSettings(updated);
           return updated;
+        });
+        triggerPushMessageNotification({
+          senderName: settings.mentorName || logItem.chipName || 'Mensseger',
+          messageSnippet: `${logItem.contactName}: ${logItem.messageText || 'Mensagem enviada'}`,
+          campaignId,
+          conversationId: campaignId,
+          contactId: logItem.contactId,
+          phone: logItem.phone,
         });
       }
       const newLogs = [logItem, ...logs];

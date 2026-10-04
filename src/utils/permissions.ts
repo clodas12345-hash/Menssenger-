@@ -224,32 +224,140 @@ export async function sendBrowserNotification(title: string, options?: Notificat
   return sendAppNotification(title, { body: options?.body, id: validId });
 }
 
-// Push Registration Logic
-// Push Registration Logic
-export async function initializePushNotifications() {
+import { auth, saveUserPushTokenToFirestore } from '../firebase';
+
+// Push Registration Logic (FCM via @capacitor/push-notifications)
+export async function registerFcmTokenOnBackend(fcmToken: string): Promise<void> {
+  if (!fcmToken) return;
+  try {
+    localStorage.setItem('gkd_fcm_token', fcmToken);
+  } catch (_) {}
+
+  const currentUser = auth.currentUser;
+  const settings = getSettings();
+  const userId =
+    currentUser?.uid ||
+    (settings?.mentorName ? settings.mentorName.replace(/[^a-zA-Z0-9_-]/g, '_') : '') ||
+    localStorage.getItem('gkd_device_user_id') ||
+    (() => {
+      const generated = `user_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      try {
+        localStorage.setItem('gkd_device_user_id', generated);
+      } catch (_) {}
+      return generated;
+    })();
+
+  const platform = Capacitor.getPlatform();
+
+  // 1. Register token on backend API associated with logged-in user
+  try {
+    await fetch('/api/push/register-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        fcmToken,
+        platform,
+        senderName: settings?.mentorName || currentUser?.displayName || 'Usuário',
+      }),
+    });
+  } catch (err) {
+    console.warn('Falha ao registrar FCM token no backend:', err);
+  }
+
+  // 2. Also persist in Firestore if Firebase Auth user is signed in
+  if (currentUser) {
+    try {
+      await saveUserPushTokenToFirestore(fcmToken, platform);
+    } catch (err) {
+      console.warn('Falha ao salvar FCM token no Firestore:', err);
+    }
+  }
+}
+
+export async function triggerPushMessageNotification(payload: {
+  recipientUserId?: string;
+  fcmToken?: string;
+  senderName: string;
+  messageSnippet: string;
+  conversationId?: string;
+  campaignId?: string;
+  contactId?: string;
+  phone?: string;
+}): Promise<void> {
+  try {
+    const fallbackToken = payload.fcmToken || localStorage.getItem('gkd_fcm_token') || undefined;
+    const fallbackUserId =
+      payload.recipientUserId ||
+      auth.currentUser?.uid ||
+      localStorage.getItem('gkd_device_user_id') ||
+      undefined;
+
+    await fetch('/api/push/send-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...payload,
+        recipientUserId: fallbackUserId,
+        fcmToken: fallbackToken,
+      }),
+    });
+  } catch (err) {
+    console.warn('Erro ao acionar push notification no backend:', err);
+  }
+}
+
+export async function initializePushNotifications(
+  onOpenConversation?: (data: {
+    conversationId?: string;
+    campaignId?: string;
+    contactId?: string;
+    phone?: string;
+  }) => void
+) {
   if (!Capacitor.isNativePlatform()) return;
 
   try {
-    // Add listeners
-    await PushNotifications.addListener('registration', token => {
+    await ensureNotificationChannel();
+    await PushNotifications.removeAllListeners();
+
+    // 1. On successful FCM registration, store token and associate with logged user in backend
+    await PushNotifications.addListener('registration', async (token) => {
       console.info('Push registration success, token: ' + token.value);
+      await registerFcmTokenOnBackend(token.value);
     });
 
-    await PushNotifications.addListener('registrationError', err => {
+    await PushNotifications.addListener('registrationError', (err) => {
       console.warn('Push registration error: ' + err.error);
     });
 
-    await PushNotifications.addListener('pushNotificationReceived', notification => {
+    // 2. Foreground push received: display heads-up notification with monochromatic ic_stat_icon
+    await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
       console.info('Push notification received: ', notification);
+      const data = notification.data || {};
+      await sendAppNotification(notification.title || data.senderName || 'Nova Mensagem', {
+        body: notification.body || data.messageSnippet || '',
+        extra: data,
+      });
     });
 
-    await PushNotifications.addListener('pushNotificationActionPerformed', notification => {
-      console.info('Push notification action performed', notification);
+    // 3. Notification click action performed (background/closed app or foreground) -> open direct conversation/campaign
+    await PushNotifications.addListener('pushNotificationActionPerformed', (notificationAction) => {
+      console.info('Push notification action performed', notificationAction);
+      const data = notificationAction.notification?.data || {};
+      if (onOpenConversation) {
+        onOpenConversation({
+          conversationId: data.conversationId,
+          campaignId: data.campaignId || data.conversationId,
+          contactId: data.contactId,
+          phone: data.phone,
+        });
+      }
     });
 
-    // Request permissions
+    // Request permissions on startup
     let permStatus = await PushNotifications.checkPermissions();
-    if (permStatus.receive === 'prompt') {
+    if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
       permStatus = await PushNotifications.requestPermissions();
     }
 

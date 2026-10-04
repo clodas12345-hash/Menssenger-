@@ -215,7 +215,39 @@ async function generateIcons() {
     }
   }
 
+  // Ensure AndroidManifest.xml includes POST_NOTIFICATIONS and FCM default_notification_icon
+  const manifestPath = path.resolve('android', 'app', 'src', 'main', 'AndroidManifest.xml');
+  if (fs.existsSync(manifestPath)) {
+    let manifestContent = fs.readFileSync(manifestPath, 'utf-8');
+    let updatedManifest = false;
+
+    if (!manifestContent.includes('android.permission.POST_NOTIFICATIONS')) {
+      manifestContent = manifestContent.replace(
+        '</manifest>',
+        '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n</manifest>'
+      );
+      updatedManifest = true;
+    }
+
+    if (!manifestContent.includes('com.google.firebase.messaging.default_notification_icon')) {
+      const fcmMeta = `
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_icon" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="gkd_campaigns_v2" />`;
+      manifestContent = manifestContent.replace('</application>', `${fcmMeta}\n    </application>`);
+      updatedManifest = true;
+    }
+
+    if (updatedManifest) {
+      fs.writeFileSync(manifestPath, manifestContent, 'utf-8');
+    }
+  }
+
   console.log('✅ Android adaptive icons, launchers & notification small icons successfully injected!');
 }
 
 generateIcons().catch(console.error);
+

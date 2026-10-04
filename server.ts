@@ -4,9 +4,27 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import admin from "firebase-admin";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+// Initialize Firebase Admin SDK for FCM Push Notifications
+try {
+  if (!admin.apps.length) {
+    let projectId = process.env.FIREBASE_PROJECT_ID;
+    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+    if (!projectId && fs.existsSync(configPath)) {
+      const parsed = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      projectId = parsed.projectId;
+    }
+    admin.initializeApp({
+      projectId: projectId || "adept-figure-463322-r2",
+    });
+  }
+} catch (err) {
+  console.warn("Firebase Admin initialization notice:", err);
+}
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -659,8 +677,121 @@ Retorne EXCLUSIVAMENTE um JSON:
     return res.json({ response: "Olá! Posso ajudar com a gestão de contatos, criação de mensagens prontas e agendamento de disparos. Como prefere começar?", actions: [] });
   } catch {
     return res.json({ 
-      response: "Olá! O assistente está pronto. Como posso auxiliar você no ZapAgendador hoje?",
+      response: "Olá! O assistente está pronto. Como posso auxiliar você no Mensseger hoje?",
       actions: []
+    });
+  }
+});
+
+// ============================================================================
+// FCM Push Notifications Registry & Dispatch Endpoints
+// ============================================================================
+interface RegisteredFcmUser {
+  userId: string;
+  fcmToken: string;
+  platform: string;
+  senderName?: string;
+  updatedAt: string;
+}
+
+const userPushTokensStore = new Map<string, RegisteredFcmUser>();
+
+// 1. Register FCM device token associated with logged-in user
+app.post("/api/push/register-token", (req, res) => {
+  try {
+    const { userId, fcmToken, platform = "android", senderName } = req.body || {};
+    if (!userId || !fcmToken) {
+      return res.status(400).json({ error: "userId e fcmToken são obrigatórios." });
+    }
+
+    const record: RegisteredFcmUser = {
+      userId: String(userId),
+      fcmToken: String(fcmToken),
+      platform: String(platform),
+      senderName: senderName ? String(senderName) : undefined,
+      updatedAt: new Date().toISOString(),
+    };
+
+    userPushTokensStore.set(String(userId), record);
+    return res.json({ ok: true, registered: record });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Erro ao registrar token FCM" });
+  }
+});
+
+// 2. Send FCM push notification to recipient user token with sender & message snippet
+app.post("/api/push/send-message", async (req, res) => {
+  try {
+    const {
+      recipientUserId,
+      fcmToken: explicitToken,
+      senderName = "Mensseger",
+      messageSnippet = "Você recebeu uma nova mensagem.",
+      conversationId = "",
+      campaignId = "",
+      contactId = "",
+      phone = "",
+    } = req.body || {};
+
+    let targetToken = explicitToken;
+    if (!targetToken && recipientUserId) {
+      const stored = userPushTokensStore.get(String(recipientUserId));
+      if (stored?.fcmToken) {
+        targetToken = stored.fcmToken;
+      }
+    }
+
+    // Fallback to most recently registered token if single-user device
+    if (!targetToken && userPushTokensStore.size > 0) {
+      const latest = Array.from(userPushTokensStore.values()).pop();
+      targetToken = latest?.fcmToken;
+    }
+
+    if (!targetToken) {
+      return res.status(404).json({
+        ok: false,
+        error: "Nenhum token FCM encontrado para o destinatário informado.",
+      });
+    }
+
+    const snippet =
+      String(messageSnippet).length > 140
+        ? String(messageSnippet).slice(0, 137) + "..."
+        : String(messageSnippet);
+
+    const messagePayload: admin.messaging.Message = {
+      token: String(targetToken),
+      notification: {
+        title: String(senderName),
+        body: snippet,
+      },
+      data: {
+        senderName: String(senderName),
+        messageSnippet: snippet,
+        conversationId: String(conversationId || campaignId || ""),
+        campaignId: String(campaignId || conversationId || ""),
+        contactId: String(contactId || ""),
+        phone: String(phone || ""),
+      },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "gkd_campaigns_v2",
+          icon: "ic_stat_icon",
+          color: "#34d399",
+          sound: "default",
+          clickAction: "FCM_PLUGIN_ACTIVITY",
+        },
+      },
+    };
+
+    const messageId = await admin.messaging().send(messagePayload);
+    return res.json({ ok: true, messageId });
+  } catch (err: any) {
+    console.warn("FCM send warning:", err?.message || err);
+    return res.status(200).json({
+      ok: false,
+      warning: err?.message || "Falha ao enviar push via FCM",
     });
   }
 });
