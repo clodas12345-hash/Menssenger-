@@ -40,6 +40,13 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
+    
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_icon" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="gkd_campaigns_v2" />
     </application>
 
     <!-- Permissions -->
