@@ -53,6 +53,7 @@ import { processContactName, enrichContacts, isIgnoredSequenceTag, isInvalidCate
 import { downloadFileSafely, handleDownloadBackup } from './utils/downloadHelper';
 import { testFirestoreConnection } from './firebase';
 import { Send, X, Bell, CheckCircle2, AlertCircle, Shield, Printer } from 'lucide-react';
+import { App as CapApp } from '@capacitor/app';
 
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
@@ -502,13 +503,12 @@ export default function App() {
     }
   }, [groups]);
 
-  // Navegação com histórico do navegador / botão Voltar do celular (Android Back Button)
+  // Navegação e controle permanente do botão Voltar do celular (Android Back Button)
   const tabHistoryRef = useRef<string[]>(['dashboard']);
 
-  // Função para reforçar a pilha de retenção (evita saída acidental ao clicar 2x rápido)
+  // Função para reforçar a pilha de retenção no histórico do navegador
   const pumpHistoryGuard = useCallback(() => {
     try {
-      // Garante múltiplas entradas para que cliques duplos rápidos nunca alcancem a saída do app
       for (let i = 0; i < 3; i++) {
         window.history.pushState({ appTab: 'guard', ts: Date.now() + i }, '');
       }
@@ -518,112 +518,35 @@ export default function App() {
   // Função centralizada para mudar de tela registrando no histórico
   const navigateToTab = useCallback((tab: string) => {
     setActiveTab(tab);
-    // Se não for a mesma tela atual
     const historyStack = tabHistoryRef.current;
     if (historyStack[historyStack.length - 1] !== tab) {
       historyStack.push(tab);
       try {
         window.history.pushState({ appTab: tab, timestamp: Date.now() }, '');
-      } catch (e) {
-        // Ignora erros em sandbox ou iframes com restrições
-      }
+      } catch (e) {}
     }
     pumpHistoryGuard();
   }, [pumpHistoryGuard]);
 
-  // Interceptar o botão voltar físico/gesto do celular (popstate)
-  useEffect(() => {
-    // Garante estado inicial na pilha do navegador com camada de retenção
-    try {
-      window.history.replaceState({ appTab: 'dashboard', timestamp: Date.now() }, '');
-      for (let i = 0; i < 5; i++) {
-        window.history.pushState({ appTab: 'guard', timestamp: Date.now() + i }, '');
-      }
-    } catch (e) {
-      // Ignora erro se indisponível
-    }
-
-    const handlePopState = (event: PopStateEvent) => {
-      // Sempre reabastece imediatamente a barreira do histórico para nunca esvaziar a pilha do navegador
-      try {
-        window.history.pushState({ appTab: 'guard', timestamp: Date.now() }, '');
-      } catch (e) {}
-
-      // 1. Se houver algum modal aberto, fecha o modal primeiro sem trocar de tela
-      if (isAiModalOpen) {
-        setIsAiModalOpen(false);
-        return;
-      }
-      if (isTopicGeneratorOpen) {
-        setIsTopicGeneratorOpen(false);
-        return;
-      }
-      if (isSettingsModalOpen) {
-        setIsSettingsModalOpen(false);
-        return;
-      }
-      if (isHelpModalOpen) {
-        setIsHelpModalOpen(false);
-        return;
-      }
-      if (isApkExportModalOpen) {
-        setIsApkExportModalOpen(false);
-        return;
-      }
-      if (isPermissionsModalOpen) {
-        setIsPermissionsModalOpen(false);
-        return;
-      }
-      if (isLogoInfoModalOpen) {
-        setIsLogoInfoModalOpen(false);
-        return;
-      }
-      if (isSaveAndResetOpen) {
-        setIsSaveAndResetOpen(false);
-        return;
-      }
-      if (activeDispatcherCampaign) {
-        setActiveDispatcherCampaign(null);
-        return;
-      }
-      if (editingCampaign) {
-        setEditingCampaign(null);
-        return;
-      }
-      if (pendingConfirmContact) {
-        setPendingConfirmContact(null);
-        return;
-      }
-      if (dueCampaignAlert) {
-        setDueCampaignAlert(null);
-        return;
-      }
-      if (ruleViolationModal.isOpen) {
-        setRuleViolationModal(prev => ({ ...prev, isOpen: false }));
-        return;
-      }
-
-      // 2. Navegação entre páginas/telas do aplicativo
-      const historyStack = tabHistoryRef.current;
-      if (historyStack.length > 1) {
-        // Remove a tela atual da pilha interna
-        historyStack.pop();
-        const previousTab = historyStack[historyStack.length - 1] || 'dashboard';
-        setActiveTab(previousTab);
-      } else {
-        // Já está no painel inicial ('dashboard')
-        // Permanece no aplicativo com segurança sem fechar
-        setActiveTab('dashboard');
-        tabHistoryRef.current = ['dashboard'];
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
+  // Função para fechar qualquer modal ou diálogo aberto (retorna true se havia algum aberto)
+  const closeAllOpenModals = useCallback(() => {
+    let hadOpenModal = false;
+    if (isAiModalOpen) { setIsAiModalOpen(false); hadOpenModal = true; }
+    if (isTopicGeneratorOpen) { setIsTopicGeneratorOpen(false); hadOpenModal = true; }
+    if (isSettingsModalOpen) { setIsSettingsModalOpen(false); hadOpenModal = true; }
+    if (isHelpModalOpen) { setIsHelpModalOpen(false); hadOpenModal = true; }
+    if (isApkExportModalOpen) { setIsApkExportModalOpen(false); hadOpenModal = true; }
+    if (isPermissionsModalOpen) { setIsPermissionsModalOpen(false); hadOpenModal = true; }
+    if (isLogoInfoModalOpen) { setIsLogoInfoModalOpen(false); hadOpenModal = true; }
+    if (isSaveAndResetOpen) { setIsSaveAndResetOpen(false); hadOpenModal = true; }
+    if (activeDispatcherCampaign) { setActiveDispatcherCampaign(null); hadOpenModal = true; }
+    if (editingCampaign) { setEditingCampaign(null); hadOpenModal = true; }
+    if (pendingConfirmContact) { setPendingConfirmContact(null); hadOpenModal = true; }
+    if (dueCampaignAlert) { setDueCampaignAlert(null); hadOpenModal = true; }
+    if (ruleViolationModal.isOpen) { setRuleViolationModal(prev => ({ ...prev, isOpen: false })); hadOpenModal = true; }
+    if (reportPreviewHtml) { setReportPreviewHtml(null); hadOpenModal = true; }
+    return hadOpenModal;
   }, [
-    activeTab,
     isAiModalOpen,
     isTopicGeneratorOpen,
     isSettingsModalOpen,
@@ -637,10 +560,58 @@ export default function App() {
     pendingConfirmContact,
     dueCampaignAlert,
     ruleViolationModal.isOpen,
+    reportPreviewHtml
   ]);
 
+  // Lógica unificada do botão voltar:
+  // Se estiver em qualquer tela que não seja a inicial, volta para a tela inicial.
+  // Se já estiver na tela inicial, não faz nada (o app nunca é fechado).
+  const handleAppBackButton = useCallback(() => {
+    const hadOpenModal = closeAllOpenModals();
+    if (activeTab !== 'dashboard' || hadOpenModal) {
+      setActiveTab('dashboard');
+      tabHistoryRef.current = ['dashboard'];
+      return;
+    }
+    // Se já estiver na tela inicial ('dashboard') e sem modais abertos, não faz nada
+  }, [activeTab, closeAllOpenModals]);
+
+  // Plugin nativo @capacitor/app: intercepta o botão voltar físico do celular para nunca fechar o app
   useEffect(() => {
-    // Always start on dashboard / painel principal
+    const backButtonListener = CapApp.addListener('backButton', () => {
+      handleAppBackButton();
+    });
+
+    return () => {
+      backButtonListener.then((handle) => handle.remove()).catch(() => {});
+    };
+  }, [handleAppBackButton]);
+
+  // Interceptar também eventos de histórico do navegador (popstate)
+  useEffect(() => {
+    try {
+      window.history.replaceState({ appTab: 'dashboard', timestamp: Date.now() }, '');
+      for (let i = 0; i < 5; i++) {
+        window.history.pushState({ appTab: 'guard', timestamp: Date.now() + i }, '');
+      }
+    } catch (e) {}
+
+    const handlePopState = () => {
+      try {
+        window.history.pushState({ appTab: 'guard', timestamp: Date.now() }, '');
+      } catch (e) {}
+
+      handleAppBackButton();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [handleAppBackButton]);
+
+  useEffect(() => {
+    // Inicialização permanente na tela inicial (painel principal)
     setActiveTab('dashboard');
     tabHistoryRef.current = ['dashboard'];
   }, []);
