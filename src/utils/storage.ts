@@ -1300,7 +1300,13 @@ export function saveCampaigns(campaigns: ScheduledCampaign[]): void {
 
 export function getDispatchLogs(): DispatchLogItem[] {
   if (logsCache) return logsCache;
-  logsCache = loadFromStorage<DispatchLogItem[]>(STORAGE_KEYS.LOGS, []);
+  const loaded = loadFromStorage<DispatchLogItem[]>(STORAGE_KEYS.LOGS, []);
+  if (Array.isArray(loaded) && loaded.length > 1000) {
+    logsCache = loaded.slice(0, 1000);
+    saveToStorage(STORAGE_KEYS.LOGS, logsCache);
+  } else {
+    logsCache = loaded || [];
+  }
   return logsCache;
 }
 
