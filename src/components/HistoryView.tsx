@@ -24,7 +24,10 @@ import {
   FolderPlus,
   Archive,
   Users,
-  TrendingUp
+  TrendingUp,
+  Sparkles,
+  Printer,
+  FileSpreadsheet
 } from 'lucide-react';
 import { DispatchLogItem, AppSettings, ScheduledCampaign, ProjectArchive, Contact } from '../types';
 import { formatPhoneDisplay, cleanChipName, matchContact, normalizeSearchText, matchPhoneNumber } from '../utils/whatsapp';
@@ -155,6 +158,32 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   const [resetAfterArchive, setResetAfterArchive] = useState<boolean>(true);
   const [selectedArchivedProject, setSelectedArchivedProject] = useState<ProjectArchive | null>(null);
   const [archivedProjectSearch, setArchivedProjectSearch] = useState<string>('');
+  const [projectLogSearch, setProjectLogSearch] = useState<string>('');
+  const [projectLogFilter, setProjectLogFilter] = useState<'all' | 'enviado' | 'falha' | 'pulado'>('all');
+
+  const handleSetProjectPreset = (days: number | 'all') => {
+    const today = new Date().toISOString().slice(0, 10);
+    setProjectEndDate(today);
+    if (days === 'all') {
+      if (logs.length > 0) {
+        const sorted = [...logs].sort((a, b) => {
+          const da = a.sentAt ? new Date(a.sentAt).getTime() : 0;
+          const db = b.sentAt ? new Date(b.sentAt).getTime() : 0;
+          return da - db;
+        });
+        const first = sorted[0]?.sentAt ? new Date(sorted[0].sentAt).toISOString().slice(0, 10) : today;
+        setProjectStartDate(first);
+      } else {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        setProjectStartDate(d.toISOString().slice(0, 10));
+      }
+    } else {
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      setProjectStartDate(d.toISOString().slice(0, 10));
+    }
+  };
 
   // 15-Day Statistics Calculation
   const stats15Days = useMemo(() => {
@@ -971,24 +1000,50 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
               <div>
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
                   <FolderPlus className="w-4 h-4 text-[#A88B4B]" />
-                  <span>Finalizar e Arquivar Projeto Atual (15 Dias)</span>
+                  <span>Finalizar e Arquivar Projeto (Fechamento de Ciclo)</span>
                 </h4>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Informe o nome do projeto e selecione as datas para consolidar a contagem do ciclo.
+                  Selecione o período do ciclo, confira os números consolidados e guarde tudo com segurança.
                 </p>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-lg font-bold">
-                  ⚡ {stats15Days.total} envios registrados
-                </span>
+              {/* Quick Period Presets */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleSetProjectPreset(15)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#1A1D24] hover:bg-[#252830] border border-[#2A2E39] text-[#A88B4B] transition-all"
+                >
+                  ⚡ Ciclo 15 Dias
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetProjectPreset(7)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#1A1D24] hover:bg-[#252830] border border-[#2A2E39] text-gray-300 transition-all"
+                >
+                  7 Dias
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetProjectPreset(30)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#1A1D24] hover:bg-[#252830] border border-[#2A2E39] text-gray-300 transition-all"
+                >
+                  30 Dias
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetProjectPreset('all')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#1A1D24] hover:bg-[#252830] border border-[#2A2E39] text-emerald-400 transition-all"
+                >
+                  Histórico Completo
+                </button>
               </div>
             </div>
 
             {/* 15-Day Counters Summary Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-[#0A0C10] border border-[#1F2229] p-3.5 rounded-xl space-y-1">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Envios Efetuados</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Envios no Período</span>
                 <div className="text-xl font-mono font-extrabold text-emerald-400">
                   {stats15Days.sent} <span className="text-xs font-normal text-gray-500">/ {stats15Days.total}</span>
                 </div>
@@ -1020,7 +1075,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
             {Object.keys(stats15Days.chipCounts).length > 0 && (
               <div className="bg-[#0A0C10] border border-[#1F2229] p-3.5 rounded-xl space-y-2">
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">
-                  📱 Disparos por Chip de WhatsApp no Período:
+                  📱 Disparos por Chip de WhatsApp no Período Selecionado:
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(stats15Days.chipCounts).map(([chip, count]) => (
@@ -1036,14 +1091,24 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
             <div className="space-y-4 pt-2">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5 md:col-span-1">
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                    Nome do Projeto <span className="text-red-400">*</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
+                      Nome do Projeto <span className="text-red-400">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setProjectNameInput(`Projeto ${projectStartDate} a ${projectEndDate} (${stats15Days.sent} envios)`)}
+                      className="text-[10px] text-[#A88B4B] hover:underline font-bold flex items-center space-x-0.5"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Sugerir Nome</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={projectNameInput}
                     onChange={(e) => setProjectNameInput(e.target.value)}
-                    placeholder="Ex: Projeto Bônus R$ 100 - Turma 1"
+                    placeholder="Ex: Campanha Especial - Turma 1"
                     className="w-full bg-[#0A0C10] border border-[#1F2229] hover:border-[#A88B4B]/50 focus:border-[#A88B4B] text-white text-xs font-bold rounded-lg px-3.5 py-2.5 focus:outline-none transition-all"
                   />
                 </div>
@@ -1062,7 +1127,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                    Data de Encerramento (15 Dias)
+                    Data de Encerramento
                   </label>
                   <input
                     type="date"
@@ -1119,7 +1184,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                   <span>Pastas de Histórico de Projetos ({projectArchives.length})</span>
                 </h4>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Consulte, baixe relatórios CSV e visualize todos os projetos de 15 dias já concluídos.
+                  Consulte, baixe relatórios PDF/CSV e visualize todos os projetos e ciclos já concluídos.
                 </p>
               </div>
 
@@ -1142,7 +1207,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                 <Folder className="w-12 h-12 mx-auto text-gray-600 stroke-[1.5]" />
                 <p className="text-xs italic">Nenhum projeto arquivado ainda.</p>
                 <p className="text-[11px] text-gray-600 max-w-md mx-auto">
-                  Preencha o formulário acima ao concluir seus 15 dias de envios para consolidar tudo em uma pasta exclusiva e manter seu histórico seguro!
+                  Preencha o formulário acima ao concluir seus envios para consolidar tudo em uma pasta exclusiva e manter seu histórico seguro!
                 </p>
               </div>
             ) : (
@@ -1190,7 +1255,11 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                         <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#1F2229]">
                           <button
                             type="button"
-                            onClick={() => setSelectedArchivedProject(project)}
+                            onClick={() => {
+                              setSelectedArchivedProject(project);
+                              setProjectLogSearch('');
+                              setProjectLogFilter('all');
+                            }}
                             className="bg-[#15181E] hover:bg-[#1F2229] text-white border border-[#1F2229] px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
                           >
                             <FileText className="w-3.5 h-3.5 text-[#A88B4B]" />
@@ -1198,6 +1267,104 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                           </button>
 
                           <div className="flex items-center space-x-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const total = project.totalSent + project.totalFailed + project.totalSkipped;
+                                const successPct = total > 0 ? Math.round((project.totalSent / total) * 100) : 0;
+                                const chipRows = Object.entries(project.chipStats || {})
+                                  .map(([chip, count]) => `<li><strong>${chip}:</strong> ${count} disparos</li>`)
+                                  .join('');
+
+                                const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>${project.name} - Relatório de Fechamento</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; margin: 30px; font-size: 12px; background: #fff; }
+    .header { border-bottom: 3px solid #A88B4B; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+    h1 { font-size: 20px; color: #A88B4B; margin: 0; }
+    .badge { background: #A88B4B; color: #000; font-weight: bold; padding: 4px 10px; border-radius: 4px; font-size: 11px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; }
+    .card-label { font-size: 10px; text-transform: uppercase; color: #6c757d; font-weight: bold; }
+    .card-value { font-size: 18px; font-weight: bold; color: #212529; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+    th, td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
+    th { background-color: #f1f3f5; color: #495057; font-weight: bold; }
+    tr:nth-child(even) { background-color: #fafbfc; }
+    .status-enviado { color: #2b8a3e; font-weight: bold; }
+    .status-falha { color: #c92a2a; font-weight: bold; }
+    .status-pulado { color: #e67700; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>${project.name}</h1>
+      <p style="margin: 5px 0 0 0; color: #666;">Período: ${project.startDate} a ${project.endDate} • Fechado em: ${new Date(project.createdAt).toLocaleString('pt-BR')}</p>
+    </div>
+    <div class="badge">PROJETO CONCLUÍDO</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-label">Envios Efetuados</div>
+      <div class="card-value" style="color: #2b8a3e;">${project.totalSent}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Taxa de Sucesso</div>
+      <div class="card-value" style="color: #A88B4B;">${successPct}%</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Contatos Atingidos</div>
+      <div class="card-value" style="color: #3b5bdb;">${project.totalContacts}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Falhas / Pulados</div>
+      <div class="card-value" style="color: #c92a2a;">${project.totalFailed + project.totalSkipped}</div>
+    </div>
+  </div>
+
+  ${chipRows ? `<div style="margin-bottom: 20px; background: #f8f9fa; padding: 10px 15px; border-radius: 6px;"><strong>Distribuição por Chip:</strong> <ul style="margin: 5px 0 0 0; padding-left: 20px;">${chipRows}</ul></div>` : ''}
+
+  <h3>Auditoria de Disparos (${project.logs.length} registros)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Contato</th>
+        <th>Telefone</th>
+        <th>Campanha</th>
+        <th>Data/Hora Envio</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${project.logs.map((l, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td><strong>${l.contactName || 'Sem nome'}</strong></td>
+          <td>${formatPhoneDisplay(l.phone)}</td>
+          <td>${l.campaignTitle}</td>
+          <td>${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}</td>
+          <td class="status-${l.status}">${l.status.toUpperCase()}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+</body>
+</html>`;
+                                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                                downloadFileSafely(blob, `relatorio_${project.name.replace(/\s+/g, '_')}.html`);
+                              }}
+                              className="bg-[#15181E] hover:bg-[#1F2229] text-gray-300 hover:text-white border border-[#1F2229] p-1.5 rounded text-xs transition-all cursor-pointer"
+                              title="Baixar Relatório HTML / Imprimir PDF"
+                            >
+                              <Printer className="w-3.5 h-3.5 text-[#A88B4B]" />
+                            </button>
+
                             <button
                               type="button"
                               onClick={() => {
@@ -2398,158 +2565,336 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
       )}
 
       {/* Modal View for Selected Archived Project */}
-      {selectedArchivedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#15181E] border border-[#1F2229] rounded-xl max-w-3xl w-full p-6 space-y-5 shadow-2xl relative max-h-[90vh] flex flex-col">
-            <button
-              onClick={() => setSelectedArchivedProject(null)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors p-1"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {selectedArchivedProject && (() => {
+        const filteredProjectLogs = selectedArchivedProject.logs.filter((item) => {
+          if (projectLogFilter !== 'all' && item.status !== projectLogFilter) {
+            return false;
+          }
+          if (projectLogSearch.trim()) {
+            const query = projectLogSearch.toLowerCase().trim();
+            const nameMatch = (item.contactName || '').toLowerCase().includes(query);
+            const phoneMatch = (item.phone || '').includes(query);
+            const campMatch = (item.campaignTitle || '').toLowerCase().includes(query);
+            const msgMatch = (item.messageText || '').toLowerCase().includes(query);
+            return nameMatch || phoneMatch || campMatch || msgMatch;
+          }
+          return true;
+        });
 
-            <div className="flex items-center space-x-3 border-b border-[#1F2229] pb-4 shrink-0">
-              <div className="p-3 bg-[#A88B4B]/10 border border-[#A88B4B]/30 rounded-xl text-[#A88B4B]">
-                <FolderArchive className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white flex items-center space-x-2">
-                  <span>{selectedArchivedProject.name}</span>
-                </h3>
-                <p className="text-xs text-gray-400 font-mono">
-                  Período: {selectedArchivedProject.startDate} até {selectedArchivedProject.endDate} • Arquivado em {new Date(selectedArchivedProject.createdAt).toLocaleDateString('pt-BR')}
-                </p>
-              </div>
-            </div>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
+            <div className="bg-[#15181E] border border-[#A88B4B]/40 rounded-2xl max-w-4xl w-full p-6 space-y-5 shadow-2xl relative max-h-[92vh] flex flex-col">
+              <button
+                onClick={() => setSelectedArchivedProject(null)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-[#1F2229]"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-            {/* Quick Metrics Summary */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-              <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-0.5">
-                <span className="text-[10px] text-gray-400 font-bold uppercase block">Total Envios</span>
-                <span className="text-lg font-mono font-extrabold text-emerald-400">{selectedArchivedProject.totalSent}</span>
-              </div>
-
-              <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-0.5">
-                <span className="text-[10px] text-gray-400 font-bold uppercase block">Taxa Sucesso</span>
-                <span className="text-lg font-mono font-extrabold text-[#A88B4B]">
-                  {selectedArchivedProject.totalSent + selectedArchivedProject.totalFailed + selectedArchivedProject.totalSkipped > 0
-                    ? Math.round((selectedArchivedProject.totalSent / (selectedArchivedProject.totalSent + selectedArchivedProject.totalFailed + selectedArchivedProject.totalSkipped)) * 100)
-                    : 0}%
-                </span>
-              </div>
-
-              <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-0.5">
-                <span className="text-[10px] text-gray-400 font-bold uppercase block">Contatos Atingidos</span>
-                <span className="text-lg font-mono font-extrabold text-indigo-400">{selectedArchivedProject.totalContacts}</span>
-              </div>
-
-              <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-0.5">
-                <span className="text-[10px] text-gray-400 font-bold uppercase block">Falhas / Pulados</span>
-                <span className="text-lg font-mono font-extrabold text-red-400">{selectedArchivedProject.totalFailed + selectedArchivedProject.totalSkipped}</span>
-              </div>
-            </div>
-
-            {/* Chip Breakdown if present */}
-            {selectedArchivedProject.chipStats && Object.keys(selectedArchivedProject.chipStats).length > 0 && (
-              <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-1.5 shrink-0">
-                <span className="text-[10px] text-gray-400 font-bold uppercase block">Chips Utilizados neste Projeto:</span>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(selectedArchivedProject.chipStats).map(([chip, count]) => (
-                    <span key={chip} className="text-xs bg-[#15181E] border border-[#1F2229] text-gray-300 px-2 py-0.5 rounded font-mono">
-                      📱 <strong className="text-emerald-400">{cleanChipName(chip)}:</strong> {count} msgs
-                    </span>
-                  ))}
+              <div className="flex items-center space-x-3 border-b border-[#1F2229] pb-4 shrink-0">
+                <div className="p-3 bg-[#A88B4B]/10 border border-[#A88B4B]/30 rounded-xl text-[#A88B4B]">
+                  <FolderArchive className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center space-x-2">
+                    <span>{selectedArchivedProject.name}</span>
+                  </h3>
+                  <p className="text-xs text-gray-400 font-mono">
+                    Período: {selectedArchivedProject.startDate} até {selectedArchivedProject.endDate} • Fechado e Arquivado em {new Date(selectedArchivedProject.createdAt).toLocaleDateString('pt-BR')}
+                  </p>
                 </div>
               </div>
-            )}
 
-            {/* Dispatches Table inside Archive */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar border border-[#1F2229] rounded-lg">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#0A0C10] border-b border-[#1F2229] sticky top-0 z-10 text-[10px] uppercase font-mono text-gray-400">
-                  <tr>
-                    <th className="py-2.5 px-3">Contato</th>
-                    <th className="py-2.5 px-3">Telefone</th>
-                    <th className="py-2.5 px-3">Campanha</th>
-                    <th className="py-2.5 px-3 text-right">Data/Hora</th>
-                    <th className="py-2.5 px-3 text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1F2229] bg-[#15181E]">
-                  {selectedArchivedProject.logs.length === 0 ? (
+              {/* Quick Metrics Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+                <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-0.5">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase block">Total Envios</span>
+                  <span className="text-lg font-mono font-extrabold text-emerald-400">{selectedArchivedProject.totalSent}</span>
+                </div>
+
+                <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-0.5">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase block">Taxa Sucesso</span>
+                  <span className="text-lg font-mono font-extrabold text-[#A88B4B]">
+                    {selectedArchivedProject.totalSent + selectedArchivedProject.totalFailed + selectedArchivedProject.totalSkipped > 0
+                      ? Math.round((selectedArchivedProject.totalSent / (selectedArchivedProject.totalSent + selectedArchivedProject.totalFailed + selectedArchivedProject.totalSkipped)) * 100)
+                      : 0}%
+                  </span>
+                </div>
+
+                <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-0.5">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase block">Contatos Atingidos</span>
+                  <span className="text-lg font-mono font-extrabold text-indigo-400">{selectedArchivedProject.totalContacts}</span>
+                </div>
+
+                <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-0.5">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase block">Falhas / Pulados</span>
+                  <span className="text-lg font-mono font-extrabold text-red-400">{selectedArchivedProject.totalFailed + selectedArchivedProject.totalSkipped}</span>
+                </div>
+              </div>
+
+              {/* Chip Breakdown if present */}
+              {selectedArchivedProject.chipStats && Object.keys(selectedArchivedProject.chipStats).length > 0 && (
+                <div className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-lg space-y-1.5 shrink-0">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase block">Chips Utilizados no Fechamento:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(selectedArchivedProject.chipStats).map(([chip, count]) => (
+                      <span key={chip} className="text-xs bg-[#15181E] border border-[#1F2229] text-gray-300 px-2 py-0.5 rounded font-mono">
+                        📱 <strong className="text-emerald-400">{cleanChipName(chip)}:</strong> {count} msgs
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Search and Filters inside Archive */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                <div className="relative flex-1">
+                  <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={projectLogSearch}
+                    onChange={(e) => setProjectLogSearch(e.target.value)}
+                    placeholder="Filtrar por nome, telefone, campanha..."
+                    className="w-full bg-[#0A0C10] border border-[#1F2229] text-white text-xs rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:border-[#A88B4B]"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setProjectLogFilter('all')}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      projectLogFilter === 'all'
+                        ? 'bg-[#A88B4B] text-slate-950 font-extrabold'
+                        : 'bg-[#0A0C10] text-gray-400 border border-[#1F2229]'
+                    }`}
+                  >
+                    Todos ({selectedArchivedProject.logs.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProjectLogFilter('enviado')}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      projectLogFilter === 'enviado'
+                        ? 'bg-emerald-600 text-white font-extrabold'
+                        : 'bg-[#0A0C10] text-emerald-400 border border-[#1F2229]'
+                    }`}
+                  >
+                    Enviados ({selectedArchivedProject.totalSent})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProjectLogFilter('falha')}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      projectLogFilter === 'falha'
+                        ? 'bg-red-600 text-white font-extrabold'
+                        : 'bg-[#0A0C10] text-red-400 border border-[#1F2229]'
+                    }`}
+                  >
+                    Falhas ({selectedArchivedProject.totalFailed})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProjectLogFilter('pulado')}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      projectLogFilter === 'pulado'
+                        ? 'bg-amber-600 text-white font-extrabold'
+                        : 'bg-[#0A0C10] text-amber-400 border border-[#1F2229]'
+                    }`}
+                  >
+                    Pulados ({selectedArchivedProject.totalSkipped})
+                  </button>
+                </div>
+              </div>
+
+              {/* Dispatches Table inside Archive */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar border border-[#1F2229] rounded-lg">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#0A0C10] border-b border-[#1F2229] sticky top-0 z-10 text-[10px] uppercase font-mono text-gray-400">
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-gray-500 italic">
-                        Nenhum registro individual salvo neste projeto.
-                      </td>
+                      <th className="py-2.5 px-3">Contato</th>
+                      <th className="py-2.5 px-3">Telefone</th>
+                      <th className="py-2.5 px-3">Campanha</th>
+                      <th className="py-2.5 px-3 text-right">Data/Hora</th>
+                      <th className="py-2.5 px-3 text-right">Status</th>
                     </tr>
-                  ) : (
-                    selectedArchivedProject.logs.map((item, idx) => (
-                      <tr key={item.id || idx} className="hover:bg-[#1F2229]/50">
-                        <td className="py-2.5 px-3 font-bold text-white">
-                          {item.contactName || 'Contato sem nome'}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-[#A88B4B]">
-                          {formatPhoneDisplay(item.phone)}
-                        </td>
-                        <td className="py-2.5 px-3 text-gray-300 max-w-[180px] truncate">
-                          {item.campaignTitle}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-gray-400 text-right">
-                          {item.sentAt ? new Date(item.sentAt).toLocaleString('pt-BR') : '—'}
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
-                            item.status === 'enviado'
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                              : item.status === 'pulado'
-                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                              : 'bg-red-500/10 text-red-400 border border-red-500/30'
-                          }`}>
-                            {item.status.toUpperCase()}
-                          </span>
+                  </thead>
+                  <tbody className="divide-y divide-[#1F2229] bg-[#15181E]">
+                    {filteredProjectLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-gray-500 italic">
+                          Nenhum registro encontrado com os filtros aplicados.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      filteredProjectLogs.map((item, idx) => (
+                        <tr key={item.id || idx} className="hover:bg-[#1F2229]/50">
+                          <td className="py-2.5 px-3 font-bold text-white">
+                            {item.contactName || 'Contato sem nome'}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-[#A88B4B]">
+                            {formatPhoneDisplay(item.phone)}
+                          </td>
+                          <td className="py-2.5 px-3 text-gray-300 max-w-[180px] truncate">
+                            {item.campaignTitle}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-gray-400 text-right">
+                            {item.sentAt ? new Date(item.sentAt).toLocaleString('pt-BR') : '—'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
+                              item.status === 'enviado'
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                : item.status === 'pulado'
+                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                                : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                            }`}>
+                              {item.status.toUpperCase()}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Modal Footer */}
-            <div className="pt-3 border-t border-[#1F2229] flex items-center justify-between shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  const headers = ['Campanha', 'Contato', 'Telefone', 'Status', 'Data Envio', 'Mensagem'];
-                  const rows = selectedArchivedProject.logs.map((l) => [
-                    `"${l.campaignTitle}"`,
-                    `"${l.contactName}"`,
-                    `"${l.phone}"`,
-                    `"${l.status}"`,
-                    `"${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}"`,
-                    `"${l.messageText.replace(/"/g, '""')}"`,
-                  ]);
-                  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-                  const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
-                  downloadFileSafely(blob, `projeto_${selectedArchivedProject.name.replace(/\s+/g, '_')}_logs.csv`);
-                }}
-                className="bg-[#A88B4B] hover:bg-[#C5A968] text-slate-950 font-extrabold text-xs uppercase px-4 py-2 rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Exportar CSV do Projeto</span>
-              </button>
+              {/* Modal Footer */}
+              <div className="pt-3 border-t border-[#1F2229] flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const total = selectedArchivedProject.totalSent + selectedArchivedProject.totalFailed + selectedArchivedProject.totalSkipped;
+                      const successPct = total > 0 ? Math.round((selectedArchivedProject.totalSent / total) * 100) : 0;
+                      const chipRows = Object.entries(selectedArchivedProject.chipStats || {})
+                        .map(([chip, count]) => `<li><strong>${chip}:</strong> ${count} disparos</li>`)
+                        .join('');
 
-              <button
-                type="button"
-                onClick={() => setSelectedArchivedProject(null)}
-                className="bg-[#1A1D23] hover:bg-[#252830] text-gray-300 hover:text-white px-5 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border border-[#1F2229]"
-              >
-                Fechar
-              </button>
+                      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>${selectedArchivedProject.name} - Relatório de Fechamento</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; margin: 30px; font-size: 12px; background: #fff; }
+    .header { border-bottom: 3px solid #A88B4B; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+    h1 { font-size: 20px; color: #A88B4B; margin: 0; }
+    .badge { background: #A88B4B; color: #000; font-weight: bold; padding: 4px 10px; border-radius: 4px; font-size: 11px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; }
+    .card-label { font-size: 10px; text-transform: uppercase; color: #6c757d; font-weight: bold; }
+    .card-value { font-size: 18px; font-weight: bold; color: #212529; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+    th, td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
+    th { background-color: #f1f3f5; color: #495057; font-weight: bold; }
+    tr:nth-child(even) { background-color: #fafbfc; }
+    .status-enviado { color: #2b8a3e; font-weight: bold; }
+    .status-falha { color: #c92a2a; font-weight: bold; }
+    .status-pulado { color: #e67700; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>${selectedArchivedProject.name}</h1>
+      <p style="margin: 5px 0 0 0; color: #666;">Período: ${selectedArchivedProject.startDate} a ${selectedArchivedProject.endDate} • Fechado em: ${new Date(selectedArchivedProject.createdAt).toLocaleString('pt-BR')}</p>
+    </div>
+    <div class="badge">PROJETO CONCLUÍDO</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-label">Envios Efetuados</div>
+      <div class="card-value" style="color: #2b8a3e;">${selectedArchivedProject.totalSent}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Taxa de Sucesso</div>
+      <div class="card-value" style="color: #A88B4B;">${successPct}%</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Contatos Atingidos</div>
+      <div class="card-value" style="color: #3b5bdb;">${selectedArchivedProject.totalContacts}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Falhas / Pulados</div>
+      <div class="card-value" style="color: #c92a2a;">${selectedArchivedProject.totalFailed + selectedArchivedProject.totalSkipped}</div>
+    </div>
+  </div>
+
+  ${chipRows ? `<div style="margin-bottom: 20px; background: #f8f9fa; padding: 10px 15px; border-radius: 6px;"><strong>Distribuição por Chip:</strong> <ul style="margin: 5px 0 0 0; padding-left: 20px;">${chipRows}</ul></div>` : ''}
+
+  <h3>Auditoria de Disparos (${selectedArchivedProject.logs.length} registros)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Contato</th>
+        <th>Telefone</th>
+        <th>Campanha</th>
+        <th>Data/Hora Envio</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${selectedArchivedProject.logs.map((l, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td><strong>${l.contactName || 'Sem nome'}</strong></td>
+          <td>${formatPhoneDisplay(l.phone)}</td>
+          <td>${l.campaignTitle}</td>
+          <td>${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}</td>
+          <td class="status-${l.status}">${l.status.toUpperCase()}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+</body>
+</html>`;
+                      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                      downloadFileSafely(blob, `relatorio_${selectedArchivedProject.name.replace(/\s+/g, '_')}.html`);
+                    }}
+                    className="bg-[#1A1D23] hover:bg-[#252830] text-gray-200 border border-[#2A2E39] font-bold text-xs uppercase px-4 py-2.5 rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-[#A88B4B]" />
+                    <span>Relatório HTML / PDF</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const headers = ['Campanha', 'Contato', 'Telefone', 'Status', 'Data Envio', 'Mensagem'];
+                      const rows = selectedArchivedProject.logs.map((l) => [
+                        `"${l.campaignTitle}"`,
+                        `"${l.contactName}"`,
+                        `"${l.phone}"`,
+                        `"${l.status}"`,
+                        `"${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}"`,
+                        `"${l.messageText.replace(/"/g, '""')}"`,
+                      ]);
+                      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+                      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
+                      downloadFileSafely(blob, `projeto_${selectedArchivedProject.name.replace(/\s+/g, '_')}_logs.csv`);
+                    }}
+                    className="bg-[#A88B4B] hover:bg-[#C5A968] text-slate-950 font-extrabold text-xs uppercase px-4 py-2.5 rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer shadow-md"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Exportar CSV</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedArchivedProject(null)}
+                  className="bg-[#1A1D23] hover:bg-[#252830] text-gray-300 hover:text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border border-[#1F2229]"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 });

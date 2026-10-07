@@ -46,7 +46,7 @@ import {
   getCampaignImmediateId,
   triggerPushMessageNotification
 } from "./utils/permissions";
-import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime } from './utils/whatsapp';
+import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime, formatPhoneDisplay } from './utils/whatsapp';
 import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
 import { processContactName, enrichContacts, isIgnoredSequenceTag, isInvalidCategoryName } from './utils/contactProcessor';
@@ -713,19 +713,38 @@ export default function App() {
     resetContacts: boolean;
     archiveName: string;
     exportType: 'csv' | 'json' | 'pdf' | 'none';
+    notes?: string;
   }) => {
     const logsToSave = config.saveLogs ? logs : [];
     const campsToSave = config.saveCampaigns ? campaigns : [];
     const contactsToSave = config.saveContacts ? contacts : [];
 
     if (config.saveLogs || config.saveCampaigns || config.saveContacts) {
-      const sentCount = logsToSave.filter(l => l.status === 'sent').length;
-      const failedCount = logsToSave.filter(l => l.status === 'failed').length;
-      const pendingCount = logsToSave.filter(l => l.status === 'pending').length;
-      const skippedCount = logsToSave.filter(l => l.status === 'skipped').length;
+      let sentCount = 0;
+      let failedCount = 0;
+      let pendingCount = 0;
+      let skippedCount = 0;
+      const chipStats: { [chipName: string]: number } = {};
+      const categoryStats: { [categoryName: string]: number } = {};
+      const contactIdsSet = new Set<string>();
+
+      logsToSave.forEach(l => {
+        if (l.contactId) contactIdsSet.add(l.contactId);
+        if (l.status === 'enviado') sentCount++;
+        else if (l.status === 'falha') failedCount++;
+        else if (l.status === 'pendente') pendingCount++;
+        else if (l.status === 'pulado') skippedCount++;
+
+        const chipName = cleanChipName((l.chipName as string) || l.chipId || 'Business');
+        chipStats[chipName] = (chipStats[chipName] || 0) + 1;
+
+        if (l.campaignTitle) {
+          categoryStats[l.campaignTitle] = (categoryStats[l.campaignTitle] || 0) + 1;
+        }
+      });
 
       const newArchive: ProjectArchive = {
-        id: `archive_${Date.now()}`,
+        id: `archive_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         name: config.archiveName,
         startDate: new Date().toISOString().slice(0, 10),
         endDate: new Date().toISOString().slice(0, 10),
@@ -734,11 +753,11 @@ export default function App() {
         totalFailed: failedCount,
         totalPending: pendingCount,
         totalSkipped: skippedCount,
-        totalContacts: contactsToSave.length,
+        totalContacts: contactIdsSet.size || contactsToSave.length,
         logsCount: logsToSave.length,
         campaignsCount: campsToSave.length,
-        chipStats: {},
-        categoryStats: {},
+        chipStats,
+        categoryStats,
         logs: logsToSave,
         campaigns: campsToSave,
       };
@@ -748,50 +767,81 @@ export default function App() {
     }
 
     if (config.exportType === 'pdf') {
+      const sent = logs.filter(l => l.status === 'enviado').length;
+      const failed = logs.filter(l => l.status === 'falha').length;
+      const skipped = logs.filter(l => l.status === 'pulado').length;
+      const total = sent + failed + skipped;
+      const successPct = total > 0 ? Math.round((sent / total) * 100) : 0;
+
       const htmlContent = `
         <!DOCTYPE html>
         <html lang="pt-BR">
         <head>
           <meta charset="UTF-8">
-          <title>${config.archiveName} - Relatório PDF</title>
+          <title>${config.archiveName} - Relatório Oficial</title>
           <style>
-            body { font-family: Arial, sans-serif; color: #111; margin: 20px; font-size: 12px; }
+            body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; margin: 30px; font-size: 12px; }
             h1 { font-size: 20px; color: #A88B4B; border-bottom: 2px solid #A88B4B; padding-bottom: 8px; margin-bottom: 15px; }
-            h2 { font-size: 14px; color: #333; margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-            th { background-color: #f4f4f4; color: #333; font-weight: bold; }
-            tr:nth-child(even) { background-color: #fafafa; }
-            .meta { margin-bottom: 15px; color: #555; }
+            .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+            .card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; }
+            .card-label { font-size: 10px; text-transform: uppercase; color: #6c757d; font-weight: bold; }
+            .card-val { font-size: 16px; font-weight: bold; color: #212529; margin-top: 3px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+            th, td { border: 1px solid #dee2e6; padding: 6px 8px; text-align: left; }
+            th { background-color: #f1f3f5; color: #495057; font-weight: bold; }
+            tr:nth-child(even) { background-color: #fafbfc; }
+            .status-enviado { color: #2b8a3e; font-weight: bold; }
+            .status-falha { color: #c92a2a; font-weight: bold; }
+            .status-pulado { color: #e67700; font-weight: bold; }
           </style>
         </head>
         <body>
-          <h1>Relatório Oficial: ${config.archiveName}</h1>
-          <div class="meta">
-            <p><strong>Data de Geração:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-            <p><strong>Total de Registros de Disparos:</strong> ${logs.length}</p>
-            <p><strong>Campanhas Cadastradas:</strong> ${campaigns.length} | <strong>Contatos:</strong> ${contacts.length}</p>
+          <h1>Relatório de Fechamento: ${config.archiveName}</h1>
+          <div style="margin-bottom: 15px; color: #555;">
+            <p><strong>Data de Emissão:</strong> ${new Date().toLocaleString('pt-BR')} • <strong>Total Disparos:</strong> ${logs.length}</p>
+            ${config.notes ? `<p><strong>Observações:</strong> ${config.notes}</p>` : ''}
           </div>
 
-          <h2>Histórico de Disparos</h2>
+          <div class="grid">
+            <div class="card">
+              <div class="card-label">Envios com Sucesso</div>
+              <div class="card-val" style="color: #2b8a3e;">${sent}</div>
+            </div>
+            <div class="card">
+              <div class="card-label">Taxa de Sucesso</div>
+              <div class="card-val" style="color: #A88B4B;">${successPct}%</div>
+            </div>
+            <div class="card">
+              <div class="card-label">Falhas / Erros</div>
+              <div class="card-val" style="color: #c92a2a;">${failed}</div>
+            </div>
+            <div class="card">
+              <div class="card-label">Pulados / Ignorados</div>
+              <div class="card-val" style="color: #e67700;">${skipped}</div>
+            </div>
+          </div>
+
+          <h3>Detalhamento dos Registros</h3>
           <table>
             <thead>
               <tr>
+                <th>#</th>
                 <th>Campanha</th>
                 <th>Contato</th>
                 <th>Telefone</th>
                 <th>Status</th>
-                <th>Data Envio</th>
+                <th>Data/Hora</th>
                 <th>Mensagem</th>
               </tr>
             </thead>
             <tbody>
-              ${logs.map(l => `
+              ${logs.map((l, i) => `
                 <tr>
+                  <td>${i + 1}</td>
                   <td>${l.campaignTitle}</td>
-                  <td>${l.contactName}</td>
-                  <td>${l.phone}</td>
-                  <td><strong>${l.status}</strong></td>
+                  <td>${l.contactName || 'Sem nome'}</td>
+                  <td>${formatPhoneDisplay(l.phone)}</td>
+                  <td class="status-${l.status}">${l.status.toUpperCase()}</td>
                   <td>${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}</td>
                   <td>${l.messageText}</td>
                 </tr>
@@ -814,7 +864,7 @@ export default function App() {
       ]);
       const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
       const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
-      downloadFileSafely(blob, `backup_disparos_${new Date().toISOString().slice(0, 10)}.csv`);
+      downloadFileSafely(blob, `fechamento_projeto_${new Date().toISOString().slice(0, 10)}.csv`);
     } else if (config.exportType === 'json') {
       await handleDownloadBackup({ logs, campaigns, contacts, groups, settings });
     }
@@ -829,7 +879,7 @@ export default function App() {
       updateContactsState([]);
     }
 
-    showToast(`✅ Ação executada com sucesso! Dados salvos e selecionados redefinidos.`);
+    showToast(`✅ Projeto finalizado e salvo com sucesso!`);
   };
 
   const handleCreateProjectArchive = (
