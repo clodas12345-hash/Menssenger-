@@ -6,6 +6,7 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { auth, saveUserPushTokenToFirestore } from '../firebase';
 
 export interface PermissionItem {
   id: 'notifications' | 'camera' | 'microphone' | 'contacts' | 'storage' | 'clipboard' | 'geolocation';
@@ -158,8 +159,6 @@ export async function sendBrowserNotification(title: string, options?: Notificat
   const validId = (parsedId && !isNaN(parsedId)) ? parsedId : undefined;
   return sendAppNotification(title, { body: options?.body, id: validId });
 }
-
-import { auth, saveUserPushTokenToFirestore } from '../firebase';
 
 // Push Registration Logic (FCM via @capacitor/push-notifications)
 export async function registerFcmTokenOnBackend(fcmToken: string): Promise<void> {
