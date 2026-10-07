@@ -253,55 +253,69 @@ export async function initializePushNotifications(
   if (!Capacitor.isNativePlatform()) return;
 
   try {
-    await ensureNotificationChannel();
-    await PushNotifications.removeAllListeners();
+    await ensureNotificationChannel().catch(() => {});
+    
+    try {
+      await PushNotifications.removeAllListeners();
+    } catch (_) {}
 
     // 1. On successful FCM registration, store token and associate with logged user in backend
-    await PushNotifications.addListener('registration', async (token) => {
-      console.info('Push registration success, token: ' + token.value);
-      await registerFcmTokenOnBackend(token.value);
-    });
-
-    await PushNotifications.addListener('registrationError', (err) => {
-      console.warn('Push registration error: ' + err.error);
-    });
-
-    // 2. Foreground push received: display heads-up notification with monochromatic ic_stat_icon
-    await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
-      console.info('Push notification received: ', notification);
-      const data = notification.data || {};
-      await sendAppNotification(notification.title || data.senderName || 'Nova Mensagem', {
-        body: notification.body || data.messageSnippet || '',
-        extra: data,
+    try {
+      await PushNotifications.addListener('registration', async (token) => {
+        try {
+          console.info('Push registration success, token: ' + token.value);
+          await registerFcmTokenOnBackend(token.value);
+        } catch (_) {}
       });
-    });
 
-    // 3. Notification click action performed (background/closed app or foreground) -> open direct conversation/campaign
-    await PushNotifications.addListener('pushNotificationActionPerformed', (notificationAction) => {
-      console.info('Push notification action performed', notificationAction);
-      const data = notificationAction.notification?.data || {};
-      if (onOpenConversation) {
-        onOpenConversation({
-          conversationId: data.conversationId,
-          campaignId: data.campaignId || data.conversationId,
-          contactId: data.contactId,
-          phone: data.phone,
-        });
+      await PushNotifications.addListener('registrationError', (err) => {
+        console.warn('Push registration error: ' + (err?.error || err));
+      });
+
+      // 2. Foreground push received: display heads-up notification with monochromatic ic_stat_icon
+      await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
+        try {
+          console.info('Push notification received: ', notification);
+          const data = notification.data || {};
+          await sendAppNotification(notification.title || data.senderName || 'Nova Mensagem', {
+            body: notification.body || data.messageSnippet || '',
+            extra: data,
+          });
+        } catch (_) {}
+      });
+
+      // 3. Notification click action performed (background/closed app or foreground) -> open direct conversation/campaign
+      await PushNotifications.addListener('pushNotificationActionPerformed', (notificationAction) => {
+        try {
+          console.info('Push notification action performed', notificationAction);
+          const data = notificationAction.notification?.data || {};
+          if (onOpenConversation) {
+            onOpenConversation({
+              conversationId: data.conversationId,
+              campaignId: data.campaignId || data.conversationId,
+              contactId: data.contactId,
+              phone: data.phone,
+            });
+          }
+        } catch (_) {}
+      });
+    } catch (listenerErr) {
+      console.warn('Falha ao registrar ouvintes de push:', listenerErr);
+    }
+
+    // Request permissions on startup safely
+    try {
+      let permStatus = await PushNotifications.checkPermissions();
+      if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
+        permStatus = await PushNotifications.requestPermissions();
       }
-    });
 
-    // Request permissions on startup
-    let permStatus = await PushNotifications.checkPermissions();
-    if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
-      permStatus = await PushNotifications.requestPermissions();
+      if (permStatus.receive === 'granted') {
+        await PushNotifications.register();
+      }
+    } catch (regErr) {
+      console.warn('Push notification register skipped or unsupported on this device:', regErr);
     }
-
-    if (permStatus.receive !== 'granted') {
-      console.warn('User denied push permissions!');
-      return;
-    }
-
-    await PushNotifications.register();
   } catch (err) {
     console.warn('Push notification initialization skipped or unavailable:', err);
   }

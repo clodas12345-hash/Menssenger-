@@ -28,8 +28,24 @@ var import_path = __toESM(require("path"), 1);
 var import_fs = __toESM(require("fs"), 1);
 var import_vite = require("vite");
 var import_genai = require("@google/genai");
+var import_firebase_admin = __toESM(require("firebase-admin"), 1);
 var import_dotenv = __toESM(require("dotenv"), 1);
 import_dotenv.default.config();
+try {
+  if (!import_firebase_admin.default.apps.length) {
+    let projectId = process.env.FIREBASE_PROJECT_ID;
+    const configPath = import_path.default.join(process.cwd(), "firebase-applet-config.json");
+    if (!projectId && import_fs.default.existsSync(configPath)) {
+      const parsed = JSON.parse(import_fs.default.readFileSync(configPath, "utf-8"));
+      projectId = parsed.projectId;
+    }
+    import_firebase_admin.default.initializeApp({
+      projectId: projectId || "adept-figure-463322-r2"
+    });
+  }
+} catch (err) {
+  console.warn("Firebase Admin initialization notice:", err);
+}
 var app = (0, import_express.default)();
 var httpServer = import_http.default.createServer(app);
 var PORT = 3e3;
@@ -75,90 +91,149 @@ var callGemini = async (prompt, config = {}) => {
   }
   return null;
 };
+function rephraseServerBodyText(text, idx) {
+  let res = text.trim();
+  const rules = [
+    [/\bvocê tem\b/gi, ["voc\xEA conta com", "est\xE1 dispon\xEDvel para voc\xEA", "j\xE1 est\xE1 liberado no seu perfil", "voc\xEA possui", "separamos para voc\xEA"]],
+    [/\baproveite\b/gi, ["garanta j\xE1", "n\xE3o deixe passar", "aproveite ao m\xE1ximo", "tire proveito", "vem garantir"]],
+    [/\bcorridas\b/gi, ["viagens", "corridas", "atendimentos", "corridas completas", "viagens realizadas"]],
+    [/\bganhar\b/gi, ["garantir", "receber", "faturar", "conquistar", "embolsar"]],
+    [/\bganhe\b/gi, ["garanta", "receba", "fature", "conquiste", "assegure"]],
+    [/\bbônus\b/gi, ["b\xF4nus", "incentivo extra", "recompensa", "valor extra", "premia\xE7\xE3o"]],
+    [/\bpromoção\b/gi, ["campanha", "condi\xE7\xE3o especial", "oportunidade", "oferta ativa", "promo\xE7\xE3o"]]
+  ];
+  if (idx > 0) {
+    rules.forEach(([regex, replacements], rIdx) => {
+      const chosen = replacements[(idx + rIdx) % replacements.length];
+      res = res.replace(regex, (match) => {
+        if (match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
+          return chosen.charAt(0).toUpperCase() + chosen.slice(1);
+        }
+        return chosen;
+      });
+    });
+  }
+  return res;
+}
 function generateFallbackTopicTemplates(topicName, hook, presentation, quantity = 5) {
   const cleanTopic = topicName?.trim() || "T\xF3pico Estrat\xE9gico";
   const cleanHook = hook?.trim() || "Aproveite esta condi\xE7\xE3o especial!";
-  const intro = presentation?.trim() ? `${presentation.trim()}: ` : "";
-  const originalMessage = cleanHook.includes("{primeiro_nome}") || cleanHook.includes("{nome}") ? `${intro}${cleanHook}` : `{saudacao}, {primeiro_nome}! ${intro}${cleanHook}`;
-  const cleanBody = cleanHook.replace(/^(\{saudacao\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, "").trim();
-  const pool = [
+  const intro = presentation?.trim() ? `${presentation.trim()} \u2014 ` : "";
+  const cleanBody = cleanHook.replace(/^(\{saudacao\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, "").trim() || cleanHook;
+  const b = (i) => rephraseServerBodyText(cleanBody, i);
+  const firstOption = {
+    title: `${cleanTopic} - Op\xE7\xE3o 1 (Original e Direta)`,
+    content: `{saudacao}, {primeiro_nome}! ${intro}${b(0)}`,
+    category: cleanTopic
+  };
+  const diversePool = [
     {
-      title: `${cleanTopic} - Mensagem 1 (Original)`,
-      content: originalMessage,
-      category: cleanTopic
+      tag: "Pergunta Engajadora",
+      content: `{primeiro_nome}, tudo certo por a\xED? {saudacao}!
+
+J\xE1 viu essa novidade? ${intro}${b(1)}
+
+Qualquer d\xFAvida, me d\xE1 um al\xF4!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 2 (Direta e Objetiva)`,
-      content: `Ol\xE1, {primeiro_nome}! {saudacao}! ${intro}Passando para te avisar: ${cleanBody || cleanHook} Se precisar de qualquer ajuda, conte comigo!`,
-      category: cleanTopic
+      tag: "Destaque R\xE1pido (2 Linhas)",
+      content: `\u{1F680} ${intro}${b(2)}
+
+{saudacao}, {primeiro_nome}! Se precisar de suporte com isso, conta comigo.`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 3 (Cordial e Preventiva)`,
-      content: `{saudacao}, {primeiro_nome}! Tudo bem? ${intro}Gostaria de compartilhar uma informa\xE7\xE3o importante: ${cleanBody || cleanHook} Estamos 100% \xE0 disposi\xE7\xE3o por aqui!`,
-      category: cleanTopic
+      tag: "Formato em T\xF3pico",
+      content: `Ol\xE1, {primeiro_nome}! {saudacao}!
+
+\u{1F4CC} *Resumo importante para voc\xEA:*
+${intro}${b(3)}
+
+Bora aproveitar? Estou por aqui!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 4 (\xC1gil e Pr\xE1tica)`,
-      content: `{primeiro_nome}, {saudacao}! ${intro}Lembrete r\xE1pido para voc\xEA: ${cleanBody || cleanHook} Qualquer d\xFAvida \xE9 s\xF3 me chamar!`,
-      category: cleanTopic
+      tag: "Parceria e Pr\xF3xima",
+      content: `Fala, {primeiro_nome}! {saudacao}! Como est\xE3o os trabalhos hoje?
+
+Passando pra fortalecer sua rotina: ${intro}${b(4)} Tamo junto!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 5 (Conversacional)`,
-      content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Espero que esteja tudo bem. Queria te passar este comunicado: ${cleanBody || cleanHook} Conte com nosso suporte sempre!`,
-      category: cleanTopic
+      tag: "Foco no Resultado",
+      content: `{saudacao}! Passando com uma excelente not\xEDcia para o seu dia, {primeiro_nome}: ${intro}${b(5)} Aproveite para impulsionar seus ganhos!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 6 (Entusiasta)`,
-      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Tenho uma novidade imperd\xEDvel: ${cleanBody || cleanHook} Estamos ansiosos pelo seu contato!`,
-      category: cleanTopic
+      tag: "Lembrete Pr\xE1tico",
+      content: `Oi {primeiro_nome}! \u{1F44B} {saudacao}!
+
+S\xF3 passando para voc\xEA n\xE3o deixar passar: ${intro}${b(6)}
+
+Precisando de orienta\xE7\xE3o, \xE9 s\xF3 chamar.`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 7 (Profissional)`,
-      content: `Prezado(a) {primeiro_nome}, {saudacao}. ${intro}Este \xE9 um comunicado importante sobre: ${cleanBody || cleanHook} \xC0 disposi\xE7\xE3o para esclarecimentos.`,
-      category: cleanTopic
+      tag: "Exclusiva VIP",
+      content: `{primeiro_nome}, {saudacao}! Seu contato foi selecionado na campanha *${cleanTopic}*:
+
+\u2728 ${intro}${b(7)}
+
+Fico \xE0 disposi\xE7\xE3o se quiser saber mais!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 8 (Curta e Direta)`,
-      content: `Ol\xE1, {primeiro_nome}. ${intro}${cleanBody || cleanHook} Qualquer coisa, \xE9 s\xF3 dar um al\xF4!`,
-      category: cleanTopic
+      tag: "Curta e Sem Rodeios",
+      content: `{saudacao}, {primeiro_nome}! Recado jogo r\xE1pido: ${intro}${b(8)} Qualquer coisa, me chama!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 9 (Informativa)`,
-      content: `{saudacao}! {primeiro_nome}, ${intro}aproveito o momento para informar: ${cleanBody || cleanHook} Se preferir, agendamos um hor\xE1rio!`,
-      category: cleanTopic
+      tag: "Consultiva e Atenciosa",
+      content: `Espero que seu dia esteja \xF3timo, {primeiro_nome}! ({saudacao})
+
+Quero compartilhar esse ponto com voc\xEA: ${intro}${b(9)}
+
+Conte com nosso time!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 10 (Foco em Benef\xEDcio)`,
-      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Voc\xEA n\xE3o pode perder esta oportunidade: ${cleanBody || cleanHook} Vamos conversar?`,
-      category: cleanTopic
+      tag: "Alerta de Oportunidade",
+      content: `\u26A1 *Aten\xE7\xE3o, {primeiro_nome}!* {saudacao}!
+
+${intro}${b(10)}
+
+N\xE3o deixe para a \xFAltima hora, qualquer d\xFAvida estou online!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 11 (Urgente)`,
-      content: `Aten\xE7\xE3o, {primeiro_nome}! {saudacao}! ${intro}Preciso te atualizar sobre: ${cleanBody || cleanHook} Aguardo seu retorno!`,
-      category: cleanTopic
+      tag: "Conversa Natural",
+      content: `Oi, {primeiro_nome}, tudo bem? {saudacao}! Vi seu perfil aqui e lembrei de te avisar: ${intro}${b(11)} Depois me conta se deu tudo certo!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 12 (Personalizada)`,
-      content: `Como vai, {primeiro_nome}? {saudacao}! ${intro}Queria destacar isso para voc\xEA: ${cleanBody || cleanHook} Fico no aguardo de not\xEDcias.`,
-      category: cleanTopic
+      tag: "Motivacional",
+      content: `Excelente jornada hoje, {primeiro_nome}! {saudacao}!
+
+Pra somar nos seus resultados: ${intro}${b(12)}
+
+\xD3timas corridas e sucesso!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 13 (Amig\xE1vel)`,
-      content: `Oi, {primeiro_nome}! ${intro}Tudo certo por aqui, queria s\xF3 te lembrar: ${cleanBody || cleanHook} Abra\xE7os!`,
-      category: cleanTopic
+      tag: "Check-in R\xE1pido",
+      content: `{primeiro_nome}! {saudacao}! Passando em 1 minutinho s\xF3 para confirmar se voc\xEA j\xE1 viu:
+\u{1F449} ${intro}${b(13)}
+
+Estou \xE0 disposi\xE7\xE3o!`
     },
     {
-      title: `${cleanTopic} - Op\xE7\xE3o 14 (Exclusiva)`,
-      content: `Ol\xE1, {primeiro_nome}! {saudacao}! ${intro}Preparamos isso especialmente para voc\xEA: ${cleanBody || cleanHook} Que tal aproveitar?`,
-      category: cleanTopic
-    },
-    {
-      title: `${cleanTopic} - Op\xE7\xE3o 15 (Conex\xE3o)`,
-      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Notei esse ponto importante: ${cleanBody || cleanHook} Seguimos juntos!`,
-      category: cleanTopic
+      tag: "Fechamento de Meta",
+      content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? \u{1F3AF}
+
+${intro}${b(14)}
+
+Se precisar de apoio, fala comigo!`
     }
   ];
-  return pool.slice(0, Math.max(1, Math.min(quantity, pool.length)));
+  const shuffled = [...diversePool].sort(() => Math.random() - 0.5);
+  const fullList = [
+    firstOption,
+    ...shuffled.map((item, idx) => ({
+      title: `${cleanTopic} - Op\xE7\xE3o ${idx + 2} (${item.tag})`,
+      content: item.content,
+      category: cleanTopic
+    }))
+  ];
+  return fullList.slice(0, Math.max(1, Math.min(quantity, fullList.length)));
 }
 function generateFallbackTemplates(category, businessType) {
   const cat = category || "Geral";
@@ -575,8 +650,93 @@ Retorne EXCLUSIVAMENTE um JSON:
     return res.json({ response: "Ol\xE1! Posso ajudar com a gest\xE3o de contatos, cria\xE7\xE3o de mensagens prontas e agendamento de disparos. Como prefere come\xE7ar?", actions: [] });
   } catch {
     return res.json({
-      response: "Ol\xE1! O assistente est\xE1 pronto. Como posso auxiliar voc\xEA no ZapAgendador hoje?",
+      response: "Ol\xE1! O assistente est\xE1 pronto. Como posso auxiliar voc\xEA no Mensseger hoje?",
       actions: []
+    });
+  }
+});
+var userPushTokensStore = /* @__PURE__ */ new Map();
+app.post("/api/push/register-token", (req, res) => {
+  try {
+    const { userId, fcmToken, platform = "android", senderName } = req.body || {};
+    if (!userId || !fcmToken) {
+      return res.status(400).json({ error: "userId e fcmToken s\xE3o obrigat\xF3rios." });
+    }
+    const record = {
+      userId: String(userId),
+      fcmToken: String(fcmToken),
+      platform: String(platform),
+      senderName: senderName ? String(senderName) : void 0,
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    userPushTokensStore.set(String(userId), record);
+    return res.json({ ok: true, registered: record });
+  } catch (err) {
+    return res.status(500).json({ error: err?.message || "Erro ao registrar token FCM" });
+  }
+});
+app.post("/api/push/send-message", async (req, res) => {
+  try {
+    const {
+      recipientUserId,
+      fcmToken: explicitToken,
+      senderName = "Mensseger",
+      messageSnippet = "Voc\xEA recebeu uma nova mensagem.",
+      conversationId = "",
+      campaignId = "",
+      contactId = "",
+      phone = ""
+    } = req.body || {};
+    let targetToken = explicitToken;
+    if (!targetToken && recipientUserId) {
+      const stored = userPushTokensStore.get(String(recipientUserId));
+      if (stored?.fcmToken) {
+        targetToken = stored.fcmToken;
+      }
+    }
+    if (!targetToken && userPushTokensStore.size > 0) {
+      const latest = Array.from(userPushTokensStore.values()).pop();
+      targetToken = latest?.fcmToken;
+    }
+    if (!targetToken) {
+      return res.status(404).json({
+        ok: false,
+        error: "Nenhum token FCM encontrado para o destinat\xE1rio informado."
+      });
+    }
+    const snippet = String(messageSnippet).length > 140 ? String(messageSnippet).slice(0, 137) + "..." : String(messageSnippet);
+    const messagePayload = {
+      token: String(targetToken),
+      notification: {
+        title: String(senderName),
+        body: snippet
+      },
+      data: {
+        senderName: String(senderName),
+        messageSnippet: snippet,
+        conversationId: String(conversationId || campaignId || ""),
+        campaignId: String(campaignId || conversationId || ""),
+        contactId: String(contactId || ""),
+        phone: String(phone || "")
+      },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "gkd_campaigns_v2",
+          icon: "ic_stat_icon",
+          color: "#34d399",
+          sound: "default",
+          clickAction: "FCM_PLUGIN_ACTIVITY"
+        }
+      }
+    };
+    const messageId = await import_firebase_admin.default.messaging().send(messagePayload);
+    return res.json({ ok: true, messageId });
+  } catch (err) {
+    console.warn("FCM send warning:", err?.message || err);
+    return res.status(200).json({
+      ok: false,
+      warning: err?.message || "Falha ao enviar push via FCM"
     });
   }
 });
