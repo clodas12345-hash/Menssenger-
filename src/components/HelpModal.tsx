@@ -73,11 +73,10 @@ export const HelpModal: React.FC<HelpModalProps> = ({
         const json = JSON.parse(event.target?.result as string);
         const result = restoreFromBackup(json);
         if (result.success) {
-          setDownloadSuccess('Dados restaurados com sucesso! Recarregando...');
+          setDownloadSuccess('Dados restaurados com sucesso!');
           setTimeout(() => {
             if (onRefreshData) onRefreshData();
-            window.location.reload();
-          }, 1500);
+          }, 600);
         } else {
           alert(`Erro ao restaurar: ${result.error}`);
         }

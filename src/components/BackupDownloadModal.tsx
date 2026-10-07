@@ -61,33 +61,18 @@ export const BackupDownloadModal: React.FC<BackupDownloadModalProps> = ({
         ? fileName.trim()
         : `${fileName.trim()}.json`;
 
-      // 1. Coleta e consolida todos os dados em um objeto JavaScript
-      const allLocalStorageData: Record<string, any> = {};
-      if (typeof window !== 'undefined' && window.localStorage) {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key) {
-            try {
-              allLocalStorageData[key] = JSON.parse(localStorage.getItem(key) || '');
-            } catch {
-              allLocalStorageData[key] = localStorage.getItem(key);
-            }
-          }
-        }
-      }
-
+      // 1. Coleta e consolida os dados de forma leve
       const backupData = {
         version: '2.0-full',
         appName: 'Mensseger',
         exportDate: new Date().toISOString(),
-        contacts: data?.contacts || allLocalStorageData['zap_contacts_v1'] || [],
-        logs: data?.logs || allLocalStorageData['zap_dispatch_logs_v1'] || [],
-        campaigns: data?.campaigns || allLocalStorageData['zap_campaigns_v1'] || [],
-        templates: data?.templates || allLocalStorageData['zap_templates_v1'] || [],
-        groups: data?.groups || allLocalStorageData['zap_groups_v1'] || [],
-        settings: data?.settings || allLocalStorageData['zap_settings_v1'] || {},
+        contacts: data?.contacts || [],
+        logs: data?.logs || [],
+        campaigns: data?.campaigns || [],
+        templates: data?.templates || [],
+        groups: data?.groups || [],
+        settings: data?.settings || {},
         ...data,
-        rawLocalStorage: allLocalStorageData,
       };
 
       const jsonString = JSON.stringify(backupData, null, 2);
@@ -99,16 +84,20 @@ export const BackupDownloadModal: React.FC<BackupDownloadModalProps> = ({
         const result = await Filesystem.writeFile({
           path: finalFileName,
           data: jsonString,
-          directory: Directory.Documents,
+          directory: Directory.Cache,
           encoding: Encoding.UTF8,
         });
 
-        await Share.share({
-          title: 'Backup Completo Mensseger',
-          text: 'Arquivo completo de backup com todos os dados do Mensseger.',
-          url: result.uri,
-          dialogTitle: 'Salvar ou Compartilhar Backup',
-        });
+        try {
+          await Share.share({
+            title: 'Backup Completo Mensseger',
+            text: 'Arquivo completo de backup com todos os dados do Mensseger.',
+            url: result.uri,
+            dialogTitle: 'Salvar ou Compartilhar Backup',
+          });
+        } catch {
+          // Normal user dismiss
+        }
 
         if (onSuccess) onSuccess(finalFileName);
         onClose();

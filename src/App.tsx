@@ -984,14 +984,16 @@ export default function App() {
   // Background Campaign Scheduler Checker
   useEffect(() => {
     const checkScheduledCampaigns = () => {
-      const now = new Date().getTime();
+      const now = Date.now();
 
       let campaignToTrigger: ScheduledCampaign | null = null;
 
       setCampaigns((prevCampaigns) => {
+        if (!prevCampaigns || prevCampaigns.length === 0) return prevCampaigns;
+
         let changed = false;
         const updated = prevCampaigns.map((camp) => {
-          const total = camp.contactIds.length;
+          const total = camp.contactIds?.length || 0;
           const sent = camp.progress?.sent || 0;
           const isPending = camp.status !== 'concluido' && camp.status !== 'cancelado' && sent < total;
 
@@ -1000,12 +1002,16 @@ export default function App() {
 
             // Trigger when exact scheduled time is reached (<= now) and not yet notified in this session
             if (scheduledTime <= now && !autoOpenedCampaignsRef.current.has(camp.id)) {
+              autoOpenedCampaignsRef.current.add(camp.id);
               if (!campaignToTrigger) {
-                campaignToTrigger = camp;
+                // Only open automatic alert for campaigns scheduled recently (last 10 minutes) or forward
+                const isRecent = (now - scheduledTime) < (10 * 60 * 1000);
+                if (isRecent) {
+                  campaignToTrigger = camp;
+                }
               }
             }
 
-            // Only transition from 'agendado' to 'em_andamento' once the scheduled time has ACTUALLY arrived
             if (scheduledTime <= now && camp.status === 'agendado') {
               changed = true;
               return { ...camp, status: 'em_andamento' as const };
@@ -1024,11 +1030,9 @@ export default function App() {
 
       if (campaignToTrigger) {
         const camp = campaignToTrigger as ScheduledCampaign;
-        autoOpenedCampaignsRef.current.add(camp.id);
         setActiveDispatcherCampaign(camp);
         setDueCampaignAlert(camp);
 
-        // 1. Unified App Notification (Android Native LocalNotification + Web Notification + In-App Event)
         sendAppNotification(`🚨 HORA DO DISPARO: "${camp.title}"`, {
           body: `Agendamento pronto com ${camp.contactIds.length} contato(s). Toque para abrir o disparador!`,
           id: getCampaignImmediateId(camp.id),
@@ -1036,27 +1040,16 @@ export default function App() {
           extra: { campaignId: camp.id }
         });
 
-        // 2. Urgent Sound Alert
         if (settings.soundEnabled) {
           playDispatchAlertSound();
         }
 
-        // 3. Vibration Feedback
         triggerVibration([250, 100, 250, 100, 400]);
-
-        // 4. Tab Title Alert
-        try {
-          const originalTitle = 'Mensseger';
-          document.title = `🚨 DISPARO PRONTO: ${camp.title}`;
-          setTimeout(() => {
-            document.title = originalTitle;
-          }, 20000);
-        } catch (_) {}
       }
     };
 
     checkScheduledCampaigns();
-    const timer = setInterval(checkScheduledCampaigns, 1000); // Check every second for exact second-level precision
+    const timer = setInterval(checkScheduledCampaigns, 3000); // Efficient 3s cycle
     return () => clearInterval(timer);
   }, [settings.soundEnabled]);
 

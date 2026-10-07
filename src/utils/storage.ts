@@ -832,6 +832,8 @@ export function restoreFromBackup(backupData: any): { success: boolean; error?: 
       { backupKey: 'logs', storageKey: STORAGE_KEYS.LOGS },
       { backupKey: 'groups', storageKey: STORAGE_KEYS.GROUPS },
       { backupKey: 'settings', storageKey: STORAGE_KEYS.SETTINGS },
+      { backupKey: 'cards', storageKey: STORAGE_KEYS.CARDS },
+      { backupKey: 'projects', storageKey: STORAGE_KEYS.PROJECTS },
     ];
 
     keysToRestore.forEach(({ backupKey, storageKey }) => {

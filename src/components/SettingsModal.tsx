@@ -275,11 +275,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           sendAppNotification('💾 Backup Restaurado', {
             body: 'Seus dados, contatos e mensagens foram restaurados com sucesso!'
           });
-          setImportStatus('Backup restaurado! Atualizando dados...');
+          setImportStatus('Backup restaurado com sucesso!');
           setTimeout(() => {
             if (onRefreshData) onRefreshData();
-            window.location.reload();
-          }, 1200);
+            setImportStatus(null);
+          }, 800);
         } else {
           alert(`Erro ao restaurar: ${result.error}`);
         }
