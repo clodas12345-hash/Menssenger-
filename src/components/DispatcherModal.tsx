@@ -620,6 +620,33 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
           </div>
         </div>
 
+        {/* Progress & Remaining Contacts Bar */}
+        <div className="bg-[#121316] border-b border-[#262629] px-3.5 py-2 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Progresso:</span>
+            <span className="text-white font-extrabold text-[11px] font-mono">
+              {currentIndex} / {total}
+            </span>
+            <span className="text-[10px] text-gray-500 font-mono">
+              ({progressPercent}%)
+            </span>
+          </div>
+          <div className="bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm">
+            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+              Falta a ser enviado:
+            </span>
+            <span className="text-amber-300 font-black text-xs font-mono">
+              {Math.max(0, total - currentIndex)}
+            </span>
+          </div>
+        </div>
+        <div className="w-full bg-[#1C1F26] h-1 shrink-0">
+          <div 
+            className="bg-gradient-to-r from-amber-500 via-emerald-400 to-emerald-500 h-1 transition-all duration-300"
+            style={{ width: `${Math.min(100, progressPercent)}%` }}
+          />
+        </div>
+
         {/* Scrollable Content */}
         <div className="overflow-y-auto flex-1 overscroll-contain no-scrollbar">
           {/* Card Anexado Section */}
@@ -704,10 +731,15 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
                 {/* Destinatário Info Card */}
                 <div className="bg-[#121316] border border-[#262629] px-4 py-2.5 rounded-xl flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <span className="text-[9px] text-gray-400 block uppercase font-black tracking-widest">Destinatário</span>
-                    <h4 className="text-emerald-400 text-xs font-extrabold truncate">{currentContact?.name || 'Sem Nome'}</h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[9px] text-gray-400 block uppercase font-black tracking-widest">Destinatário ({currentIndex + 1} de {total})</span>
+                      <span className="text-[9px] text-amber-400 font-extrabold bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                        Falta: {Math.max(0, total - currentIndex)}
+                      </span>
+                    </div>
+                    <h4 className="text-emerald-400 text-xs font-extrabold truncate mt-0.5">{currentContact?.name || 'Sem Nome'}</h4>
                   </div>
-                  <span className="text-[10px] text-gray-300 bg-[#0E0E10] px-2 py-0.5 rounded border border-[#262629] font-bold font-mono">
+                  <span className="text-[10px] text-gray-300 bg-[#0E0E10] px-2 py-0.5 rounded border border-[#262629] font-bold font-mono shrink-0">
                     {currentContact?.phone ? (currentContact.phone.startsWith('55') ? currentContact.phone : `55${currentContact.phone}`) : 'Sem Telefone'}
                   </span>
                 </div>
@@ -760,9 +792,12 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
               <>
                 {/* Clear Confirmation Card */}
                 <div className="bg-[#101216] border border-[#262933] rounded-2xl p-4 flex flex-col gap-3 shadow-2xl">
-                  <div className="text-center pb-1">
-                    <span className="text-[11px] font-black text-gray-500 uppercase tracking-[0.2em]">
+                  <div className="flex items-center justify-between border-b border-[#262629] pb-2">
+                    <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">
                       A mensagem foi enviada?
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md">
+                      Falta a ser enviado: {Math.max(0, total - currentIndex)}
                     </span>
                   </div>
 
@@ -809,7 +844,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
                               <CheckCircle2 className={`w-6 h-6 ${!isSuporteActive ? "text-white" : "text-gray-600"}`} />
                             </div>
                             <div className="text-left">
-                              <p className={`font-black text-lg uppercase tracking-tight leading-tight ${!isSuporteActive ? "text-white" : "text-gray-500"}`}>Sim, Enviado!</p>
+                              <p className={`font-black text-lg uppercase tracking-tight leading-tight ${!isSuporteActive ? "text-white" : "text-gray-500"}`}>ENVIADO</p>
                               <p className={`text-[10px] font-bold opacity-80 uppercase tracking-widest ${!isSuporteActive ? "text-emerald-100" : "text-gray-600"}`}>Confirmar e Prosseguir</p>
                             </div>
                           </div>
@@ -854,7 +889,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
                               <CheckCircle2 className={`w-6 h-6 ${isSuporteActive ? "text-white" : "text-gray-600"}`} />
                             </div>
                             <div className="text-left">
-                              <p className={`font-black text-lg uppercase tracking-tight leading-tight ${isSuporteActive ? "text-white" : "text-gray-500"}`}>Sim, Enviado!</p>
+                              <p className={`font-black text-lg uppercase tracking-tight leading-tight ${isSuporteActive ? "text-white" : "text-gray-500"}`}>ENVIADO</p>
                               <p className={`text-[10px] font-bold opacity-80 uppercase tracking-widest ${isSuporteActive ? "text-blue-100" : "text-gray-600"}`}>Confirmar e Prosseguir</p>
                             </div>
                           </div>

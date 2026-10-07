@@ -99,7 +99,7 @@ export const ConfirmSentModal: React.FC<ConfirmSentModalProps> = ({
             className="w-full py-3.5 px-4 rounded-lg bg-[#A88B4B] hover:bg-[#C5A968] text-[#0A0C10] font-black text-xs uppercase tracking-widest shadow-lg shadow-[#A88B4B]/20 transition-all flex items-center justify-center space-x-2 cursor-pointer"
           >
             <CheckCircle2 className="w-4 h-4" />
-            <span>Sim, enviada! ({suggestedEnvioText})</span>
+            <span>ENVIADO ({suggestedEnvioText})</span>
           </button>
 
           <button

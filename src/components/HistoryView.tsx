@@ -2358,7 +2358,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                       className="bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/40 text-emerald-200 font-bold py-2.5 px-3 rounded-lg text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all cursor-pointer shadow"
                     >
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>Sim, Enviada ({cleanChipName(chip.name)})</span>
+                      <span>ENVIADO ({cleanChipName(chip.name)})</span>
                     </button>
                   ))}
                 </div>
