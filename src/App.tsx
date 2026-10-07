@@ -510,48 +510,45 @@ export default function App() {
   }, [groups]);
 
   // Navegação e controle permanente do botão Voltar do celular (Android Back Button)
-  const tabHistoryRef = useRef<string[]>(['dashboard']);
+  const activeTabRef = useRef<string>('dashboard');
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
-  // Função para reforçar a pilha de retenção no histórico do navegador
-  const pumpHistoryGuard = useCallback(() => {
-    try {
-      for (let i = 0; i < 3; i++) {
-        window.history.pushState({ appTab: 'guard', ts: Date.now() + i }, '');
-      }
-    } catch (e) {}
-  }, []);
+  const modalsRef = useRef({
+    isAiModalOpen: false,
+    isTopicGeneratorOpen: false,
+    isSettingsModalOpen: false,
+    isHelpModalOpen: false,
+    isApkExportModalOpen: false,
+    isPermissionsModalOpen: false,
+    isLogoInfoModalOpen: false,
+    isSaveAndResetOpen: false,
+    activeDispatcherCampaign: false,
+    editingCampaign: false,
+    pendingConfirmContact: false,
+    dueCampaignAlert: false,
+    ruleViolationModalOpen: false,
+    reportPreviewHtml: false,
+  });
 
-  // Função centralizada para mudar de tela registrando no histórico
-  const navigateToTab = useCallback((tab: string) => {
-    setActiveTab(tab);
-    const historyStack = tabHistoryRef.current;
-    if (historyStack[historyStack.length - 1] !== tab) {
-      historyStack.push(tab);
-      try {
-        window.history.pushState({ appTab: tab, timestamp: Date.now() }, '');
-      } catch (e) {}
-    }
-    pumpHistoryGuard();
-  }, [pumpHistoryGuard]);
-
-  // Função para fechar qualquer modal ou diálogo aberto (retorna true se havia algum aberto)
-  const closeAllOpenModals = useCallback(() => {
-    let hadOpenModal = false;
-    if (isAiModalOpen) { setIsAiModalOpen(false); hadOpenModal = true; }
-    if (isTopicGeneratorOpen) { setIsTopicGeneratorOpen(false); hadOpenModal = true; }
-    if (isSettingsModalOpen) { setIsSettingsModalOpen(false); hadOpenModal = true; }
-    if (isHelpModalOpen) { setIsHelpModalOpen(false); hadOpenModal = true; }
-    if (isApkExportModalOpen) { setIsApkExportModalOpen(false); hadOpenModal = true; }
-    if (isPermissionsModalOpen) { setIsPermissionsModalOpen(false); hadOpenModal = true; }
-    if (isLogoInfoModalOpen) { setIsLogoInfoModalOpen(false); hadOpenModal = true; }
-    if (isSaveAndResetOpen) { setIsSaveAndResetOpen(false); hadOpenModal = true; }
-    if (activeDispatcherCampaign) { setActiveDispatcherCampaign(null); hadOpenModal = true; }
-    if (editingCampaign) { setEditingCampaign(null); hadOpenModal = true; }
-    if (pendingConfirmContact) { setPendingConfirmContact(null); hadOpenModal = true; }
-    if (dueCampaignAlert) { setDueCampaignAlert(null); hadOpenModal = true; }
-    if (ruleViolationModal.isOpen) { setRuleViolationModal(prev => ({ ...prev, isOpen: false })); hadOpenModal = true; }
-    if (reportPreviewHtml) { setReportPreviewHtml(null); hadOpenModal = true; }
-    return hadOpenModal;
+  useEffect(() => {
+    modalsRef.current = {
+      isAiModalOpen,
+      isTopicGeneratorOpen,
+      isSettingsModalOpen,
+      isHelpModalOpen,
+      isApkExportModalOpen,
+      isPermissionsModalOpen,
+      isLogoInfoModalOpen,
+      isSaveAndResetOpen,
+      activeDispatcherCampaign: !!activeDispatcherCampaign,
+      editingCampaign: !!editingCampaign,
+      pendingConfirmContact: !!pendingConfirmContact,
+      dueCampaignAlert: !!dueCampaignAlert,
+      ruleViolationModalOpen: ruleViolationModal.isOpen,
+      reportPreviewHtml: !!reportPreviewHtml,
+    };
   }, [
     isAiModalOpen,
     isTopicGeneratorOpen,
@@ -569,58 +566,51 @@ export default function App() {
     reportPreviewHtml
   ]);
 
-  // Lógica unificada do botão voltar:
-  // Se estiver em qualquer tela que não seja a inicial, volta para a tela inicial.
-  // Se já estiver na tela inicial, não faz nada (o app nunca é fechado).
-  const handleAppBackButton = useCallback(() => {
-    const hadOpenModal = closeAllOpenModals();
-    if (activeTab !== 'dashboard' || hadOpenModal) {
-      setActiveTab('dashboard');
-      tabHistoryRef.current = ['dashboard'];
-      return;
-    }
-    // Se já estiver na tela inicial ('dashboard') e sem modais abertos, não faz nada
-  }, [activeTab, closeAllOpenModals]);
-
-  // Plugin nativo @capacitor/app: intercepta o botão voltar físico do celular para nunca fechar o app
-  useEffect(() => {
-    const backButtonListener = CapApp.addListener('backButton', () => {
-      handleAppBackButton();
-    });
-
-    return () => {
-      backButtonListener.then((handle) => handle.remove()).catch(() => {});
-    };
-  }, [handleAppBackButton]);
-
-  // Interceptar também eventos de histórico do navegador (popstate)
-  useEffect(() => {
-    try {
-      window.history.replaceState({ appTab: 'dashboard', timestamp: Date.now() }, '');
-      for (let i = 0; i < 5; i++) {
-        window.history.pushState({ appTab: 'guard', timestamp: Date.now() + i }, '');
-      }
-    } catch (e) {}
-
-    const handlePopState = () => {
-      try {
-        window.history.pushState({ appTab: 'guard', timestamp: Date.now() }, '');
-      } catch (e) {}
-
-      handleAppBackButton();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [handleAppBackButton]);
-
-  useEffect(() => {
-    // Inicialização permanente na tela inicial (painel principal)
-    setActiveTab('dashboard');
-    tabHistoryRef.current = ['dashboard'];
+  // Função centralizada para mudar de tela sem conflito no histórico
+  const navigateToTab = useCallback((tab: string) => {
+    setActiveTab(tab);
+    activeTabRef.current = tab;
   }, []);
+
+  // Lógica unificada do botão voltar sem loops de recarga
+  const handleAppBackButton = useCallback(() => {
+    const m = modalsRef.current;
+    if (m.isAiModalOpen) { setIsAiModalOpen(false); return; }
+    if (m.isTopicGeneratorOpen) { setIsTopicGeneratorOpen(false); return; }
+    if (m.isSettingsModalOpen) { setIsSettingsModalOpen(false); return; }
+    if (m.isHelpModalOpen) { setIsHelpModalOpen(false); return; }
+    if (m.isApkExportModalOpen) { setIsApkExportModalOpen(false); return; }
+    if (m.isPermissionsModalOpen) { setIsPermissionsModalOpen(false); return; }
+    if (m.isLogoInfoModalOpen) { setIsLogoInfoModalOpen(false); return; }
+    if (m.isSaveAndResetOpen) { setIsSaveAndResetOpen(false); return; }
+    if (m.activeDispatcherCampaign) { setActiveDispatcherCampaign(null); return; }
+    if (m.editingCampaign) { setEditingCampaign(null); return; }
+    if (m.pendingConfirmContact) { setPendingConfirmContact(null); return; }
+    if (m.dueCampaignAlert) { setDueCampaignAlert(null); return; }
+    if (m.ruleViolationModalOpen) { setRuleViolationModal(prev => ({ ...prev, isOpen: false })); return; }
+    if (m.reportPreviewHtml) { setReportPreviewHtml(null); return; }
+
+    if (activeTabRef.current !== 'dashboard') {
+      setActiveTab('dashboard');
+      activeTabRef.current = 'dashboard';
+    }
+  }, []);
+
+  // Plugin nativo @capacitor/app: intercepta o botão voltar físico com segurança
+  useEffect(() => {
+    let handle: any = null;
+    CapApp.addListener('backButton', () => {
+      handleAppBackButton();
+    }).then((h) => {
+      handle = h;
+    }).catch(() => {});
+
+    return () => {
+      if (handle && typeof handle.remove === 'function') {
+        handle.remove();
+      }
+    };
+  }, [handleAppBackButton]);
 
   const syncGroupsWithContacts = React.useCallback((currentContacts: Contact[]) => {
     setGroups((prevGroups) => {

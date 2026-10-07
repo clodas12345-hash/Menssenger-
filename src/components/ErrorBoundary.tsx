@@ -1,4 +1,4 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -10,15 +10,13 @@ interface State {
   error?: Error;
 }
 
-export class ErrorBoundary extends React.Component<Props, State> {
-  public props: Props;
-  public state: State = {
+export class ErrorBoundary extends Component<Props, State> {
+  override state: State = {
     hasError: false,
   };
 
   constructor(props: Props) {
     super(props);
-    this.props = props;
   }
 
   public static getDerivedStateFromError(error: Error): State {
@@ -52,13 +50,21 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 {this.state.error.message}
               </div>
             )}
-            <button
-              onClick={this.handleReload}
-              className="w-full bg-[#A88B4B] hover:bg-[#8A713B] text-black font-bold py-3 px-4 rounded-xl transition-all text-xs uppercase tracking-wider flex items-center justify-center space-x-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>Restaurar e Recarregar</span>
-            </button>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => this.setState({ hasError: false, error: undefined })}
+                className="flex-1 bg-[#A88B4B] hover:bg-[#8A713B] text-black font-bold py-2.5 px-3 rounded-xl transition-all text-xs uppercase tracking-wider flex items-center justify-center space-x-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Tentar Novamente</span>
+              </button>
+              <button
+                onClick={this.handleReload}
+                className="flex-1 bg-[#1F2229] hover:bg-[#2A2E39] text-gray-300 font-bold py-2.5 px-3 rounded-xl transition-all text-xs uppercase tracking-wider flex items-center justify-center space-x-2 border border-[#333744]"
+              >
+                <span>Recarregar</span>
+              </button>
+            </div>
           </div>
         </div>
       );

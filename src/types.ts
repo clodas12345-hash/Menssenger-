@@ -20,7 +20,7 @@ export interface Contact {
   chipId?: string;
   chipName?: string;
   gender?: 'homem' | 'mulher';
-  vehicleType?: 'carro';
+  vehicleType?: 'carro' | 'moto' | 'ambos';
   source: 'vcf' | 'manual' | 'csv' | 'agenda' | string;
   createdAt: string;
   lastContactedDate?: string; // YYYY-MM-DD string when message was confirmed sent
@@ -48,7 +48,7 @@ export interface MessageTemplate {
   title: string;
   content: string;
   category: string;
-  vehicleType?: 'carro';
+  vehicleType?: 'carro' | 'moto' | 'ambos';
   variations?: string[];
   createdAt: string;
 }
@@ -92,7 +92,7 @@ export interface DispatchLogItem {
   messageText: string;
   scheduledAt: string;
   sentAt?: string | null;
-  status: 'pendente' | 'enviado' | 'falha' | 'pulado';
+  status: 'pendente' | 'enviado' | 'falha' | 'pulado' | 'ignorado';
   notes?: string;
   chipId?: string;
   chipName?: string;
@@ -146,7 +146,7 @@ export interface AppSettings {
   webhookUrl?: string;
   soundEnabled: boolean;
   autoOpenTab: boolean;
-  featuredVehicle?: 'carro'; // 'carro' in evidence
+  featuredVehicle?: 'carro' | 'moto' | 'ambos'; // 'carro' in evidence
   enableSendingRules?: boolean;
   ruleNighttime?: boolean;
   ruleDailyLimit?: boolean;
