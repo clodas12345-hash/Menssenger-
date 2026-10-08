@@ -33,7 +33,7 @@ jobs:
       run: |
         for f in capacitor.config.json capacitor.config.ts; do
           if [ -f "$f" ]; then
-            sed -i -E 's/"appId": *"[^"]*"/"appId": "com.gkdmobility.mensseger"/; s/appId: *"[^"]*"/appId: "com.gkdmobility.mensseger"/' "$f"
+            sed -i -E 's/"appId": *"[^"]*"/"appId": "com.gkdmobility.mensseger.v2"/; s/appId: *"[^"]*"/appId: "com.gkdmobility.mensseger.v2"/' "$f"
             grep -n "appId" "$f" || true
           fi
         done
