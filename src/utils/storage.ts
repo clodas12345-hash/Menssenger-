@@ -842,6 +842,32 @@ export function restoreFromBackup(backupData: any): { success: boolean; error?: 
       }
     });
 
+    // Reconcile and ensure numbers / metrics match between restored logs and settings
+    try {
+      const restoredLogs = loadFromStorage<DispatchLogItem[]>(STORAGE_KEYS.LOGS, []);
+      const restoredSettings = loadFromStorage<AppSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+      const sentInLogs = restoredLogs.filter(l => l.status === 'enviado').length;
+      
+      let updatedSettings = { ...restoredSettings };
+      const currentHist = restoredSettings.historicalSentCount || 0;
+      const currentTotal = restoredSettings.totalSentCount || 0;
+      
+      const expectedTotal = sentInLogs + currentHist;
+      if (currentTotal < expectedTotal) {
+        updatedSettings.totalSentCount = expectedTotal;
+      }
+      if (currentTotal > 0 && currentHist === 0 && sentInLogs > 0 && currentTotal > sentInLogs) {
+        updatedSettings.historicalSentCount = Math.max(0, currentTotal - sentInLogs);
+      }
+      if (updatedSettings.totalSentCount < sentInLogs) {
+        updatedSettings.totalSentCount = sentInLogs;
+      }
+      
+      saveToStorage(STORAGE_KEYS.SETTINGS, updatedSettings);
+    } catch (metricErr) {
+      console.warn('Could not reconcile metrics during backup restore:', metricErr);
+    }
+
     invalidateAllStorageCaches();
 
     return { success: true };

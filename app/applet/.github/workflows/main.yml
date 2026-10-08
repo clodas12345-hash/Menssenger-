@@ -29,26 +29,13 @@ jobs:
     - name: Build Web App
       run: npm run build
 
-    - name: Definir appId unico
-      run: |
-        for f in capacitor.config.json capacitor.config.ts; do
-          if [ -f "$f" ]; then
-            sed -i -E 's/"appId": *"[^"]*"/"appId": "com.gkdmobility.mensseger.v2"/; s/appId: *"[^"]*"/appId: "com.gkdmobility.mensseger.v2"/' "$f"
-            grep -n "appId" "$f" || true
-          fi
-        done
-
     - name: Configurar Capacitor e Android
       run: |
+        # Sincroniza o Capacitor e cria a pasta android se não existir
         npx cap add android || true
+        # Gera os ícones personalizados a partir da logo
         npm run apply-icons || true
         npx cap sync android
-
-    - name: Forcar minSdk 22
-      run: |
-        sed -i -E 's/minSdkVersion *= *[0-9]+/minSdkVersion = 22/' android/variables.gradle || true
-        sed -i -E 's/minSdkVersion +[0-9]+/minSdkVersion 22/' android/app/build.gradle || true
-        grep -rn "minSdk" android/variables.gradle android/app/build.gradle || true
 
     - name: Forçar ícone personalizado
       run: |
@@ -61,11 +48,14 @@ jobs:
 
     - name: Decodificar Keystore Fixa a partir do Segredo
       run: |
+        echo "Tamanho do segredo (deve ser próximo de 3664):"
+        echo -n "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | wc -c
         if [ -n "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
           echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | tr -d '[:space:]' | base64 -d > release.keystore
+          echo "✅ release.keystore decodificado a partir do segredo DEBUG_KEYSTORE_BASE64"
           ls -la release.keystore
         else
-          echo "Segredo DEBUG_KEYSTORE_BASE64 não encontrado"
+          echo "⚠️ Segredo DEBUG_KEYSTORE_BASE64 não encontrado — build vai usar assinatura padrão do Gradle"
         fi
 
     - name: Configurar Keystore Fixo para Assinatura Consistente
@@ -73,6 +63,7 @@ jobs:
         mkdir -p ~/.android
         if [ -f "release.keystore" ]; then
           cp release.keystore ~/.android/debug.keystore
+          echo "✅ Keystore fixo configurado em ~/.android/debug.keystore (garante mesma assinatura em todos os builds)"
         fi
 
     - name: Forçar signingConfig do App para Usar o Keystore Fixo
@@ -86,11 +77,17 @@ jobs:
           echo 'android.signingConfigs.debug.storePassword = "android"' >> android/app/build.gradle
           echo 'android.signingConfigs.debug.keyAlias = "androiddebugkey"' >> android/app/build.gradle
           echo 'android.signingConfigs.debug.keyPassword = "android"' >> android/app/build.gradle
-          echo 'android.buildTypes.debug.signingConfig = android.buildTypes.debug' >> android/app/build.gradle
+          echo 'android.buildTypes.debug.signingConfig = android.signingConfigs.debug' >> android/app/build.gradle
           echo "signingConfig forçado"
         else
           echo "release.keystore não disponível"
         fi
+
+    - name: Forcar minSdk 21
+      run: |
+        sed -i -E 's/minSdkVersion *= *[0-9]+/minSdkVersion = 21/' android/variables.gradle || true
+        sed -i -E 's/minSdkVersion +[0-9]+/minSdkVersion 21/' android/app/build.gradle || true
+        grep -rn "minSdk" android/variables.gradle android/app/build.gradle || true
 
     - name: Compilar APK (Gradle)
       run: |
@@ -104,6 +101,7 @@ jobs:
         SDK=${ANDROID_HOME:-/usr/local/lib/android/sdk}
         APK=android/app/build/outputs/apk/debug/app-debug.apk
         APKSIGNER=$(ls $SDK/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+        echo "=== Fingerprint da assinatura deste APK (compare entre builds) ==="
         if [ -z "$APKSIGNER" ]; then
           echo "apksigner nao encontrado - pulando verificacao"
           exit 0
