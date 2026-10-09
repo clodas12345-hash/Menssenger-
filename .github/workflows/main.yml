@@ -27,8 +27,10 @@ jobs:
     - name: Instalar dependências
       run: npm install --legacy-peer-deps
 
-    - name: Build Web App
-      run: npm run build
+    - name: Type Check & Build Web App
+      run: |
+        npx tsc --noEmit
+        npm run build
 
     - name: Configurar Capacitor e Android
       run: |
