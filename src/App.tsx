@@ -1388,21 +1388,23 @@ export default function App() {
     });
   };
 
-  const handleDeleteCampaign = (id: string) => {
+  const handleDeleteCampaign = (id: string, deleteMessages: boolean = false) => {
     autoOpenedCampaignsRef.current.delete(id);
     if (dueCampaignAlert?.id === id) setDueCampaignAlert(null);
     if (activeDispatcherCampaign?.id === id) setActiveDispatcherCampaign(null);
     
-    const campaignToDelete = campaigns.find(c => c.id === id);
-    if (campaignToDelete) {
-      if (campaignToDelete.templateId && campaignToDelete.templateId.startsWith('topic_cat_') && campaignToDelete.categoryName) {
-        const catName = campaignToDelete.categoryName;
-        const templatesToDelete = templates.filter(t => (t.category as string) === catName).map(t => t.id);
-        if (templatesToDelete.length > 0) {
-          handleDeleteMultipleTemplates(templatesToDelete);
+    if (deleteMessages) {
+      const campaignToDelete = campaigns.find(c => c.id === id);
+      if (campaignToDelete) {
+        if (campaignToDelete.templateId && campaignToDelete.templateId.startsWith('topic_cat_') && campaignToDelete.categoryName) {
+          const catName = campaignToDelete.categoryName;
+          const templatesToDelete = templates.filter(t => (t.category as string) === catName).map(t => t.id);
+          if (templatesToDelete.length > 0) {
+            handleDeleteMultipleTemplates(templatesToDelete);
+          }
+        } else if (campaignToDelete.templateId) {
+          handleDeleteTemplate(campaignToDelete.templateId);
         }
-      } else if (campaignToDelete.templateId) {
-        handleDeleteTemplate(campaignToDelete.templateId);
       }
     }
 

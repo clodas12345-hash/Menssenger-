@@ -86,6 +86,7 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
   }, [logs, settings.historicalSentCount, settings.totalSentCount, isAppReady]);
 
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [deleteMessagesChecked, setDeleteMessagesChecked] = React.useState<boolean>(true);
 
   const getChipColor = (chipId?: string, chipName?: string) => {
     const chips = settings.chips || [];
@@ -291,28 +292,38 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
                   {/* Progress & Actions */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 shrink-0 pt-2 lg:pt-0" onClick={(e) => e.stopPropagation()}>
                     {deletingId === camp.id ? (
-                      <div className="flex items-center space-x-3 bg-red-950/80 border border-red-500/50 p-2.5 sm:p-3 rounded-xl animate-fadeIn shadow-xl">
-                        <span className="text-xs font-black text-red-200 uppercase tracking-wider px-1">Excluir?</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeletingId(null);
-                          }}
-                          className="h-11 px-4 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-200 border border-[#2A2E39] rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow"
-                        >
-                          Não
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteCampaign(camp.id);
-                            setDeletingId(null);
-                          }}
-                          className="h-11 px-5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-red-600/40 active:scale-95 cursor-pointer flex items-center justify-center"
-                        >
-                          Sim
-                        </button>
-                      </div>
+                                              <div className="flex flex-col gap-2">
+                          <label className="flex items-center space-x-2 text-xs text-red-200 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={deleteMessagesChecked} 
+                              onChange={(e) => setDeleteMessagesChecked(e.target.checked)}
+                              className="accent-red-500"
+                            />
+                            <span>Excluir mensagens salvas</span>
+                          </label>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingId(null);
+                              }}
+                              className="flex-1 h-11 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-200 border border-[#2A2E39] rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow"
+                            >
+                              Não
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteCampaign(camp.id, deleteMessagesChecked);
+                                setDeletingId(null);
+                              }}
+                              className="flex-1 h-11 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-red-600/40 active:scale-95 cursor-pointer flex items-center justify-center"
+                            >
+                              Sim
+                            </button>
+                          </div>
+                        </div>
                     ) : (
                       <>
                         <div className="w-full sm:w-36 mr-0 sm:mr-1">
