@@ -86,7 +86,6 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
   }, [logs, settings.historicalSentCount, settings.totalSentCount, isAppReady]);
 
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
-  const [deleteMessagesChecked, setDeleteMessagesChecked] = React.useState<boolean>(true);
 
   const getChipColor = (chipId?: string, chipName?: string) => {
     const chips = settings.chips || [];
@@ -293,35 +292,36 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 shrink-0 pt-2 lg:pt-0" onClick={(e) => e.stopPropagation()}>
                     {deletingId === camp.id ? (
                                               <div className="flex flex-col gap-2">
-                          <label className="flex items-center space-x-2 text-xs text-red-200 cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={deleteMessagesChecked} 
-                              onChange={(e) => setDeleteMessagesChecked(e.target.checked)}
-                              className="accent-red-500"
-                            />
-                            <span>Excluir mensagens salvas</span>
-                          </label>
-                          <div className="flex space-x-2">
+                          <span className="text-xs text-red-200 font-bold mb-1">Escolha uma ação:</span>
+                          <div className="flex flex-col gap-2">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onDeleteCampaign(camp.id, false); // Campaign deleted, messages NOT deleted
+                                onDeleteCampaign(camp.id, false); // Only campaign
                                 setDeletingId(null);
                               }}
-                              className="flex-1 h-11 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-200 border border-[#2A2E39] rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow"
+                              className="h-10 bg-[#1A1D23] hover:bg-[#2A2E39] text-gray-200 border border-[#2A2E39] rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow"
                             >
-                              Não (Excluir apenas agendamento)
+                              Excluir apenas agendamento
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onDeleteCampaign(camp.id, deleteMessagesChecked);
+                                onDeleteCampaign(camp.id, true); // Campaign + messages
                                 setDeletingId(null);
                               }}
-                              className="flex-1 h-11 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-red-600/40 active:scale-95 cursor-pointer flex items-center justify-center"
+                              className="h-10 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-red-600/40 active:scale-95 cursor-pointer flex items-center justify-center"
                             >
-                              Sim
+                              Excluir agendamento e mensagens
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingId(null);
+                              }}
+                              className="h-10 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-400 border border-[#2A2E39] rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow"
+                            >
+                              Não, cancelar
                             </button>
                           </div>
                         </div>

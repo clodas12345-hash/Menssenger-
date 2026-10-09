@@ -142,24 +142,17 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
         const schedB = scheduledContactIdsSet.has(b.id);
         if (schedA !== schedB) return schedA ? 1 : -1;
 
-        if (sortSkippedFirst) {
-          const skippedA = isContactSkipped(a, logs);
-          const skippedB = isContactSkipped(b, logs);
-          if (skippedA !== skippedB) return skippedA ? -1 : 1;
-        }
+        // 1. > 3 dias sem envio (Prioridade Máxima)
+        const notSentA = isNotSentInLastThreeDays(a, logs);
+        const notSentB = isNotSentInLastThreeDays(b, logs);
+        if (notSentA !== notSentB) return notSentA ? -1 : 1;
 
-        if (sortThreeDaysUnsentFirst) {
-          const notSentA = isNotSentInLastThreeDays(a, logs);
-          const notSentB = isNotSentInLastThreeDays(b, logs);
-          if (notSentA !== notSentB) return notSentA ? -1 : 1;
-        }
+        // 2. Pulados (Segunda Prioridade)
+        const skippedA = isContactSkipped(a, logs);
+        const skippedB = isContactSkipped(b, logs);
+        if (skippedA !== skippedB) return skippedA ? -1 : 1;
 
-        if (sortOldestContactedFirst) {
-          const timeA = getContactLastSentTimestamp(a, logs);
-          const timeB = getContactLastSentTimestamp(b, logs);
-          if (timeA !== timeB) return timeA - timeB;
-        }
-
+        // 3. Critério de desempate (Nome)
         return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
       });
   }, [contacts, scheduledContactIdsSet, logs, sortSkippedFirst, sortThreeDaysUnsentFirst, sortOldestContactedFirst, hideAlreadyScheduled]);
