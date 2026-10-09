@@ -37,7 +37,8 @@ import {
   BatteryCharging,
   Eye,
   FileCode,
-  FileX
+  FileX,
+  Cloud
 } from 'lucide-react';
 import { AppSettings, WhatsAppChip, DispatchLogItem, Contact, ScheduledCampaign, MessageTemplate, ContactGroup, NotificationPreferences } from '../types';
 import { safeConfirm } from '../utils/whatsapp';
@@ -53,6 +54,7 @@ import {
   triggerVibration
 } from '../utils/permissions';
 import { playDispatchAlertSound } from '../utils/audio';
+import { auth, saveUserCloudBackup, loadUserCloudBackup, signInWithGoogle } from '../firebase';
 
 interface SettingsModalProps {
   logs?: DispatchLogItem[];
@@ -130,31 +132,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     try {
       if (notificationStatus !== 'granted') {
         const granted = await requestNotificationPermission();
-        const updated = await getNotificationPermissionStatus();
-        setNotificationStatus(updated);
-        if (!granted) {
+        if (granted !== 'granted') {
           setTestNotifFeedback('⚠️ Permissão negada no aparelho. Vá em Configurações > Aplicativos > GKD Messenger e ative Notificações.');
           setTestNotifLoading(false);
           return;
         }
+        setNotificationStatus('granted');
       }
 
       await ensureNotificationChannel();
+      
+      import('@capacitor/local-notifications').then(async (mod) => {
+        await mod.LocalNotifications.schedule({
+          notifications: [{
+            title: '🔔 Teste de Notificação • GKD Messenger',
+            body: 'Notificação nativa agendada com sucesso!',
+            id: Date.now(),
+            channelId: 'padrao',
+            smallIcon: 'ic_stat_icon_config_sample',
+            schedule: { at: new Date(Date.now() + 5000) }
+          }]
+        });
+        setTestNotifFeedback('🚀 Notificação nativa agendada para daqui a 5 segundos!');
+      });
+
       if (soundEnabled) {
         playDispatchAlertSound();
       }
       triggerVibration([200, 100, 200, 100, 300]);
-
-      const res = await sendBrowserNotification('🔔 Teste de Notificação • GKD Messenger', {
-        body: 'Notificação enviada com sucesso! Seu aparelho está configurado para receber alertas de disparos.',
-        tag: `test-notif-${Date.now()}`,
-      });
-
-      if (res) {
-        setTestNotifFeedback('🚀 Notificação disparada com sucesso! Verifique a barra de status ou o topo da tela do seu aparelho.');
-      } else {
-        setTestNotifFeedback('⚠️ O disparo foi solicitado, mas verifique se o modo Não Perturbe ou Economia de Bateria não estão bloqueando o aviso flutuante.');
-      }
     } catch (err: any) {
       setTestNotifFeedback(`❌ Erro ao disparar teste: ${err?.message || 'Falha ao processar notificação'}`);
     } finally {
@@ -1488,6 +1493,76 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </button>
                     </div>
                   )}
+
+                  {/* Sincronização com o Firestore */}
+                  <div className="pt-3 border-t border-[#232732] grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          if (!auth.currentUser) {
+                            await signInWithGoogle();
+                          }
+                          setExportStatus('Enviando backup para o Firestore...');
+                          const backupPayload = {
+                            contacts: contacts || [],
+                            templates: templates || [],
+                            campaigns: campaigns || [],
+                            logs: logs || [],
+                            groups: groups || [],
+                            settings: settings || {},
+                          };
+                          await saveUserCloudBackup(JSON.stringify(backupPayload), 'GKD Messenger Web');
+                          setExportStatus('✅ Sincronizado com o Firestore com sucesso!');
+                          setTimeout(() => setExportStatus(null), 4000);
+                        } catch (err: any) {
+                          alert(`Erro ao sincronizar com Firestore: ${err?.message || err}`);
+                          setExportStatus(null);
+                        }
+                      }}
+                      className="bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 font-bold py-2.5 px-4 rounded-xl border border-emerald-500/50 text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-sm"
+                    >
+                      <Cloud className="w-4 h-4 text-emerald-400" />
+                      <span>Sincronizar com Firestore</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          if (!auth.currentUser) {
+                            await signInWithGoogle();
+                          }
+                          setImportStatus('Baixando backup do Firestore...');
+                          const cloudData = await loadUserCloudBackup();
+                          if (!cloudData || !cloudData.payloadJson) {
+                            alert('Nenhum backup encontrado no Firestore para este usuário.');
+                            setImportStatus(null);
+                            return;
+                          }
+                          const parsed = JSON.parse(cloudData.payloadJson);
+                          const result = restoreFromBackup(parsed);
+                          if (result.success) {
+                            setImportStatus('✅ Dados restaurados do Firestore com sucesso!');
+                            setTimeout(() => {
+                              if (onRefreshData) onRefreshData();
+                              setImportStatus(null);
+                            }, 1000);
+                          } else {
+                            alert(`Erro ao restaurar dados: ${result.error}`);
+                            setImportStatus(null);
+                          }
+                        } catch (err: any) {
+                          alert(`Erro ao restaurar do Firestore: ${err?.message || err}`);
+                          setImportStatus(null);
+                        }
+                      }}
+                      className="bg-blue-950/60 hover:bg-blue-900/80 text-blue-300 font-bold py-2.5 px-4 rounded-xl border border-blue-500/50 text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-sm"
+                    >
+                      <Database className="w-4 h-4 text-blue-400" />
+                      <span>Restaurar do Firestore</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Suporte WhatsApp */}

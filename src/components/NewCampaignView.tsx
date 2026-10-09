@@ -135,31 +135,47 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
   ), [campaigns]);
 
   const availableContacts = React.useMemo(() => {
-    return contacts
-              .sort((a, b) => {
-        // Preference: NOT scheduled
-        const schedA = scheduledContactIdsSet.has(a.id);
-        const schedB = scheduledContactIdsSet.has(b.id);
-        if (schedA !== schedB) return schedA ? 1 : -1;
+    return [...contacts].sort((a, b) => {
+      // Preference: NOT scheduled
+      const schedA = scheduledContactIdsSet.has(a.id);
+      const schedB = scheduledContactIdsSet.has(b.id);
+      if (schedA !== schedB) return schedA ? 1 : -1;
 
-        // 1. > 3 dias sem envio (Prioridade Máxima)
+      // 1. > 3 dias sem envio (Prioridade Máxima)
+      if (sortThreeDaysUnsentFirst) {
         const notSentA = isNotSentInLastThreeDays(a, logs);
         const notSentB = isNotSentInLastThreeDays(b, logs);
         if (notSentA !== notSentB) return notSentA ? -1 : 1;
+      }
 
-        // 2. Pulados (Segunda Prioridade)
+      // 2. Pulados (Segunda Prioridade)
+      if (sortSkippedFirst) {
         const skippedA = isContactSkipped(a, logs);
         const skippedB = isContactSkipped(b, logs);
         if (skippedA !== skippedB) return skippedA ? -1 : 1;
+      }
 
-        // 3. Critério de desempate (Nome)
-        return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
-      });
+      // 3. Mais Antigos Enviados 1º
+      if (sortOldestContactedFirst) {
+        const timeA = getContactLastSentTimestamp(a, logs);
+        const timeB = getContactLastSentTimestamp(b, logs);
+        if (timeA === 0 && timeB > 0) return -1;
+        if (timeA > 0 && timeB === 0) return 1;
+        if (timeA !== timeB) return timeA - timeB;
+      }
+
+      // 4. Critério de desempate (Nome)
+      return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+    });
   }, [contacts, scheduledContactIdsSet, logs, sortSkippedFirst, sortThreeDaysUnsentFirst, sortOldestContactedFirst, hideAlreadyScheduled]);
 
-  const [selectedContactIds, setSelectedContactIds] = useState<string[]>(() =>
-    draft?.selectedContactIds ?? availableContacts.filter(c => !isContactedToday(c) && !scheduledContactIdsSet.has(c.id)).map(c => c.id)
-  );
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>(() => {
+    if (draft?.selectedContactIds && Array.isArray(draft.selectedContactIds)) {
+      const selectedSet = new Set(draft.selectedContactIds);
+      return availableContacts.filter(c => selectedSet.has(c.id)).map(c => c.id);
+    }
+    return availableContacts.filter(c => !isContactedToday(c) && !scheduledContactIdsSet.has(c.id)).map(c => c.id);
+  });
 
   const chipsList = getSettings().chips || [
     { id: 'chip_1', name: 'Business' },
@@ -388,7 +404,8 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
 
   // Dynamically calculate assigned contacts per schedule based on their limit values
   const distributedSchedules = React.useMemo(() => {
-    let remainingIds = [...selectedContactIds];
+    const selectedSet = new Set(selectedContactIds);
+    let remainingIds = availableContacts.filter(c => selectedSet.has(c.id)).map(c => c.id);
     return schedules.map((sch, idx) => {
       if (remainingIds.length === 0) {
         return { ...sch, contactIds: [] };
@@ -417,12 +434,12 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
         contactIds: assignedIds,
       };
     });
-  }, [schedules, selectedContactIds]);
+  }, [schedules, selectedContactIds, availableContacts]);
 
   const remainingCount = selectedContactIds.length - distributedSchedules.reduce((sum, s) => sum + s.contactIds.length, 0);
 
   // Filtered contacts
-  const filteredContacts = (contactSearchTerm.trim() ? contacts : availableContacts).filter((c) => {
+  const filteredContacts = availableContacts.filter((c) => {
     const term = contactSearchTerm.trim();
     
     // When actively searching a contact, bypass filters to find anywhere
@@ -488,33 +505,6 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
     const matchesSkippedOnly = !showOnlySkipped || isSkipped;
 
     return matchesGrp && matchesChipFilter && matchesSkippedOnly && matchesFunnel;
-  }).sort((a, b) => {
-    if (sortSkippedFirst) {
-      const skippedA = isContactSkipped(a, logs);
-      const skippedB = isContactSkipped(b, logs);
-      if (skippedA && !skippedB) return -1;
-      if (!skippedA && skippedB) return 1;
-    }
-    if (sortThreeDaysUnsentFirst) {
-      const notSentA = isNotSentInLastThreeDays(a, logs);
-      const notSentB = isNotSentInLastThreeDays(b, logs);
-      if (notSentA && !notSentB) return -1;
-      if (!notSentA && notSentB) return 1;
-    }
-    if (sortOldestContactedFirst) {
-      const timeA = getContactLastSentTimestamp(a, logs);
-      const timeB = getContactLastSentTimestamp(b, logs);
-      if (timeA === 0 && timeB > 0) return -1;
-      if (timeA > 0 && timeB === 0) return 1;
-      if (timeA !== timeB) return timeA - timeB;
-    }
-    // Give preference to NOT scheduled contacts
-    const schedA = scheduledContactIdsSet.has(a.id);
-    const schedB = scheduledContactIdsSet.has(b.id);
-    if (!schedA && schedB) return -1;
-    if (schedA && !schedB) return 1;
-
-    return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
   });
 
   // Group filtered contacts by chipId

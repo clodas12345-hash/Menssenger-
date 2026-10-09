@@ -370,6 +370,10 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
     const hasGroupFilter = selectedGroupFilter !== 'all';
     const groupFilterLower = selectedGroupFilter.toLowerCase();
     const isSemCampanhaFilter = selectedGroupFilter === 'sem_campanha';
+    const currentSettings = settings || getSettings();
+    const sortThreeDaysUnsentFirst = currentSettings.sortThreeDaysUnsentFirst ?? true;
+    const sortSkippedFirst = currentSettings.sortSkippedFirst ?? true;
+    const sortOldestContactedFirst = currentSettings.sortOldestContactedFirst ?? true;
 
     return contacts.filter(c => {
       // 1. Text Search matching
@@ -392,9 +396,37 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
       }
 
       return true;
+    }).sort((a, b) => {
+      const schedA = scheduledContactIdsSet.has(a.id);
+      const schedB = scheduledContactIdsSet.has(b.id);
+      if (schedA !== schedB) return schedA ? 1 : -1;
+
+      if (sortThreeDaysUnsentFirst) {
+        const notSentA = isNotSentInLastThreeDays(a, logs);
+        const notSentB = isNotSentInLastThreeDays(b, logs);
+        if (notSentA !== notSentB) return notSentA ? -1 : 1;
+      }
+
+      if (sortSkippedFirst) {
+        const skippedA = isContactSkipped(a, logs);
+        const skippedB = isContactSkipped(b, logs);
+        if (skippedA !== skippedB) return skippedA ? -1 : 1;
+      }
+
+      if (sortOldestContactedFirst) {
+        const metaA = contactMetaMap.get(a.id);
+        const metaB = contactMetaMap.get(b.id);
+        const daysA = metaA?.daysPassed ?? 999999;
+        const daysB = metaB?.daysPassed ?? 999999;
+        if (daysA !== daysB) return daysB - daysA;
+      }
+
+      return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
     });
   }, [
     contacts, 
+    logs,
+    settings,
     debouncedSearchTerm, 
     selectedGroupFilter, 
     hideContactedToday, 

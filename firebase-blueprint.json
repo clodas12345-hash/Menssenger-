@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "UserBackup": {
+      "title": "UserBackup",
+      "description": "Full backup of user logs, contacts, campaigns, templates, groups, and settings.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the authenticated user who owns the backup.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "payloadJson": {
+          "type": "string",
+          "description": "Serialized backup data containing logs, contacts, and campaigns.",
+          "maxLength": 900000
+        },
+        "deviceLabel": {
+          "type": "string",
+          "description": "Device or application identifier.",
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of initial backup creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last backup update."
+        }
+      },
+      "required": ["ownerId", "payloadJson", "deviceLabel", "createdAt", "updatedAt"]
+    },
+    "UserPushToken": {
+      "title": "UserPushToken",
+      "description": "Stores push notification FCM token for an authenticated user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the authenticated user.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "fcmToken": {
+          "type": "string",
+          "description": "Firebase Cloud Messaging device token.",
+          "maxLength": 4096
+        },
+        "platform": {
+          "type": "string",
+          "description": "Target platform (e.g., android, web).",
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of initial registration."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last token update."
+        }
+      },
+      "required": ["ownerId", "fcmToken", "platform", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/user_backups/{userId}": {
+      "schema": { "$ref": "#/entities/UserBackup" },
+      "description": "Stores cloud backups of logs, contacts, and campaigns per user."
+    },
+    "/user_push_tokens/{userId}": {
+      "schema": { "$ref": "#/entities/UserPushToken" },
+      "description": "Stores FCM push tokens per user."
+    }
+  }
+}

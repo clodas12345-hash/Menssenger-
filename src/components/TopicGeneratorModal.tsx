@@ -28,11 +28,11 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
   const rephraseBodyText = (text: string, idx: number): string => {
     let res = text.trim();
-    // Apply subtle, natural lexical variations per index while keeping numbers/facts 100% intact
+    // Apply subtle, natural lexical variations per index while keeping numbers/facts/tense 100% intact and singular
     const rules: Array<[RegExp, string[]]> = [
-      [/\bvocê tem\b/gi, ['você conta com', 'está disponível para você', 'já está liberado no seu perfil', 'você possui', 'separamos para você']],
+      [/\bvocê tem\b/gi, ['você conta com', 'está disponível para você', 'já está liberado no seu perfil', 'você possui', 'está liberado para você']],
       [/\baproveite\b/gi, ['garanta já', 'não deixe passar', 'aproveite ao máximo', 'tire proveito', 'vem garantir']],
-      [/\bcorridas\b/gi, ['viagens', 'corridas', 'atendimentos', 'corridas completas', 'viagens realizadas']],
+      [/\bcorridas\b/gi, ['viagens', 'corridas', 'corridas no app', 'viagens pela 99', 'corridas pela plataforma']],
       [/\bganhar\b/gi, ['garantir', 'receber', 'faturar', 'conquistar', 'embolsar']],
       [/\bganhe\b/gi, ['garanta', 'receba', 'fature', 'conquiste', 'assegure']],
       [/\bbônus\b/gi, ['bônus', 'incentivo extra', 'recompensa', 'valor extra', 'premiação']],
@@ -63,7 +63,8 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     presentation: string,
     reqQty: number
   ) => {
-    const intro = presentation.trim() ? `${presentation.trim()} — ` : '';
+    const cleanPres = presentation.trim().replace(/[.!?\s]+$/, '');
+    const introLine = cleanPres ? ` ${cleanPres}.` : '';
     const cleanBody = cleanHook
       .replace(/^(\{saudacao\}|\{saudação\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, '')
       .trim() || cleanHook;
@@ -72,65 +73,65 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
     const firstOption = {
       tag: 'Original e Direta',
-      content: `{saudacao}, {primeiro_nome}! ${intro}${b(0)}`
+      content: `{saudacao}, {primeiro_nome}!${introLine}\n\n${b(0)}\n\nSe precisar de suporte com isso, conta comigo!`
     };
 
     const diversePool = [
       {
         tag: 'Pergunta Engajadora',
-        content: `{primeiro_nome}, tudo certo por aí? {saudacao}!\n\nJá viu essa novidade? ${intro}${b(1)}\n\nQualquer dúvida, me dá um alô!`
+        content: `{saudacao}, {primeiro_nome}! Tudo certo por aí?${introLine}\n\n${b(1)}\n\nQualquer dúvida, me dá um alô!`
       },
       {
-        tag: 'Destaque Rápido (2 Linhas)',
-        content: `🚀 ${intro}${b(2)}\n\n{saudacao}, {primeiro_nome}! Se precisar de suporte com isso, conta comigo.`
+        tag: 'Destaque Rápido',
+        content: `{saudacao}, {primeiro_nome}! 🚀${introLine}\n\n${b(2)}\n\nSe precisar de suporte com isso, conta comigo.`
       },
       {
         tag: 'Formato em Tópico',
-        content: `Olá, {primeiro_nome}! {saudacao}!\n\n📌 *Resumo importante para você:*\n${intro}${b(3)}\n\nBora aproveitar? Estou por aqui!`
+        content: `Olá, {primeiro_nome}! {saudacao}!${introLine}\n\n📌 ${b(3)}\n\nBora aproveitar? Estou por aqui se precisar!`
       },
       {
         tag: 'Parceria e Próxima',
-        content: `Fala, {primeiro_nome}! {saudacao}! Como estão os trabalhos hoje?\n\nPassando pra fortalecer sua rotina: ${intro}${b(4)} Tamo junto!`
+        content: `Fala, {primeiro_nome}! {saudacao}! Como estão os trabalhos hoje?${introLine}\n\n${b(4)}\n\nTamo junto, qualquer coisa me chama!`
       },
       {
         tag: 'Foco no Resultado',
-        content: `{saudacao}! Passando com uma excelente notícia para o seu dia, {primeiro_nome}: ${intro}${b(5)} Aproveite para impulsionar seus ganhos!`
+        content: `{saudacao}, {primeiro_nome}!${introLine}\n\n${b(5)}\n\nAproveite para impulsionar seus ganhos! Conta comigo.`
       },
       {
         tag: 'Lembrete Prático',
-        content: `Oi {primeiro_nome}! 👋 {saudacao}!\n\nSó passando para você não deixar passar: ${intro}${b(6)}\n\nPrecisando de orientação, é só chamar.`
+        content: `Oi, {primeiro_nome}! 👋 {saudacao}!${introLine}\n\n${b(6)}\n\nPrecisando de orientação, é só me chamar.`
       },
       {
         tag: 'Exclusiva VIP',
-        content: `{primeiro_nome}, {saudacao}! Seu contato foi selecionado na campanha *${cleanTopic}*:\n\n✨ ${intro}${b(7)}\n\nFico à disposição se quiser saber mais!`
+        content: `{saudacao}, {primeiro_nome}!${introLine}\n\n✨ *${cleanTopic}:* ${b(7)}\n\nFico à disposição se quiser saber mais!`
       },
       {
         tag: 'Curta e Sem Rodeios',
-        content: `{saudacao}, {primeiro_nome}! Recado jogo rápido: ${intro}${b(8)} Qualquer coisa, me chama!`
+        content: `{saudacao}, {primeiro_nome}!${introLine}\n\nRecado rápido para você: ${b(8)}\n\nQualquer coisa, me chama!`
       },
       {
         tag: 'Consultiva e Atenciosa',
-        content: `Espero que seu dia esteja ótimo, {primeiro_nome}! ({saudacao})\n\nQuero compartilhar esse ponto com você: ${intro}${b(9)}\n\nConte com nosso time!`
+        content: `{saudacao}, {primeiro_nome}! Espero que seu dia esteja ótimo!${introLine}\n\n${b(9)}\n\nPode contar comigo no que precisar!`
       },
       {
         tag: 'Alerta de Oportunidade',
-        content: `⚡ *Atenção, {primeiro_nome}!* {saudacao}!\n\n${intro}${b(10)}\n\nNão deixe para a última hora, qualquer dúvida estou online!`
+        content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\n${b(10)}\n\nQualquer dúvida estou online por aqui!`
       },
       {
         tag: 'Conversa Natural',
-        content: `Oi, {primeiro_nome}, tudo bem? {saudacao}! Vi seu perfil aqui e lembrei de te avisar: ${intro}${b(11)} Depois me conta se deu tudo certo!`
+        content: `Oi, {primeiro_nome}, tudo bem? {saudacao}!${introLine}\n\n${b(11)}\n\nDepois me conta se deu tudo certo!`
       },
       {
         tag: 'Motivacional',
-        content: `Excelente jornada hoje, {primeiro_nome}! {saudacao}!\n\nPra somar nos seus resultados: ${intro}${b(12)}\n\nÓtimas corridas e sucesso!`
+        content: `{saudacao}, {primeiro_nome}! Excelente jornada hoje!${introLine}\n\n${b(12)}\n\nÓtimas corridas e pode contar comigo!`
       },
       {
         tag: 'Check-in Rápido',
-        content: `{primeiro_nome}! {saudacao}! Passando em 1 minutinho só para confirmar se você já viu:\n👉 ${intro}${b(13)}\n\nEstou à disposição!`
+        content: `Olá, {primeiro_nome}! {saudacao}!${introLine}\n\n👉 ${b(13)}\n\nEstou à disposição para te ajudar!`
       },
       {
         tag: 'Fechamento de Meta',
-        content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯\n\n${intro}${b(14)}\n\nSe precisar de apoio, fala comigo!`
+        content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯${introLine}\n\n${b(14)}\n\nSe precisar de apoio, fala comigo!`
       }
     ];
 
@@ -145,9 +146,9 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     }));
   };
 
-  const normalizePlaceholders = (text: string, originalHook: string): string => {
+  const normalizePlaceholders = (text: string, _originalHook: string): string => {
     if (!text) return '';
-    let processed = text;
+    let processed = text.trim();
 
     // 1. First, normalize common placeholders
     // Name placeholders
@@ -158,29 +159,47 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     const greetingPattern = /\{\{\s*sauda[çc][ãa]o(?:_horario)?\s*\}\}|\{\s*sauda[çc][ãa]o(?:_horario)?\s*\}|\[\s*sauda[çc][ãa]o(?:\s+do\s+hor[áa]rio)?\s*\]|<\s*sauda[çc][ãa]o(?:_horario)?\s*>|%\s*sauda[çc][ãa]o(?:_horario)?\s*%/gi;
     processed = processed.replace(greetingPattern, '{saudacao}');
 
-    // 2. If the AI generated literal sample names, normalize them
+    // 2. If the AI generated literal sample names or greetings at the start, normalize them
     processed = processed.replace(/\b(Olá|Oi|Bom dia|Boa tarde|Boa noite)[,!\s]+(Fulano|Maria|João|Cláudio|Motorista|Parceiro|Amigo)\b/gi, '{saudacao}, {primeiro_nome}');
-    
-    // 3. Prevent duplicate placeholders
+    processed = processed.replace(/^(Bom dia|Boa tarde|Boa noite)\b/i, '{saudacao}');
+
+    // 3. Enforce 1st person singular (never plural "nosso time", "nossa equipe", "estamos", "conosco")
+    processed = processed
+      .replace(/\bConte com (o )?nosso time\b/gi, 'Pode contar comigo')
+      .replace(/\bconte com (o )?nosso time\b/gi, 'pode contar comigo')
+      .replace(/\bnosso time\b/gi, 'eu')
+      .replace(/\bnossa equipe\b/gi, 'eu')
+      .replace(/\bConte conosco\b/g, 'Pode contar comigo')
+      .replace(/\bconte conosco\b/gi, 'pode contar comigo')
+      .replace(/\bEstamos (100% )?à disposição\b/g, 'Estou $1à disposição')
+      .replace(/\bestamos (100% )?à disposição\b/gi, 'estou $1à disposição')
+      .replace(/\bGostaríamos de compartilhar\b/g, 'Gostaria de compartilhar')
+      .replace(/\bgostaríamos de compartilhar\b/gi, 'gostaria de compartilhar')
+      .replace(/\bseparamos para você\b/gi, 'está disponível para você')
+      .replace(/\bviagens realizadas\s+(nas?\s+próximas?)/gi, 'corridas $1');
+
+    // 4. Prevent duplicate placeholders
     processed = processed.replace(/\{saudacao\}[,!\s]*\{saudacao\}/gi, '{saudacao}');
     processed = processed.replace(/\{primeiro_nome\}[,!\s]*\{primeiro_nome\}/gi, '{primeiro_nome}');
 
-    // 4. Ensure variables from original hook are kept
-    const originalHasName = /\{primeiro_nome\}|\{nome\}|\[nome\]/i.test(originalHook);
-    const originalHasGreeting = /\{saudacao\}|\{saudação\}|\[saudação\]|\[saudacao\]/i.test(originalHook);
+    // 5. Ensure greeting and {primeiro_nome} are always at the beginning (never only at the bottom)
+    const firstLine = processed.split('\n')[0] || '';
+    const hasGreetingInFirstLine = /\{saudacao\}|\b(olá|oi|fala)\b/i.test(firstLine);
+    const hasNameInFirstLine = firstLine.includes('{primeiro_nome}');
 
-    const processedHasName = processed.includes('{primeiro_nome}');
-    const processedHasGreeting = processed.includes('{saudacao}');
-
-    if (originalHasGreeting && !processedHasGreeting) {
-      processed = `{saudacao}, ${processed}`;
-    }
-    if (originalHasName && !processedHasName) {
+    if (!hasGreetingInFirstLine && !hasNameInFirstLine) {
+      // Remove trailing "{saudacao}, {primeiro_nome}!" if it was placed at the bottom
+      processed = processed.replace(/\n+\s*\{saudacao\}[,!\s]*\{primeiro_nome\}[,!\s]*/gi, '\n\n');
+      processed = `{saudacao}, {primeiro_nome}!\n\n${processed.trim()}`;
+    } else if (!hasNameInFirstLine) {
+      processed = processed.replace(/\{primeiro_nome\}/g, '').trim();
       if (processed.startsWith('{saudacao}')) {
-        processed = processed.replace('{saudacao}', '{saudacao}, {primeiro_nome}');
+        processed = processed.replace(/^\{saudacao\}[,!\s]*/, '{saudacao}, {primeiro_nome}! ');
       } else {
-        processed = `{primeiro_nome}! ${processed}`;
+        processed = `{saudacao}, {primeiro_nome}! ${processed}`;
       }
+    } else if (! processed.includes('{saudacao}')) {
+      processed = `{saudacao}, ${processed}`;
     }
 
     // Clean up punctuation caused by replacements
@@ -191,7 +210,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
       .replace(/,\s*!/g, '!')
       .replace(/;\s*;/g, ';');
 
-    return processed;
+    return processed.trim();
   };
 
   const handleGenerate = async () => {

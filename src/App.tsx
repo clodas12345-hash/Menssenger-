@@ -85,13 +85,15 @@ export default function App() {
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState<boolean>(false);
   const [reportPreviewHtml, setReportPreviewHtml] = useState<string | null>(null);
 
+  const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'checking'>('checking');
+
   // Auto-lock persistent storage memory & initialize native notifications on startup
   useEffect(() => {
     try {
       testFirestoreConnection().catch(() => {});
       requestPersistentStorage().catch(() => {});
       ensureNotificationChannel().catch(() => {});
-      requestNotificationPermission().catch(() => {});
+      requestNotificationPermission().then(setPermissionStatus).catch(() => setPermissionStatus('denied'));
       initializePushNotifications((data) => {
         try {
           const targetId = data.campaignId || data.conversationId;

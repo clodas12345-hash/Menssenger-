@@ -33,6 +33,8 @@ jobs:
       run: |
         # Sincroniza o Capacitor e cria a pasta android se não existir
         npx cap add android || true
+        # Adicionar permissão POST_NOTIFICATIONS para Android 13+
+        sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' android/app/src/main/AndroidManifest.xml || true
         # Gera os ícones personalizados a partir da logo
         npm run apply-icons || true
         npx cap sync android

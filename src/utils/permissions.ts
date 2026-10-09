@@ -18,7 +18,7 @@ export interface PermissionItem {
   details?: string;
 }
 
-export const NOTIFICATION_CHANNEL_ID = 'gkd_campaigns_v2';
+export const NOTIFICATION_CHANNEL_ID = 'padrao';
 
 // 1. NOTIFICATIONS (Local & Push)
 export async function ensureNotificationChannel(): Promise<void> {
@@ -84,18 +84,18 @@ export async function getNotificationPermissionStatus(): Promise<'granted' | 'de
   return 'unsupported';
 }
 
-export async function requestNotificationPermission(): Promise<boolean> {
+export async function requestNotificationPermission(): Promise<'granted' | 'denied'> {
   if (Capacitor.isNativePlatform()) {
     try {
       await ensureNotificationChannel();
       const status = await LocalNotifications.requestPermissions();
-      const enabledRes = await LocalNotifications.areEnabled().catch(() => ({ value: true }));
-      return status.display === 'granted' && enabledRes.value !== false;
+      return status.display === 'granted' ? 'granted' : 'denied';
     } catch (err) {
       console.warn('Erro ao solicitar permissão nativa:', err);
+      return 'denied';
     }
   }
-  return false;
+  return 'denied';
 }
 
 import { getSettings } from './storage';
@@ -502,12 +502,12 @@ export async function requestAllPermissions(): Promise<{
   const geo = await requestGeolocationPermission();
   
   // Push initialization
-  if (notif) {
+  if (notif === 'granted') {
     initializePushNotifications().catch(console.error);
   }
 
   return {
-    notifications: notif,
+    notifications: notif === 'granted',
     camera: cam,
     microphone: mic,
     storage: storage,

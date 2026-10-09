@@ -92,9 +92,9 @@ const callGemini = async (prompt: string, config: any = {}) => {
 function rephraseServerBodyText(text: string, idx: number): string {
   let res = text.trim();
   const rules: Array<[RegExp, string[]]> = [
-    [/\bvocê tem\b/gi, ['você conta com', 'está disponível para você', 'já está liberado no seu perfil', 'você possui', 'separamos para você']],
+    [/\bvocê tem\b/gi, ['você conta com', 'está disponível para você', 'já está liberado no seu perfil', 'você possui', 'está liberado para você']],
     [/\baproveite\b/gi, ['garanta já', 'não deixe passar', 'aproveite ao máximo', 'tire proveito', 'vem garantir']],
-    [/\bcorridas\b/gi, ['viagens', 'corridas', 'atendimentos', 'corridas completas', 'viagens realizadas']],
+    [/\bcorridas\b/gi, ['viagens', 'corridas', 'corridas no app', 'viagens pela 99', 'corridas pela plataforma']],
     [/\bganhar\b/gi, ['garantir', 'receber', 'faturar', 'conquistar', 'embolsar']],
     [/\bganhe\b/gi, ['garanta', 'receba', 'fature', 'conquiste', 'assegure']],
     [/\bbônus\b/gi, ['bônus', 'incentivo extra', 'recompensa', 'valor extra', 'premiação']],
@@ -123,7 +123,8 @@ function generateFallbackTopicTemplates(
 ) {
   const cleanTopic = topicName?.trim() || 'Tópico Estratégico';
   const cleanHook = hook?.trim() || 'Aproveite esta condição especial!';
-  const intro = presentation?.trim() ? `${presentation.trim()} — ` : '';
+  const cleanPres = (presentation || '').trim().replace(/[.!?\s]+$/, '');
+  const introLine = cleanPres ? ` ${cleanPres}.` : '';
 
   const cleanBody = cleanHook
     .replace(/^(\{saudacao\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, '')
@@ -133,66 +134,66 @@ function generateFallbackTopicTemplates(
 
   const firstOption = {
     title: `${cleanTopic} - Opção 1 (Original e Direta)`,
-    content: `{saudacao}, {primeiro_nome}! ${intro}${b(0)}`,
+    content: `{saudacao}, {primeiro_nome}!${introLine}\n\n${b(0)}\n\nSe precisar de suporte com isso, conta comigo!`,
     category: cleanTopic,
   };
 
   const diversePool = [
     {
       tag: 'Pergunta Engajadora',
-      content: `{primeiro_nome}, tudo certo por aí? {saudacao}!\n\nJá viu essa novidade? ${intro}${b(1)}\n\nQualquer dúvida, me dá um alô!`,
+      content: `{saudacao}, {primeiro_nome}! Tudo certo por aí?${introLine}\n\n${b(1)}\n\nQualquer dúvida, me dá um alô!`,
     },
     {
-      tag: 'Destaque Rápido (2 Linhas)',
-      content: `🚀 ${intro}${b(2)}\n\n{saudacao}, {primeiro_nome}! Se precisar de suporte com isso, conta comigo.`,
+      tag: 'Destaque Rápido',
+      content: `{saudacao}, {primeiro_nome}! 🚀${introLine}\n\n${b(2)}\n\nSe precisar de suporte com isso, conta comigo.`,
     },
     {
       tag: 'Formato em Tópico',
-      content: `Olá, {primeiro_nome}! {saudacao}!\n\n📌 *Resumo importante para você:*\n${intro}${b(3)}\n\nBora aproveitar? Estou por aqui!`,
+      content: `Olá, {primeiro_nome}! {saudacao}!${introLine}\n\n📌 ${b(3)}\n\nBora aproveitar? Estou por aqui se precisar!`,
     },
     {
       tag: 'Parceria e Próxima',
-      content: `Fala, {primeiro_nome}! {saudacao}! Como estão os trabalhos hoje?\n\nPassando pra fortalecer sua rotina: ${intro}${b(4)} Tamo junto!`,
+      content: `Fala, {primeiro_nome}! {saudacao}! Como estão os trabalhos hoje?${introLine}\n\n${b(4)}\n\nTamo junto, qualquer coisa me chama!`,
     },
     {
       tag: 'Foco no Resultado',
-      content: `{saudacao}! Passando com uma excelente notícia para o seu dia, {primeiro_nome}: ${intro}${b(5)} Aproveite para impulsionar seus ganhos!`,
+      content: `{saudacao}, {primeiro_nome}!${introLine}\n\n${b(5)}\n\nAproveite para impulsionar seus ganhos! Conta comigo.`,
     },
     {
       tag: 'Lembrete Prático',
-      content: `Oi {primeiro_nome}! 👋 {saudacao}!\n\nSó passando para você não deixar passar: ${intro}${b(6)}\n\nPrecisando de orientação, é só chamar.`,
+      content: `Oi, {primeiro_nome}! 👋 {saudacao}!${introLine}\n\n${b(6)}\n\nPrecisando de orientação, é só me chamar.`,
     },
     {
       tag: 'Exclusiva VIP',
-      content: `{primeiro_nome}, {saudacao}! Seu contato foi selecionado na campanha *${cleanTopic}*:\n\n✨ ${intro}${b(7)}\n\nFico à disposição se quiser saber mais!`,
+      content: `{saudacao}, {primeiro_nome}!${introLine}\n\n✨ *${cleanTopic}:* ${b(7)}\n\nFico à disposição se quiser saber mais!`,
     },
     {
       tag: 'Curta e Sem Rodeios',
-      content: `{saudacao}, {primeiro_nome}! Recado jogo rápido: ${intro}${b(8)} Qualquer coisa, me chama!`,
+      content: `{saudacao}, {primeiro_nome}!${introLine}\n\nRecado rápido para você: ${b(8)}\n\nQualquer coisa, me chama!`,
     },
     {
       tag: 'Consultiva e Atenciosa',
-      content: `Espero que seu dia esteja ótimo, {primeiro_nome}! ({saudacao})\n\nQuero compartilhar esse ponto com você: ${intro}${b(9)}\n\nConte com nosso time!`,
+      content: `{saudacao}, {primeiro_nome}! Espero que seu dia esteja ótimo!${introLine}\n\n${b(9)}\n\nPode contar comigo no que precisar!`,
     },
     {
       tag: 'Alerta de Oportunidade',
-      content: `⚡ *Atenção, {primeiro_nome}!* {saudacao}!\n\n${intro}${b(10)}\n\nNão deixe para a última hora, qualquer dúvida estou online!`,
+      content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\n${b(10)}\n\nQualquer dúvida estou online por aqui!`,
     },
     {
       tag: 'Conversa Natural',
-      content: `Oi, {primeiro_nome}, tudo bem? {saudacao}! Vi seu perfil aqui e lembrei de te avisar: ${intro}${b(11)} Depois me conta se deu tudo certo!`,
+      content: `Oi, {primeiro_nome}, tudo bem? {saudacao}!${introLine}\n\n${b(11)}\n\nDepois me conta se deu tudo certo!`,
     },
     {
       tag: 'Motivacional',
-      content: `Excelente jornada hoje, {primeiro_nome}! {saudacao}!\n\nPra somar nos seus resultados: ${intro}${b(12)}\n\nÓtimas corridas e sucesso!`,
+      content: `{saudacao}, {primeiro_nome}! Excelente jornada hoje!${introLine}\n\n${b(12)}\n\nÓtimas corridas e pode contar comigo!`,
     },
     {
       tag: 'Check-in Rápido',
-      content: `{primeiro_nome}! {saudacao}! Passando em 1 minutinho só para confirmar se você já viu:\n👉 ${intro}${b(13)}\n\nEstou à disposição!`,
+      content: `Olá, {primeiro_nome}! {saudacao}!${introLine}\n\n👉 ${b(13)}\n\nEstou à disposição para te ajudar!`,
     },
     {
       tag: 'Fechamento de Meta',
-      content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯\n\n${intro}${b(14)}\n\nSe precisar de apoio, fala comigo!`,
+      content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯${introLine}\n\n${b(14)}\n\nSe precisar de apoio, fala comigo!`,
     },
   ];
 
@@ -210,22 +211,22 @@ function generateFallbackTopicTemplates(
 }
 
 // Fallback General Templates
-function generateFallbackTemplates(category: string, businessType?: string) {
+function generateFallbackTemplates(category: string, _businessType?: string) {
   const cat = category || 'Geral';
   return [
     {
       title: `Modelo 1 - ${cat}`,
-      content: `{saudacao}, {primeiro_nome}! Passando para informar sobre ${cat}. Se precisar de suporte, estamos à disposição!`,
+      content: `{saudacao}, {primeiro_nome}! Passando para te informar sobre ${cat}. Se precisar de suporte, estou à disposição!`,
       category: cat,
     },
     {
       title: `Modelo 2 - ${cat}`,
-      content: `Olá, {nome}! Tudo bem com você? {saudacao}! Gostaríamos de compartilhar uma atualização sobre ${cat}. Conte conosco!`,
+      content: `Olá, {nome}! Tudo bem com você? {saudacao}! Gostaria de compartilhar uma atualização sobre ${cat}. Pode contar comigo!`,
       category: cat,
     },
     {
       title: `Modelo 3 - ${cat}`,
-      content: `{saudacao}, {primeiro_nome}! Aqui é da ${businessType || 'nossa equipe'}. Lembramos que ${cat} está disponível para você.`,
+      content: `{saudacao}, {primeiro_nome}! Passando para lembrar que ${cat} já está disponível para você. Qualquer dúvida, me chama!`,
       category: cat,
     },
   ];
@@ -361,9 +362,9 @@ function generateFallbackVariations(originalMessage: string) {
   const body = cleanBody || originalMessage;
 
   return [
-    `Olá, {primeiro_nome}! {saudacao}! Passando para te avisar: ${body} Se precisar de qualquer ajuda, conte comigo!`,
-    `{saudacao}, {primeiro_nome}! Tudo bem? Gostaria de compartilhar uma informação importante: ${body} Estamos 100% à disposição por aqui!`,
-    `{primeiro_nome}, {saudacao}! Lembrete rápido para você: ${body} Qualquer dúvida é só me chamar!`
+    `Olá, {primeiro_nome}! {saudacao}! Passando para te avisar: ${body} Se precisar de qualquer ajuda, conta comigo!`,
+    `{saudacao}, {primeiro_nome}! Tudo bem? Gostaria de compartilhar uma informação importante: ${body} Estou 100% à disposição por aqui!`,
+    `{saudacao}, {primeiro_nome}! Lembrete rápido para você: ${body} Qualquer dúvida é só me chamar!`
   ];
 }
 
@@ -384,14 +385,15 @@ Negócio/Contexto: ${businessType || 'Geral'}
 Instruções adicionais: ${context || 'Nenhuma'}
 
 Regras:
-1. Use variáveis dinâmicas no formato {nome}, {primeiro_nome}, {empresa}, {saudacao}, {data}, {horario}.
-2. Mantenha a mensagem engajadora, clara e pronta para envio no WhatsApp (pode usar emojis de forma moderada).
-3. Formate a resposta EXCLUSIVAMENTE em formato JSON com o seguinte formato:
+1. Use variáveis dinâmicas no formato {nome}, {primeiro_nome}, {saudacao}, {data}, {horario}.
+2. A saudação e o nome ({saudacao}, {primeiro_nome}!) DEVEM estar sempre no início da mensagem.
+3. O remetente trabalha SOZINHO. Escreva SEMPRE na 1ª pessoa do singular ("eu", "comigo", "estou à disposição", "me chama"). NUNCA use plural como "nosso time", "nossa equipe", "estamos" ou "conosco".
+4. Formate a resposta EXCLUSIVAMENTE em formato JSON com o seguinte formato:
 {
   "templates": [
     {
       "title": "Nome do Modelo 1",
-      "content": "Texto do modelo com {nome}...",
+      "content": "Texto do modelo com {saudacao}, {primeiro_nome}...",
       "category": "Categoria"
     }
   ]
@@ -416,18 +418,19 @@ app.post("/api/ai/generate-variations", async (req, res) => {
   const { originalMessage } = req.body;
   try {
     const prompt = `Você é um copywriter profissional especialista em mensagens de WhatsApp e proteção anti-spam.
-Dada a mensagem original abaixo, crie 3 variações REAIS E DISTINTAS do texto, reescrevendo as frases com naturalidade, variando conectivos, ordem e vocabulário, para que o WhatsApp não detecte repetição durante envios em massa.
+Dada a mensagem original abaixo, crie 3 variações REAIS E DISTINTAS do texto, reescrevendo as frases com naturalidade, variando conectivos e vocabulário, para que o WhatsApp não detecte repetição durante envios em massa.
 
 MENSAGEM ORIGINAL:
 "${originalMessage}"
 
 DIRETRIZES OBRIGATÓRIAS:
-1. Mantenha 100% fiel ao assunto, sentido e informações que o usuário escreveu. NÃO invente novos brindes, valores ou prazos que não estavam no original.
-2. Mantenha EXATAMENTE as variáveis do sistema presentes na mensagem ({nome}, {primeiro_nome}, {saudacao}, {empresa}, etc.).
-3. Estilos das variações:
+1. Mantenha 100% fiel ao assunto, sentido, tempo verbal e informações que o usuário escreveu. NÃO invente novos brindes, valores ou prazos que não estavam no original.
+2. Mantenha a saudação e o nome ({saudacao}, {primeiro_nome}!) sempre no INÍCIO da mensagem (nunca jogue a saudação para o final).
+3. O remetente trabalha SOZINHO. Escreva SEMPRE na 1ª pessoa do singular ("eu", "comigo", "estou à disposição", "me chama"). NUNCA use plural como "nosso time", "nossa equipe", "estamos", "conosco" ou "separamos".
+4. Estilos das variações:
    - Variação 1: Tom direto, ágil e claro.
    - Variação 2: Tom cordial, empático e prestativo.
-   - Variação 3: Tom conversacional e dinâmico, focado em facilidade.
+   - Variação 3: Tom conversacional e dinâmico, focado em parceria individual.
 
 Responda EXCLUSIVAMENTE no formato JSON:
 {
@@ -466,11 +469,15 @@ CONTEXTO:
 
 DIRETRIZES RIGOROSAS:
 1. GERE EXATAMENTE ${quantity} OPÇÕES DE MENSAGENS!
-2. GERE TODAS AS OPÇÕES COMO VARIAÇÕES REAIS DE COPYWRITING DA MENSAGEM DO USUÁRIO!
-   - REESCREVA a estrutura com vocabulário diferente, aberturas variadas e ordem de frases alternada (para proteção anti-spam).
-   - Mantenha 100% a fidelidade aos fatos, valores e termos que o usuário escreveu (NÃO invente promoções ou valores não mencionados).
-   - Use variáveis adequadas: {saudacao} e {primeiro_nome}.
-   - Cada opção deve ser um texto diferente, persuasivo, profissional e pronto para envio.
+2. ESTRUTURA OBRIGATÓRIA DE CADA MENSAGEM:
+   - Início: SEMPRE comece com a saudação e o nome ({saudacao}, {primeiro_nome}!). NUNCA coloque a saudação no final da mensagem!
+   - Meio: Se houver apresentação do remetente, coloque-a logo após a saudação inicial, seguida da mensagem/frase de impacto conectada ao tópico "${topicName}".
+   - Final: Encerre colocando-se à disposição no SINGULAR.
+3. TRABALHO INDIVIDUAL (1ª PESSOA DO SINGULAR):
+   - O remetente trabalha SOZINHO. Use SEMPRE o singular ("eu", "conta comigo", "me chama", "estou à disposição", "vou te ajudar").
+   - É PROIBIDO usar plural como "nosso time", "nossa equipe", "estamos", "conosco", "separamos".
+4. FIDELIDADE E COERÊNCIA:
+   - Mantenha 100% a fidelidade aos fatos, valores, datas e tempos verbais que o usuário escreveu (NÃO troque "corridas nas próximas semanas" por "viagens realizadas").
 
 Responda EXCLUSIVAMENTE no formato JSON:
 {
@@ -479,8 +486,7 @@ Responda EXCLUSIVAMENTE no formato JSON:
       "title": "${topicName} - Opção 1",
       "content": "...",
       "category": "${topicName}"
-    },
-    ... (devem ter exatamente ${quantity} itens aqui)
+    }
   ]
 }`;
 

@@ -35,7 +35,7 @@ interface DashboardViewProps {
   onOpenNewCampaign: () => void;
   onOpenAiModal: () => void;
   onLaunchCampaign: (campaign: ScheduledCampaign) => void;
-  onDeleteCampaign: (id: string) => void;
+  onDeleteCampaign: (id: string, deleteMessages?: boolean) => void;
   onEditCampaign: (campaign: ScheduledCampaign) => void;
   onAdvanceCampaign?: (campaignId: string, minutes?: number) => void;
   onUpdateCampaign?: (campaign: ScheduledCampaign) => void;

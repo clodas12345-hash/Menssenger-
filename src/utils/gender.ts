@@ -136,7 +136,7 @@ export function isGenericOrInvalidName(rawName?: string): boolean {
 /**
  * Known tag words or patterns to filter out when extracting human names.
  */
-const KNOWN_TAG_PATTERNS = /^(cg\d*|r?\$?\d+|\d+\$|moto|carro|pop|99moto|99pop|99|elegivel|inativo|ativo|novo|falta\d*|sem_?nome|contato\d*|lead\d*|grupo\d*|p|m|g|sp|rj|mg|ba|df|pr|rs|sc|pe|ce|go|am|es|ma|pb|pa|rn|pi|al|se|to|ro|ac|ap|rr|ms|mt)$/i;
+const KNOWN_TAG_PATTERNS = /^(t\d+|tr\d*|tx\d*|corr\d*|cg\d*|r?\$?\d+|\d+\$|moto|carro|pop|99moto|99pop|99|elegivel|inativo|ativo|novo|falta\d*|sem_?nome|contato\d*|lead\d*|grupo\d*|p|m|g|sp|rj|mg|ba|df|pr|rs|sc|pe|ce|go|am|es|ma|pb|pa|rn|pi|al|se|to|ro|ac|ap|rr|ms|mt)$/i;
 
 function isTagToken(token: string): boolean {
   if (!token) return true;
@@ -145,23 +145,25 @@ function isTagToken(token: string): boolean {
   if (/^\d+$/.test(t)) return true; // purely digits like 01, 05, 10, 50, 100
   if (/^[\$\#\@\*\+\~\!\?\d\/\:\\\=\|\_\-]+$/.test(t)) return true; // pure symbols/digits
   if (/^55\d{8,}$/.test(t) || /^\+\d+$/.test(t)) return true; // phone numbers
+  if (/^[a-z]{1,3}\d+$/i.test(t)) return true; // alphanumeric codes like T20, CG05, TX0
   if (KNOWN_TAG_PATTERNS.test(t)) return true;
   return false;
 }
 
 /**
  * Clean and isolate candidate first name and full name from any contact line.
- * Correctly handles prepended or appended tags like "CG05 - Marcos Antonio", "50 - Ana", ".Aline Alves_CG05_$50", etc.
+ * Correctly handles prepended or appended tags like "CG05 - Marcos Antonio", "T20_Marco Antonio", ".Aline Alves_CG05_$50", etc.
  */
 export function extractCleanNameComponents(rawName: string): { firstName: string; fullName: string } {
   if (!rawName || isGenericOrInvalidName(rawName)) {
     return { firstName: '', fullName: '' };
   }
 
-  // 1. Remove URLs, emails, bracketed/parenthetical tags, and leading noise
+  // 1. Remove URLs, emails, bracketed/parenthetical tags, sequence codes (T20_), and leading noise
   let cleaned = rawName
     .replace(/https?:\/\/\S+/gi, '')
     .replace(/\[[^\]]*\]|\([^\)]*\)|\{[^\}]*\}/g, ' ')
+    .replace(/(?:^|[\s\.\-_\|])T[\_\-\s]?\d{1,3}(?:$|[\s\.\-_\|])/gi, ' ')
     .replace(/^[\s\.\-_#@*+~!?\d\/\\:=|]+/, '')
     .trim();
 
@@ -175,15 +177,20 @@ export function extractCleanNameComponents(rawName: string): { firstName: string
   const candidateBlocks: string[][] = [];
 
   for (const block of blocks) {
+    if (isTagToken(block)) continue;
     const words = block.split(/\s+/).filter(Boolean);
     const validWordsInBlock: string[] = [];
 
     for (const word of words) {
+      if (isTagToken(word)) continue;
       const cleanWord = word.replace(/[^\p{L}]/gu, '');
-      if (cleanWord.length >= 2 || (words.length === 1 && cleanWord.length > 0)) {
+      if (cleanWord.length >= 2 || (words.length === 1 && cleanWord.length > 1)) {
         if (!isTagToken(cleanWord) && !isGenericOrInvalidName(cleanWord)) {
-          // Capitalize properly
-          const formatted = cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1).toLowerCase();
+          // Capitalize properly (keep lowercase prepositions like da, de, do, dos, das)
+          const lowerW = cleanWord.toLowerCase();
+          const formatted = ['da', 'de', 'do', 'dos', 'das', 'e'].includes(lowerW) && validWordsInBlock.length > 0
+            ? lowerW
+            : cleanWord.charAt(0).toUpperCase() + lowerW.slice(1);
           validWordsInBlock.push(formatted);
         }
       }
@@ -206,6 +213,7 @@ export function extractCleanNameComponents(rawName: string): { firstName: string
   if (bestWords.length === 0) {
     const allWords = cleaned.split(/\s+/).filter(Boolean);
     for (const w of allWords) {
+      if (isTagToken(w)) continue;
       const cleanW = w.replace(/[^\p{L}]/gu, '');
       if (cleanW.length >= 2) {
         if (!isTagToken(cleanW) && !isGenericOrInvalidName(cleanW)) {

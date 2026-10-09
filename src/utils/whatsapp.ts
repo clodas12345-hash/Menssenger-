@@ -1,6 +1,6 @@
 import { Contact } from '../types';
 import { formatPhoneDisplay } from './vcfParser';
-import { getSettings } from './storage';
+import { getSettings, getDispatchLogs } from './storage';
 import { detectGenderFromName, adaptApproachForGender, extractCleanFirstName, extractCleanFullName, isGenericOrInvalidName } from './gender';
 
 export { formatPhoneDisplay, detectGenderFromName, adaptApproachForGender, extractCleanFirstName, extractCleanFullName, isGenericOrInvalidName };
@@ -16,10 +16,26 @@ export function getTimeBasedGreeting(dateObj: Date = new Date()): string {
   }
 }
 
-// Add these helper functions for message count tracking
-export function getMessageCount(contactId: string): number {
-  const count = localStorage.getItem(`sentCount_${contactId}`);
-  return count ? parseInt(count, 10) : 0;
+// Helper functions for message count tracking (combines localStorage counter + dispatch history logs)
+export function getMessageCount(contactId: string, phone?: string): number {
+  const rawStored = contactId ? localStorage.getItem(`sentCount_${contactId}`) : null;
+  const storedCount = rawStored ? parseInt(rawStored, 10) || 0 : 0;
+
+  let logsSentCount = 0;
+  try {
+    const logs = getDispatchLogs();
+    if (logs && logs.length > 0) {
+      logsSentCount = logs.filter(
+        (l) =>
+          l.status === 'enviado' &&
+          ((contactId && l.contactId === contactId) || (phone && l.phone === phone))
+      ).length;
+    }
+  } catch {
+    // ignore storage read error
+  }
+
+  return Math.max(storedCount, logsSentCount);
 }
 
 export function incrementMessageCount(contactId: string): void {
@@ -39,9 +55,14 @@ export function replaceTemplateVariables(
   const cleanFirstName = extractCleanFirstName(rawName);
   const cleanFullName = extractCleanFullName(rawName) || cleanFirstName;
 
-  const count = contact.id ? getMessageCount(contact.id) : 0;
-  const firstNameToUse = cleanFirstName || cleanFullName;
-  const fullNameToUse = cleanFullName;
+  // Regra 1ª, 3ª, 5ª... mensagem (count = 0, 2, 4... antes do envio -> ímpar): chama por Nome e Sobrenome (cleanFullName)
+  // Regra 2ª, 4ª, 6ª... mensagem (count = 1, 3, 5... antes do envio -> par): chama apenas pelo Primeiro Nome (cleanFirstName)
+  const count = getMessageCount(contact.id || '', contact.phone);
+  const isOddSendOrder = count % 2 === 0;
+  const firstNameToUse = isOddSendOrder
+    ? (cleanFullName || cleanFirstName)
+    : (cleanFirstName || cleanFullName);
+  const fullNameToUse = cleanFullName || cleanFirstName;
 
   const company = contact.company?.trim() || 'sua empresa';
   const greeting = getTimeBasedGreeting(targetDate);
@@ -72,6 +93,17 @@ export function replaceTemplateVariables(
   }
 
   let processed = templateText;
+
+  // Fix legacy templates where greeting was placed at the bottom instead of the top
+  const bottomGreetingRegex = /^([\s\S]+?)\n+\s*(\{saudacao\}|\{saudação\}|Bom dia|Boa tarde|Boa noite),\s*(\{primeiro_nome\}|\{nome\}|\[Nome\])!\s*(Se precisar de suporte[^\n]*)$/i;
+  const bottomMatch = processed.match(bottomGreetingRegex);
+  if (bottomMatch) {
+    const mainBody = bottomMatch[1].replace(/^🚀\s*/, '').trim();
+    const greetToken = bottomMatch[2];
+    const nameToken = bottomMatch[3];
+    const closingText = bottomMatch[4].trim();
+    processed = `${greetToken}, ${nameToken}! 🚀\n\n${mainBody}\n\n${closingText}`;
+  }
 
   // 1. Replace Full Name variables: {{nome_completo}}, {nome_completo}, [nome_completo], [Nome Completo], {full_name}, etc.
   const fullNamePattern = /\{\{\s*(nome_completo|nomecompleto|full_name|fullname)\s*\}\}|\{\s*(nome_completo|nomecompleto|full_name|fullname)\s*\}|\[\s*(nome_completo|nomecompleto|nome\s+completo|full_name|fullname)\s*\]|<\s*(nome_completo|nomecompleto|full_name|fullname)\s*>|%\s*(nome_completo|nomecompleto|full_name|fullname)\s*%/gi;
@@ -135,16 +167,33 @@ export function replaceTemplateVariables(
     }
   }
 
+  // Enforce 1st person singular (since user works alone) & fix awkward auto-replacements
+  processed = processed
+    .replace(/\bConte com (o )?nosso time\b/gi, 'Pode contar comigo')
+    .replace(/\bconte com (o )?nosso time\b/gi, 'pode contar comigo')
+    .replace(/\bnosso time\b/gi, 'eu')
+    .replace(/\bnossa equipe\b/gi, 'eu')
+    .replace(/\bConte conosco\b/g, 'Pode contar comigo')
+    .replace(/\bconte conosco\b/gi, 'pode contar comigo')
+    .replace(/\bEstamos (100% )?à disposição\b/g, 'Estou $1à disposição')
+    .replace(/\bestamos (100% )?à disposição\b/gi, 'estou $1à disposição')
+    .replace(/\bGostaríamos de compartilhar\b/g, 'Gostaria de compartilhar')
+    .replace(/\bgostaríamos de compartilhar\b/gi, 'gostaria de compartilhar')
+    .replace(/\bseparamos para você\b/gi, 'está disponível para você')
+    .replace(/\bSepamos para você\b/gi, 'Está disponível para você')
+    .replace(/\bviagens realizadas\s+(nas?\s+próximas?)/gi, 'corridas $1');
+
   // Auto-correct weekdays based on targetDate
   const todayIndex = targetDate.getDay();
-  const daysPt = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  const daysPt = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sábado'];
   const daysFullPt = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-  const todayNamePt = daysPt[todayIndex];
+  const allDaysPt = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  const todayNamePt = allDaysPt[todayIndex];
   const todayFullPt = daysFullPt[todayIndex];
 
   for (let i = 0; i < 7; i++) {
     if (i === todayIndex) continue;
-    const otherDay = daysPt[i];
+    const otherDay = allDaysPt[i];
     const otherDayFull = daysFullPt[i];
     
     const regexFull = new RegExp(otherDayFull, 'gi');
