@@ -306,11 +306,12 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                onDeleteCampaign(camp.id, false); // Campaign deleted, messages NOT deleted
                                 setDeletingId(null);
                               }}
                               className="flex-1 h-11 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-200 border border-[#2A2E39] rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow"
                             >
-                              Não
+                              Não (Excluir apenas agendamento)
                             </button>
                             <button
                               onClick={(e) => {
