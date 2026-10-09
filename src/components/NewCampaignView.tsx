@@ -136,38 +136,29 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
 
   const availableContacts = React.useMemo(() => {
     return contacts
-      .sort((a, b) => {
+              .sort((a, b) => {
+        // Preference: NOT scheduled
+        const schedA = scheduledContactIdsSet.has(a.id);
+        const schedB = scheduledContactIdsSet.has(b.id);
+        if (schedA !== schedB) return schedA ? 1 : -1;
+
         if (sortSkippedFirst) {
           const skippedA = isContactSkipped(a, logs);
           const skippedB = isContactSkipped(b, logs);
-          if (skippedA && !skippedB) return -1;
-          if (!skippedA && skippedB) return 1;
+          if (skippedA !== skippedB) return skippedA ? -1 : 1;
         }
+
         if (sortThreeDaysUnsentFirst) {
           const notSentA = isNotSentInLastThreeDays(a, logs);
           const notSentB = isNotSentInLastThreeDays(b, logs);
-          if (notSentA && !notSentB) return -1;
-          if (!notSentA && notSentB) return 1;
+          if (notSentA !== notSentB) return notSentA ? -1 : 1;
         }
+
         if (sortOldestContactedFirst) {
           const timeA = getContactLastSentTimestamp(a, logs);
           const timeB = getContactLastSentTimestamp(b, logs);
-          if (timeA === 0 && timeB > 0) return -1;
-          if (timeA > 0 && timeB === 0) return 1;
           if (timeA !== timeB) return timeA - timeB;
         }
-        if (sortOldestContactedFirst) {
-          const timeA = getContactLastSentTimestamp(a, logs);
-          const timeB = getContactLastSentTimestamp(b, logs);
-          if (timeA === 0 && timeB > 0) return -1;
-          if (timeA > 0 && timeB === 0) return 1;
-          if (timeA !== timeB) return timeA - timeB;
-        }
-        // Give preference to NOT scheduled contacts
-        const schedA = scheduledContactIdsSet.has(a.id);
-        const schedB = scheduledContactIdsSet.has(b.id);
-        if (!schedA && schedB) return -1;
-        if (schedA && !schedB) return 1;
 
         return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
       });
