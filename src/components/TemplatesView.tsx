@@ -1083,7 +1083,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none"></div>
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="space-y-1.5">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 flex-wrap gap-1.5">
                   <span className="bg-purple-500/20 text-purple-400 border border-purple-500/40 text-[10px] uppercase font-black px-2.5 py-0.5 rounded-full flex items-center space-x-1">
                     <Sparkles className="w-3 h-3 text-purple-400" />
                     <span>Dicas de IA • Histórico de Sucesso</span>
