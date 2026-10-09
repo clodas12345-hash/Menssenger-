@@ -53,6 +53,7 @@ import {
   ensureNotificationChannel,
   triggerVibration
 } from '../utils/permissions';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { playDispatchAlertSound } from '../utils/audio';
 import { auth, saveUserCloudBackup, loadUserCloudBackup, signInWithGoogle } from '../firebase';
 
@@ -142,19 +143,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
       await ensureNotificationChannel();
       
-      import('@capacitor/local-notifications').then(async (mod) => {
-        await mod.LocalNotifications.schedule({
-          notifications: [{
-            title: '🔔 Teste de Notificação • GKD Messenger',
-            body: 'Notificação nativa agendada com sucesso!',
-            id: Date.now(),
-            channelId: 'padrao',
-            smallIcon: 'ic_stat_icon_config_sample',
-            schedule: { at: new Date(Date.now() + 5000) }
-          }]
-        });
-        setTestNotifFeedback('🚀 Notificação nativa agendada para daqui a 5 segundos!');
+      await LocalNotifications.schedule({
+        notifications: [{
+          title: '🔔 Teste de Notificação • GKD Messenger',
+          body: 'Notificação nativa agendada com sucesso!',
+          id: Date.now(),
+          channelId: 'padrao',
+          smallIcon: 'ic_stat_icon_config_sample',
+          schedule: { at: new Date(Date.now() + 5000) }
+        }]
       });
+      setTestNotifFeedback('🚀 Notificação nativa agendada para daqui a 5 segundos!');
 
       if (soundEnabled) {
         playDispatchAlertSound();
