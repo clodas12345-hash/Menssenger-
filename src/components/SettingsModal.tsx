@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Settings, 
   X, 
@@ -56,7 +56,7 @@ import {
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import { playDispatchAlertSound } from '../utils/audio';
-import { auth, saveUserCloudBackup, loadUserCloudBackup, signInWithGoogle } from '../firebase';
+import { auth, saveUserCloudBackup, loadUserCloudBackup, signInWithGoogle, signOutFirebase, onAuthUserChanged } from '../firebase';
 
 interface SettingsModalProps {
   logs?: DispatchLogItem[];
@@ -220,10 +220,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const remaining = Math.max(0, maxLimit - sentLast24H);
   const isLimitReached = sentLast24H >= maxLimit;
 
-  const [importStatus, setImportStatus] = useState<string | null>(null);
+   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [cloudUser, setCloudUser] = useState<any>(() => auth.currentUser);
+  const [cloudError, setCloudError] = useState<string | null>(null);
+  const [cloudLoading, setCloudLoading] = useState<boolean>(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const unsub = onAuthUserChanged((u) => {
+      setCloudUser(u);
+    });
+    return () => unsub();
+  }, []);
 
   const [notificationToggles, setNotificationToggles] = useState<NotificationPreferences>(
     settings.notificationToggles || {
@@ -1504,73 +1514,176 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
 
                   {/* Sincronização com o Firestore */}
-                  <div className="pt-3 border-t border-[#232732] grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          if (!auth.currentUser) {
-                            await signInWithGoogle();
-                          }
-                          setExportStatus('Enviando backup para o Firestore...');
-                          const backupPayload = {
-                            contacts: contacts || [],
-                            templates: templates || [],
-                            campaigns: campaigns || [],
-                            logs: logs || [],
-                            groups: groups || [],
-                            settings: settings || {},
-                          };
-                          await saveUserCloudBackup(JSON.stringify(backupPayload), 'GKD Messenger Web');
-                          setExportStatus('✅ Sincronizado com o Firestore com sucesso!');
-                          setTimeout(() => setExportStatus(null), 4000);
-                        } catch (err: any) {
-                          alert(`Erro ao sincronizar com Firestore: ${err?.message || err}`);
-                          setExportStatus(null);
-                        }
-                      }}
-                      className="bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 font-bold py-2.5 px-4 rounded-xl border border-emerald-500/50 text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-sm"
-                    >
-                      <Cloud className="w-4 h-4 text-emerald-400" />
-                      <span>Sincronizar com Firestore</span>
-                    </button>
+                  <div className="pt-3 border-t border-[#232732] space-y-3">
+                    <div className="bg-[#12141A] border border-[#2A2E39] rounded-xl p-3.5 space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center space-x-2">
+                          <Cloud className={`w-4 h-4 ${cloudUser ? 'text-emerald-400' : 'text-gray-400'}`} />
+                          <span className="text-xs font-bold text-white">Nuvem Firestore</span>
+                          {cloudUser ? (
+                            <span className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                              {cloudUser.email || 'Conectado'}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
+                              Desconectado
+                            </span>
+                          )}
+                        </div>
 
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          if (!auth.currentUser) {
-                            await signInWithGoogle();
-                          }
-                          setImportStatus('Baixando backup do Firestore...');
-                          const cloudData = await loadUserCloudBackup();
-                          if (!cloudData || !cloudData.payloadJson) {
-                            alert('Nenhum backup encontrado no Firestore para este usuário.');
-                            setImportStatus(null);
-                            return;
-                          }
-                          const parsed = JSON.parse(cloudData.payloadJson);
-                          const result = restoreFromBackup(parsed);
-                          if (result.success) {
-                            setImportStatus('✅ Dados restaurados do Firestore com sucesso!');
-                            setTimeout(() => {
-                              if (onRefreshData) onRefreshData();
+                        {cloudUser ? (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await signOutFirebase();
+                                setCloudError(null);
+                                setExportStatus('Desconectado da conta.');
+                                setTimeout(() => setExportStatus(null), 3000);
+                              } catch (err: any) {
+                                setCloudError(err?.message || 'Erro ao desconectar');
+                              }
+                            }}
+                            className="text-[11px] text-gray-400 hover:text-red-400 underline transition-colors cursor-pointer self-start sm:self-auto"
+                          >
+                            Desconectar conta
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={cloudLoading}
+                            onClick={async () => {
+                              setCloudLoading(true);
+                              setCloudError(null);
+                              try {
+                                await signInWithGoogle();
+                              } catch (err: any) {
+                                const msg = err?.message || String(err);
+                                if (msg.includes('operation-not-supported') || msg.includes('popup') || msg.includes('disallowed_useragent')) {
+                                  setCloudError('⚠️ O Android bloqueia a janela do Google dentro de aplicativos instalados (APK). Utilize a "Central de Salvamento Avançado" acima para restaurar ou salvar por arquivo JSON offline.');
+                                } else {
+                                  setCloudError(`Erro ao conectar: ${msg}`);
+                                }
+                              } finally {
+                                setCloudLoading(false);
+                              }
+                            }}
+                            className="text-[11px] bg-blue-600 hover:bg-blue-500 text-white font-medium px-2.5 py-1 rounded-lg transition-colors cursor-pointer self-start sm:self-auto flex items-center space-x-1"
+                          >
+                            <span>Conectar com Google</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {Capacitor.isNativePlatform() && (
+                        <p className="text-[10px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 leading-relaxed">
+                          💡 <strong>Aviso no APK (Celular):</strong> Se o Google bloquear a tela de login no app instalado, utilize a <strong>Central de Salvamento Avançado</strong> acima para salvar ou restaurar seu backup completo em arquivo JSON local instantaneamente.
+                        </p>
+                      )}
+
+                      {cloudError && (
+                        <div className="text-[11px] text-red-300 bg-red-950/60 border border-red-500/40 rounded-lg p-2.5 leading-relaxed">
+                          {cloudError}
+                        </div>
+                      )}
+
+                      {(exportStatus || importStatus) && (
+                        <div className="text-[11px] text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 rounded-lg p-2 font-medium">
+                          {exportStatus || importStatus}
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          disabled={cloudLoading}
+                          onClick={async () => {
+                            setCloudLoading(true);
+                            setCloudError(null);
+                            setExportStatus('Enviando backup para o Firestore...');
+                            try {
+                              if (!auth.currentUser) {
+                                await signInWithGoogle();
+                              }
+                              const sanitizedLogs = (logs || []).slice(-200);
+                              const backupPayload = {
+                                contacts: contacts || [],
+                                templates: templates || [],
+                                campaigns: campaigns || [],
+                                logs: sanitizedLogs,
+                                groups: groups || [],
+                                settings: settings || {},
+                              };
+                              await saveUserCloudBackup(JSON.stringify(backupPayload), Capacitor.isNativePlatform() ? 'GKD Messenger Android' : 'GKD Messenger Web');
+                              setExportStatus('✅ Sincronizado com o Firestore com sucesso!');
+                              setTimeout(() => setExportStatus(null), 4000);
+                            } catch (err: any) {
+                              const msg = err?.message || String(err);
+                              if (msg.includes('operation-not-supported') || msg.includes('popup') || msg.includes('disallowed_useragent')) {
+                                setCloudError('⚠️ O Google bloqueia o login dentro do WebView do Android. Use o backup em arquivo JSON da Central de Salvamento Avançado.');
+                              } else {
+                                setCloudError(`Erro ao sincronizar: ${msg}`);
+                              }
+                              setExportStatus(null);
+                            } finally {
+                              setCloudLoading(false);
+                            }
+                          }}
+                          className="bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 font-bold py-2 px-3 rounded-xl border border-emerald-500/50 text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                        >
+                          <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Sincronizar com Firestore</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={cloudLoading}
+                          onClick={async () => {
+                            setCloudLoading(true);
+                            setCloudError(null);
+                            setImportStatus('Baixando backup do Firestore...');
+                            try {
+                              if (!auth.currentUser) {
+                                await signInWithGoogle();
+                              }
+                              const cloudData = await loadUserCloudBackup();
+                              if (!cloudData || !cloudData.payloadJson) {
+                                setCloudError('Nenhum backup encontrado no Firestore para esta conta.');
+                                setImportStatus(null);
+                                return;
+                              }
+                              const parsed = JSON.parse(cloudData.payloadJson);
+                              const result = restoreFromBackup(parsed);
+                              if (result.success) {
+                                setImportStatus('✅ Dados restaurados do Firestore com sucesso!');
+                                setTimeout(() => {
+                                  if (onRefreshData) onRefreshData();
+                                  setImportStatus(null);
+                                }, 1500);
+                              } else {
+                                setCloudError(`Erro ao restaurar dados: ${result.error}`);
+                                setImportStatus(null);
+                              }
+                            } catch (err: any) {
+                              const msg = err?.message || String(err);
+                              if (msg.includes('operation-not-supported') || msg.includes('popup') || msg.includes('disallowed_useragent')) {
+                                setCloudError('⚠️ O Google bloqueia o login dentro do WebView do Android. Use a Central de Salvamento Avançado para importar seu arquivo JSON.');
+                              } else {
+                                setCloudError(`Erro ao restaurar: ${msg}`);
+                              }
                               setImportStatus(null);
-                            }, 1000);
-                          } else {
-                            alert(`Erro ao restaurar dados: ${result.error}`);
-                            setImportStatus(null);
-                          }
-                        } catch (err: any) {
-                          alert(`Erro ao restaurar do Firestore: ${err?.message || err}`);
-                          setImportStatus(null);
-                        }
-                      }}
-                      className="bg-blue-950/60 hover:bg-blue-900/80 text-blue-300 font-bold py-2.5 px-4 rounded-xl border border-blue-500/50 text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-sm"
-                    >
-                      <Database className="w-4 h-4 text-blue-400" />
-                      <span>Restaurar do Firestore</span>
-                    </button>
+                            } finally {
+                              setCloudLoading(false);
+                            }
+                          }}
+                          className="bg-blue-950/60 hover:bg-blue-900/80 text-blue-300 font-bold py-2 px-3 rounded-xl border border-blue-500/50 text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                        >
+                          <Database className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Restaurar do Firestore</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

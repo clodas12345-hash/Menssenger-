@@ -78,6 +78,10 @@ export async function signInWithGoogle() {
   return signInWithPopup(auth, googleProvider);
 }
 
+export function onAuthUserChanged(callback: (user: import('firebase/auth').User | null) => void) {
+  return auth.onAuthStateChanged(callback);
+}
+
 export async function signOutFirebase() {
   return signOut(auth);
 }
@@ -85,12 +89,15 @@ export async function signOutFirebase() {
 export async function saveUserCloudBackup(payloadJson: string, deviceLabel: string = 'GKD Messenger'): Promise<void> {
   const user = auth.currentUser;
   if (!user) {
-    throw new Error('Usuário não autenticado no Firebase.');
+    throw new Error('Usuário não autenticado no Firebase. Conecte sua conta Google primeiro.');
   }
 
   const sanitizedOwnerId = user.uid.slice(0, 128);
   const sanitizedDeviceLabel = (deviceLabel || 'GKD Messenger').slice(0, 120);
-  const sanitizedPayload = payloadJson.slice(0, 900000);
+  if (payloadJson.length > 900000) {
+    throw new Error('O volume de dados excede o limite de 900KB do Firestore. Limpe logs antigos ou use o backup em arquivo JSON.');
+  }
+  const sanitizedPayload = payloadJson;
   const path = `user_backups/${sanitizedOwnerId}`;
   const docRef = doc(db, 'user_backups', sanitizedOwnerId);
 
