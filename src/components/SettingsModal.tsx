@@ -54,6 +54,7 @@ import {
   triggerVibration
 } from '../utils/permissions';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
 import { playDispatchAlertSound } from '../utils/audio';
 import { auth, saveUserCloudBackup, loadUserCloudBackup, signInWithGoogle } from '../firebase';
 
@@ -131,6 +132,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setTestNotifLoading(true);
     setTestNotifFeedback(null);
     try {
+      if (!Capacitor.isNativePlatform()) {
+        if (soundEnabled) {
+          playDispatchAlertSound();
+        }
+        triggerVibration([200, 100, 200, 100, 300]);
+        setTestNotifFeedback('🔔 Som de alerta e vibração testados com sucesso! No aplicativo Android instalado, as notificações com banner do sistema são acionadas.');
+        return;
+      }
+
       if (notificationStatus !== 'granted') {
         const granted = await requestNotificationPermission();
         if (granted !== 'granted') {
@@ -147,7 +157,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         notifications: [{
           title: '🔔 Teste de Notificação • GKD Messenger',
           body: 'Notificação nativa agendada com sucesso!',
-          id: Date.now(),
+          id: Math.floor(Math.random() * 900000) + 100000,
           channelId: 'padrao',
           smallIcon: 'ic_stat_icon_config_sample',
           schedule: { at: new Date(Date.now() + 5000) }

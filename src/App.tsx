@@ -53,6 +53,7 @@ import { processContactName, enrichContacts, isIgnoredSequenceTag, isInvalidCate
 import { downloadFileSafely, handleDownloadBackup } from './utils/downloadHelper';
 import { testFirestoreConnection } from './firebase';
 import { Send, X, Bell, CheckCircle2, AlertCircle, Shield, Printer } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 
 import { Navbar } from './components/Navbar';
@@ -167,6 +168,27 @@ export default function App() {
   useEffect(() => {
     syncLocalNotifications(campaigns);
   }, [campaigns]);
+
+  // Check inactivity after 48h
+  useEffect(() => {
+    const logs = getDispatchLogs();
+    const lastSent = logs
+      .filter(l => l.status === 'enviado' && l.sentAt)
+      .sort((a, b) => new Date(b.sentAt!).getTime() - new Date(a.sentAt!).getTime())[0];
+    
+    if (lastSent && lastSent.sentAt) {
+      const lastSentTime = new Date(lastSent.sentAt).getTime();
+      const now = Date.now();
+      const diffHours = (now - lastSentTime) / (1000 * 60 * 60);
+
+      if (diffHours >= 48) {
+        sendAppNotification('⚠️ GKD Messenger: Inatividade detectada', {
+          body: 'Já faz 48h que não detectamos nenhum envio realizado. Verifique sua lista de contatos pendentes!',
+          id: 9999
+        }).catch(console.error);
+      }
+    }
+  }, []);
 
   // One-time Reset Business chip counter as requested by user
   useEffect(() => {
