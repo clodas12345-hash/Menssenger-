@@ -34,6 +34,40 @@
       },
       "required": ["ownerId", "payloadJson", "deviceLabel", "createdAt", "updatedAt"]
     },
+    "CloudBackup": {
+      "title": "CloudBackup",
+      "description": "Cloud backup indexed by unique sync key allowing seamless mobile and web restore.",
+      "type": "object",
+      "properties": {
+        "syncKey": {
+          "type": "string",
+          "description": "Unique sync identifier or account code for the backup.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-\\.\\@]+$"
+        },
+        "payloadJson": {
+          "type": "string",
+          "description": "Serialized backup data containing logs, contacts, and campaigns.",
+          "maxLength": 900000
+        },
+        "deviceLabel": {
+          "type": "string",
+          "description": "Device or application identifier.",
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of initial backup creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last backup update."
+        }
+      },
+      "required": ["syncKey", "payloadJson", "deviceLabel", "createdAt", "updatedAt"]
+    },
     "UserPushToken": {
       "title": "UserPushToken",
       "description": "Stores push notification FCM token for an authenticated user.",
@@ -73,6 +107,10 @@
     "/user_backups/{userId}": {
       "schema": { "$ref": "#/entities/UserBackup" },
       "description": "Stores cloud backups of logs, contacts, and campaigns per user."
+    },
+    "/cloud_backups/{syncKey}": {
+      "schema": { "$ref": "#/entities/CloudBackup" },
+      "description": "Stores cloud backups accessible by unique sync key."
     },
     "/user_push_tokens/{userId}": {
       "schema": { "$ref": "#/entities/UserPushToken" },

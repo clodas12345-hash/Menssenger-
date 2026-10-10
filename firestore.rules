@@ -22,6 +22,10 @@ service cloud.firestore {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isValidSyncKey(key) {
+      return key is string && key.size() >= 3 && key.size() <= 128 && key.matches('^[a-zA-Z0-9_\\-\\.\\@]+$');
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -35,6 +39,24 @@ service cloud.firestore {
         && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
         && data.ownerId == request.auth.uid
         && data.ownerId == userId
+        && data.payloadJson is string
+        && data.payloadJson.size() >= 2
+        && data.payloadJson.size() <= 900000
+        && data.deviceLabel is string
+        && data.deviceLabel.size() >= 1
+        && data.deviceLabel.size() <= 120
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCloudBackup(data, syncKey) {
+      return data.keys().hasAll(['syncKey', 'payloadJson', 'deviceLabel', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['syncKey', 'payloadJson', 'deviceLabel', 'createdAt', 'updatedAt'])
+        && data.syncKey is string
+        && data.syncKey.size() >= 3
+        && data.syncKey.size() <= 128
+        && data.syncKey.matches('^[a-zA-Z0-9_\\-\\.\\@]+$')
+        && data.syncKey == syncKey
         && data.payloadJson is string
         && data.payloadJson.size() >= 2
         && data.payloadJson.size() <= 900000
@@ -80,6 +102,22 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && incoming().diff(existing()).affectedKeys().hasOnly(['payloadJson', 'deviceLabel', 'updatedAt']);
       allow delete: if isOwner(userId) && isValidId(userId);
+    }
+
+    match /cloud_backups/{syncKey} {
+      allow get: if isValidSyncKey(syncKey);
+      allow list: if false;
+      allow create: if isValidSyncKey(syncKey)
+        && isValidCloudBackup(incoming(), syncKey)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidSyncKey(syncKey)
+        && isValidCloudBackup(incoming(), syncKey)
+        && incoming().syncKey == existing().syncKey
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['payloadJson', 'deviceLabel', 'updatedAt']);
+      allow delete: if false;
     }
 
     match /user_push_tokens/{userId} {

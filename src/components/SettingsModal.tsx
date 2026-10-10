@@ -38,7 +38,9 @@ import {
   Eye,
   FileCode,
   FileX,
-  Cloud
+  Cloud,
+  Copy,
+  Key
 } from 'lucide-react';
 import { AppSettings, WhatsAppChip, DispatchLogItem, Contact, ScheduledCampaign, MessageTemplate, ContactGroup, NotificationPreferences } from '../types';
 import { safeConfirm } from '../utils/whatsapp';
@@ -56,7 +58,17 @@ import {
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import { playDispatchAlertSound } from '../utils/audio';
-import { auth, saveUserCloudBackup, loadUserCloudBackup, signInWithGoogle, signOutFirebase, onAuthUserChanged } from '../firebase';
+import { 
+  auth, 
+  saveUserCloudBackup, 
+  loadUserCloudBackup, 
+  signInWithGoogle, 
+  signOutFirebase, 
+  onAuthUserChanged,
+  getOrCreateDefaultSyncKey,
+  saveLocalSyncKey,
+  sanitizeSyncKey
+} from '../firebase';
 
 interface SettingsModalProps {
   logs?: DispatchLogItem[];
@@ -225,6 +237,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [cloudUser, setCloudUser] = useState<any>(() => auth.currentUser);
   const [cloudError, setCloudError] = useState<string | null>(null);
   const [cloudLoading, setCloudLoading] = useState<boolean>(false);
+  const [cloudSyncKey, setCloudSyncKey] = useState<string>(() => getOrCreateDefaultSyncKey());
+  const [copiedKey, setCopiedKey] = useState<boolean>(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1515,10 +1529,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   {/* Sincronização com o Firestore */}
                   <div className="pt-3 border-t border-[#232732] space-y-3">
-                    <div className="bg-[#12141A] border border-[#2A2E39] rounded-xl p-3.5 space-y-2.5">
+                    <div className="bg-[#12141A] border border-[#2A2E39] rounded-xl p-3.5 space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex items-center space-x-2">
-                          <Cloud className={`w-4 h-4 ${cloudUser ? 'text-emerald-400' : 'text-gray-400'}`} />
+                          <Cloud className={`w-4 h-4 ${cloudSyncKey ? 'text-emerald-400' : 'text-gray-400'}`} />
                           <span className="text-xs font-bold text-white">Nuvem Firestore</span>
                           {cloudUser ? (
                             <span className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
@@ -1526,8 +1540,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               {cloudUser.email || 'Conectado'}
                             </span>
                           ) : (
-                            <span className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
-                              Desconectado
+                            <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                              Firestore Ativo
                             </span>
                           )}
                         </div>
@@ -1547,9 +1562,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             }}
                             className="text-[11px] text-gray-400 hover:text-red-400 underline transition-colors cursor-pointer self-start sm:self-auto"
                           >
-                            Desconectar conta
+                            Desconectar Google
                           </button>
-                        ) : (
+                        ) : !Capacitor.isNativePlatform() && (
                           <button
                             type="button"
                             disabled={cloudLoading}
@@ -1560,8 +1575,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 await signInWithGoogle();
                               } catch (err: any) {
                                 const msg = err?.message || String(err);
-                                if (msg.includes('operation-not-supported') || msg.includes('popup') || msg.includes('disallowed_useragent')) {
-                                  setCloudError('⚠️ O Android bloqueia a janela do Google dentro de aplicativos instalados (APK). Utilize a "Central de Salvamento Avançado" acima para restaurar ou salvar por arquivo JSON offline.');
+                                if (msg.includes('unauthorized-domain')) {
+                                  setCloudError('ℹ️ Para sincronizar, você pode usar a Chave de Nuvem direta abaixo, que não requer login popup.');
                                 } else {
                                   setCloudError(`Erro ao conectar: ${msg}`);
                                 }
@@ -1569,18 +1584,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 setCloudLoading(false);
                               }
                             }}
-                            className="text-[11px] bg-blue-600 hover:bg-blue-500 text-white font-medium px-2.5 py-1 rounded-lg transition-colors cursor-pointer self-start sm:self-auto flex items-center space-x-1"
+                            className="text-[11px] bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white font-medium px-2.5 py-1 rounded-lg transition-colors cursor-pointer self-start sm:self-auto flex items-center space-x-1 border border-blue-500/30"
                           >
-                            <span>Conectar com Google</span>
+                            <span>Vincular Conta Google (Opcional)</span>
                           </button>
                         )}
                       </div>
 
-                      {Capacitor.isNativePlatform() && (
-                        <p className="text-[10px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 leading-relaxed">
-                          💡 <strong>Aviso no APK (Celular):</strong> Se o Google bloquear a tela de login no app instalado, utilize a <strong>Central de Salvamento Avançado</strong> acima para salvar ou restaurar seu backup completo em arquivo JSON local instantaneamente.
+                      {/* Chave de Sincronização / Restauração na Nuvem */}
+                      <div className="bg-[#181B24] border border-[#2A2E39] rounded-lg p-2.5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-semibold text-gray-300 flex items-center space-x-1.5">
+                            <Key className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Chave de Backup na Nuvem (Código de Restauração):</span>
+                          </label>
+                          <span className="text-[10px] text-gray-400 font-mono">
+                            Auto / Personalizável
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={cloudSyncKey}
+                            onChange={(e) => {
+                              const cleaned = sanitizeSyncKey(e.target.value);
+                              setCloudSyncKey(cleaned);
+                              saveLocalSyncKey(cleaned);
+                            }}
+                            placeholder="Ex: GKD-7F8K2M ou seu e-mail"
+                            className="flex-1 bg-[#0F1117] border border-[#2A2E39] focus:border-amber-500/60 rounded-lg px-2.5 py-1.5 text-xs text-amber-200 font-mono tracking-wider focus:outline-none transition-colors"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!cloudSyncKey) return;
+                              navigator.clipboard?.writeText(cloudSyncKey);
+                              setCopiedKey(true);
+                              setTimeout(() => setCopiedKey(false), 2000);
+                            }}
+                            title="Copiar chave de backup"
+                            className="bg-[#2A2E39] hover:bg-[#343A48] text-gray-300 hover:text-white px-2.5 py-1.5 rounded-lg text-xs flex items-center space-x-1 transition-colors cursor-pointer shrink-0 font-medium"
+                          >
+                            {copiedKey ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="text-emerald-400">Copiado!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copiar</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-gray-400 leading-relaxed">
+                          💡 <strong>Importante:</strong> Esta chave identifica seu backup com segurança na nuvem do Firestore. Ao reinstalar o aplicativo no celular ou trocar de aparelho, basta inserir esta mesma chave e clicar em <strong>Restaurar do Firestore</strong> para recuperar todos os seus contatos e dados instantaneamente.
                         </p>
-                      )}
+                      </div>
 
                       {cloudError && (
                         <div className="text-[11px] text-red-300 bg-red-950/60 border border-red-500/40 rounded-lg p-2.5 leading-relaxed">
@@ -1603,9 +1664,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             setCloudError(null);
                             setExportStatus('Enviando backup para o Firestore...');
                             try {
-                              if (!auth.currentUser) {
-                                await signInWithGoogle();
-                              }
                               const sanitizedLogs = (logs || []).slice(-200);
                               const backupPayload = {
                                 contacts: contacts || [],
@@ -1615,16 +1673,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 groups: groups || [],
                                 settings: settings || {},
                               };
-                              await saveUserCloudBackup(JSON.stringify(backupPayload), Capacitor.isNativePlatform() ? 'GKD Messenger Android' : 'GKD Messenger Web');
-                              setExportStatus('✅ Sincronizado com o Firestore com sucesso!');
-                              setTimeout(() => setExportStatus(null), 4000);
+                              const currentKey = cloudSyncKey.trim() || getOrCreateDefaultSyncKey();
+                              const res = await saveUserCloudBackup(
+                                JSON.stringify(backupPayload),
+                                Capacitor.isNativePlatform() ? 'GKD Messenger Android' : 'GKD Messenger Web',
+                                currentKey
+                              );
+                              setCloudSyncKey(res.syncKey);
+                              setExportStatus(`✅ Sincronizado com o Firestore com sucesso! Chave: ${res.syncKey}`);
+                              setTimeout(() => setExportStatus(null), 5000);
                             } catch (err: any) {
                               const msg = err?.message || String(err);
-                              if (msg.includes('operation-not-supported') || msg.includes('popup') || msg.includes('disallowed_useragent')) {
-                                setCloudError('⚠️ O Google bloqueia o login dentro do WebView do Android. Use o backup em arquivo JSON da Central de Salvamento Avançado.');
-                              } else {
-                                setCloudError(`Erro ao sincronizar: ${msg}`);
-                              }
+                              setCloudError(`Erro ao sincronizar: ${msg}`);
                               setExportStatus(null);
                             } finally {
                               setCloudLoading(false);
@@ -1644,12 +1704,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             setCloudError(null);
                             setImportStatus('Baixando backup do Firestore...');
                             try {
-                              if (!auth.currentUser) {
-                                await signInWithGoogle();
+                              const targetKey = cloudSyncKey.trim();
+                              if (!targetKey) {
+                                setCloudError('Por favor, informe a Chave de Backup da Nuvem para restaurar.');
+                                setImportStatus(null);
+                                return;
                               }
-                              const cloudData = await loadUserCloudBackup();
+                              const cloudData = await loadUserCloudBackup(targetKey);
                               if (!cloudData || !cloudData.payloadJson) {
-                                setCloudError('Nenhum backup encontrado no Firestore para esta conta.');
+                                setCloudError(`Nenhum backup encontrado no Firestore para a chave "${targetKey}". Verifique se o código está correto ou se já fez um salvamento nesta chave.`);
                                 setImportStatus(null);
                                 return;
                               }
@@ -1667,11 +1730,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               }
                             } catch (err: any) {
                               const msg = err?.message || String(err);
-                              if (msg.includes('operation-not-supported') || msg.includes('popup') || msg.includes('disallowed_useragent')) {
-                                setCloudError('⚠️ O Google bloqueia o login dentro do WebView do Android. Use a Central de Salvamento Avançado para importar seu arquivo JSON.');
-                              } else {
-                                setCloudError(`Erro ao restaurar: ${msg}`);
-                              }
+                              setCloudError(`Erro ao restaurar: ${msg}`);
                               setImportStatus(null);
                             } finally {
                               setCloudLoading(false);
