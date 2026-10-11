@@ -171,7 +171,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           body: 'Notificação nativa agendada com sucesso!',
           id: Math.floor(Math.random() * 900000) + 100000,
           channelId: 'padrao',
-          smallIcon: 'ic_stat_icon_config_sample',
+          smallIcon: 'ic_stat_icon',
           schedule: { at: new Date(Date.now() + 5000) }
         }]
       });

@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   plugins: {
     LocalNotifications: {
-      smallIcon: 'ic_stat_icon_config_sample',
+      smallIcon: 'ic_stat_icon',
       iconColor: '#34d399',
       sound: 'default'
     },
@@ -17,4 +17,3 @@ const config: CapacitorConfig = {
 };
 
 export default config;
-
