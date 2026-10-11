@@ -310,7 +310,11 @@ export async function initializePushNotifications(
       }
 
       if (permStatus.receive === 'granted') {
-        await PushNotifications.register();
+        try {
+          await PushNotifications.register();
+        } catch (regOnlyErr) {
+          console.warn('PushNotifications.register failed safely:', regOnlyErr);
+        }
       }
     } catch (regErr) {
       console.warn('Push notification register skipped or unsupported on this device:', regErr);
