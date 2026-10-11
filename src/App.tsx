@@ -93,44 +93,9 @@ export default function App() {
     try {
       testFirestoreConnection().catch(() => {});
       requestPersistentStorage().catch(() => {});
-      ensureNotificationChannel().catch(() => {});
-      requestNotificationPermission().then(setPermissionStatus).catch(() => setPermissionStatus('denied'));
-      initializePushNotifications((data) => {
-        try {
-          const targetId = data.campaignId || data.conversationId;
-          if (targetId) {
-            const currentCamps = getCampaigns();
-            const found = currentCamps.find(c => c.id === targetId);
-            if (found) {
-              setActiveDispatcherCampaign(found);
-              return;
-            }
-          }
-          if (data.phone) {
-            const currentSettings = getSettings();
-            const url = buildWhatsAppLink(data.phone, '', currentSettings.sendMode);
-            openWhatsAppLink(url);
-          } else if (data.contactId) {
-            const currentContacts = getContacts();
-            const foundContact = currentContacts.find(c => c.id === data.contactId);
-            if (foundContact) {
-              const currentSettings = getSettings();
-              const url = buildWhatsAppLink(foundContact.phone, '', currentSettings.sendMode);
-              openWhatsAppLink(url);
-            }
-          }
-        } catch (_) {}
-      }).catch(() => {});
-      registerNotificationListeners((campId) => {
-        try {
-          const currentCamps = getCampaigns();
-          const found = currentCamps.find(c => c.id === campId);
-          if (found) {
-            setActiveDispatcherCampaign(found);
-          }
-        } catch (_) {}
-      });
-    } catch (_) {}
+    } catch (err) {
+      console.error('Erro na inicialização:', err);
+    }
   }, []);
 
   // Application Data States - Synchronously initialized with in-memory caching to avoid layout thrashing

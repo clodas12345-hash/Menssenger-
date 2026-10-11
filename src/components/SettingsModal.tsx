@@ -1598,10 +1598,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <Key className="w-3.5 h-3.5 text-amber-400" />
                             <span>Chave de Backup na Nuvem (Código de Restauração):</span>
                           </label>
-                          <span className="text-[10px] text-gray-400 font-mono">
-                            Auto / Personalizável
-                          </span>
                         </div>
+                        
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
