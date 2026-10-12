@@ -42,12 +42,11 @@ jobs:
 
     - name: Garantir google-services.json no local correto
       run: |
-        mkdir -p android/app/src/debug
         if [ -f "android/app/google-services.json" ]; then
-          cp android/app/google-services.json android/app/src/debug/
-          echo "✅ google-services.json copiado para android/app/src/debug/"
+          echo "✅ google-services.json encontrado em android/app/"
         else
           echo "⚠️ google-services.json não encontrado em android/app/"
+          exit 1
         fi
 
 
