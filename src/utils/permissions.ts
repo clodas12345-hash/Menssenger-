@@ -39,8 +39,6 @@ export async function triggerPushMessageNotification(payload: any): Promise<void
 
 export async function initializePushNotifications(onOpenConversation?: any) {}
 
-export async function syncLocalNotifications(campaigns: any[]): Promise<void> {}
-
 export function registerNotificationListeners(onOpenCampaign?: any): void {}
 
 export function triggerVibration(pattern: number[] = [200, 100, 200, 100, 300]): void {

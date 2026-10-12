@@ -39,8 +39,7 @@ import {
   triggerVibration, 
   requestPersistentStorage, 
   requestNotificationPermission, 
-  initializePushNotifications, 
-  syncLocalNotifications,
+  initializePushNotifications,
   ensureNotificationChannel,
   registerNotificationListeners,
   getCampaignImmediateId,
@@ -128,11 +127,6 @@ export default function App() {
       });
     }
   }, []);
-
-  // Sync scheduled campaigns as native local notifications whenever they change
-  useEffect(() => {
-    syncLocalNotifications(campaigns);
-  }, [campaigns]);
 
   // Check inactivity after 48h
   useEffect(() => {
