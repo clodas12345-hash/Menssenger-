@@ -31,6 +31,11 @@ public class MainActivity extends BridgeActivity {
         });
 
         super.onCreate(savedInstanceState);
+        try {
+            com.google.firebase.FirebaseApp.initializeApp(this);
+        } catch (Exception e) {
+            Log.e(TAG, "Firebase initialization failed", e);
+        }
     }
 }
 
