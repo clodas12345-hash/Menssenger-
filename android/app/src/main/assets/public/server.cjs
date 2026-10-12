@@ -94,9 +94,9 @@ var callGemini = async (prompt, config = {}) => {
 function rephraseServerBodyText(text, idx) {
   let res = text.trim();
   const rules = [
-    [/\bvocê tem\b/gi, ["voc\xEA conta com", "est\xE1 dispon\xEDvel para voc\xEA", "j\xE1 est\xE1 liberado no seu perfil", "voc\xEA possui", "separamos para voc\xEA"]],
+    [/\bvocê tem\b/gi, ["voc\xEA conta com", "est\xE1 dispon\xEDvel para voc\xEA", "j\xE1 est\xE1 liberado no seu perfil", "voc\xEA possui", "est\xE1 liberado para voc\xEA"]],
     [/\baproveite\b/gi, ["garanta j\xE1", "n\xE3o deixe passar", "aproveite ao m\xE1ximo", "tire proveito", "vem garantir"]],
-    [/\bcorridas\b/gi, ["viagens", "corridas", "atendimentos", "corridas completas", "viagens realizadas"]],
+    [/\bcorridas\b/gi, ["viagens", "corridas", "corridas no app", "viagens pela 99", "corridas pela plataforma"]],
     [/\bganhar\b/gi, ["garantir", "receber", "faturar", "conquistar", "embolsar"]],
     [/\bganhe\b/gi, ["garanta", "receba", "fature", "conquiste", "assegure"]],
     [/\bbônus\b/gi, ["b\xF4nus", "incentivo extra", "recompensa", "valor extra", "premia\xE7\xE3o"]],
@@ -118,108 +118,129 @@ function rephraseServerBodyText(text, idx) {
 function generateFallbackTopicTemplates(topicName, hook, presentation, quantity = 5) {
   const cleanTopic = topicName?.trim() || "T\xF3pico Estrat\xE9gico";
   const cleanHook = hook?.trim() || "Aproveite esta condi\xE7\xE3o especial!";
-  const intro = presentation?.trim() ? `${presentation.trim()} \u2014 ` : "";
+  const cleanPres = (presentation || "").trim().replace(/[.!?\s]+$/, "");
+  const introLine = cleanPres ? ` ${cleanPres}.` : "";
   const cleanBody = cleanHook.replace(/^(\{saudacao\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, "").trim() || cleanHook;
   const b = (i) => rephraseServerBodyText(cleanBody, i);
   const firstOption = {
     title: `${cleanTopic} - Op\xE7\xE3o 1 (Original e Direta)`,
-    content: `{saudacao}, {primeiro_nome}! ${intro}${b(0)}`,
+    content: `{saudacao}, {primeiro_nome}!${introLine}
+
+${b(0)}
+
+Se precisar de suporte com isso, conta comigo!`,
     category: cleanTopic
   };
   const diversePool = [
     {
       tag: "Pergunta Engajadora",
-      content: `{primeiro_nome}, tudo certo por a\xED? {saudacao}!
+      content: `{saudacao}, {primeiro_nome}! Tudo certo por a\xED?${introLine}
 
-J\xE1 viu essa novidade? ${intro}${b(1)}
+${b(1)}
 
 Qualquer d\xFAvida, me d\xE1 um al\xF4!`
     },
     {
-      tag: "Destaque R\xE1pido (2 Linhas)",
-      content: `\u{1F680} ${intro}${b(2)}
+      tag: "Destaque R\xE1pido",
+      content: `{saudacao}, {primeiro_nome}! \u{1F680}${introLine}
 
-{saudacao}, {primeiro_nome}! Se precisar de suporte com isso, conta comigo.`
+${b(2)}
+
+Se precisar de suporte com isso, conta comigo.`
     },
     {
       tag: "Formato em T\xF3pico",
-      content: `Ol\xE1, {primeiro_nome}! {saudacao}!
+      content: `Ol\xE1, {primeiro_nome}! {saudacao}!${introLine}
 
-\u{1F4CC} *Resumo importante para voc\xEA:*
-${intro}${b(3)}
+\u{1F4CC} ${b(3)}
 
-Bora aproveitar? Estou por aqui!`
+Bora aproveitar? Estou por aqui se precisar!`
     },
     {
       tag: "Parceria e Pr\xF3xima",
-      content: `Fala, {primeiro_nome}! {saudacao}! Como est\xE3o os trabalhos hoje?
+      content: `Fala, {primeiro_nome}! {saudacao}! Como est\xE3o os trabalhos hoje?${introLine}
 
-Passando pra fortalecer sua rotina: ${intro}${b(4)} Tamo junto!`
+${b(4)}
+
+Tamo junto, qualquer coisa me chama!`
     },
     {
       tag: "Foco no Resultado",
-      content: `{saudacao}! Passando com uma excelente not\xEDcia para o seu dia, {primeiro_nome}: ${intro}${b(5)} Aproveite para impulsionar seus ganhos!`
+      content: `{saudacao}, {primeiro_nome}!${introLine}
+
+${b(5)}
+
+Aproveite para impulsionar seus ganhos! Conta comigo.`
     },
     {
       tag: "Lembrete Pr\xE1tico",
-      content: `Oi {primeiro_nome}! \u{1F44B} {saudacao}!
+      content: `Oi, {primeiro_nome}! \u{1F44B} {saudacao}!${introLine}
 
-S\xF3 passando para voc\xEA n\xE3o deixar passar: ${intro}${b(6)}
+${b(6)}
 
-Precisando de orienta\xE7\xE3o, \xE9 s\xF3 chamar.`
+Precisando de orienta\xE7\xE3o, \xE9 s\xF3 me chamar.`
     },
     {
       tag: "Exclusiva VIP",
-      content: `{primeiro_nome}, {saudacao}! Seu contato foi selecionado na campanha *${cleanTopic}*:
+      content: `{saudacao}, {primeiro_nome}!${introLine}
 
-\u2728 ${intro}${b(7)}
+\u2728 *${cleanTopic}:* ${b(7)}
 
 Fico \xE0 disposi\xE7\xE3o se quiser saber mais!`
     },
     {
       tag: "Curta e Sem Rodeios",
-      content: `{saudacao}, {primeiro_nome}! Recado jogo r\xE1pido: ${intro}${b(8)} Qualquer coisa, me chama!`
+      content: `{saudacao}, {primeiro_nome}!${introLine}
+
+Recado r\xE1pido para voc\xEA: ${b(8)}
+
+Qualquer coisa, me chama!`
     },
     {
       tag: "Consultiva e Atenciosa",
-      content: `Espero que seu dia esteja \xF3timo, {primeiro_nome}! ({saudacao})
+      content: `{saudacao}, {primeiro_nome}! Espero que seu dia esteja \xF3timo!${introLine}
 
-Quero compartilhar esse ponto com voc\xEA: ${intro}${b(9)}
+${b(9)}
 
-Conte com nosso time!`
+Pode contar comigo no que precisar!`
     },
     {
       tag: "Alerta de Oportunidade",
-      content: `\u26A1 *Aten\xE7\xE3o, {primeiro_nome}!* {saudacao}!
+      content: `{saudacao}, {primeiro_nome}! \u26A1${introLine}
 
-${intro}${b(10)}
+${b(10)}
 
-N\xE3o deixe para a \xFAltima hora, qualquer d\xFAvida estou online!`
+Qualquer d\xFAvida estou online por aqui!`
     },
     {
       tag: "Conversa Natural",
-      content: `Oi, {primeiro_nome}, tudo bem? {saudacao}! Vi seu perfil aqui e lembrei de te avisar: ${intro}${b(11)} Depois me conta se deu tudo certo!`
+      content: `Oi, {primeiro_nome}, tudo bem? {saudacao}!${introLine}
+
+${b(11)}
+
+Depois me conta se deu tudo certo!`
     },
     {
       tag: "Motivacional",
-      content: `Excelente jornada hoje, {primeiro_nome}! {saudacao}!
+      content: `{saudacao}, {primeiro_nome}! Excelente jornada hoje!${introLine}
 
-Pra somar nos seus resultados: ${intro}${b(12)}
+${b(12)}
 
-\xD3timas corridas e sucesso!`
+\xD3timas corridas e pode contar comigo!`
     },
     {
       tag: "Check-in R\xE1pido",
-      content: `{primeiro_nome}! {saudacao}! Passando em 1 minutinho s\xF3 para confirmar se voc\xEA j\xE1 viu:
-\u{1F449} ${intro}${b(13)}
+      content: `Ol\xE1, {primeiro_nome}! {saudacao}!${introLine}
 
-Estou \xE0 disposi\xE7\xE3o!`
+\u{1F449} ${b(13)}
+
+Estou \xE0 disposi\xE7\xE3o para te ajudar!`
     },
     {
       tag: "Fechamento de Meta",
-      content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? \u{1F3AF}
+      content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? \u{1F3AF}${introLine}
 
-${intro}${b(14)}
+${b(14)}
 
 Se precisar de apoio, fala comigo!`
     }
@@ -235,22 +256,22 @@ Se precisar de apoio, fala comigo!`
   ];
   return fullList.slice(0, Math.max(1, Math.min(quantity, fullList.length)));
 }
-function generateFallbackTemplates(category, businessType) {
+function generateFallbackTemplates(category, _businessType) {
   const cat = category || "Geral";
   return [
     {
       title: `Modelo 1 - ${cat}`,
-      content: `{saudacao}, {primeiro_nome}! Passando para informar sobre ${cat}. Se precisar de suporte, estamos \xE0 disposi\xE7\xE3o!`,
+      content: `{saudacao}, {primeiro_nome}! Passando para te informar sobre ${cat}. Se precisar de suporte, estou \xE0 disposi\xE7\xE3o!`,
       category: cat
     },
     {
       title: `Modelo 2 - ${cat}`,
-      content: `Ol\xE1, {nome}! Tudo bem com voc\xEA? {saudacao}! Gostar\xEDamos de compartilhar uma atualiza\xE7\xE3o sobre ${cat}. Conte conosco!`,
+      content: `Ol\xE1, {nome}! Tudo bem com voc\xEA? {saudacao}! Gostaria de compartilhar uma atualiza\xE7\xE3o sobre ${cat}. Pode contar comigo!`,
       category: cat
     },
     {
       title: `Modelo 3 - ${cat}`,
-      content: `{saudacao}, {primeiro_nome}! Aqui \xE9 da ${businessType || "nossa equipe"}. Lembramos que ${cat} est\xE1 dispon\xEDvel para voc\xEA.`,
+      content: `{saudacao}, {primeiro_nome}! Passando para lembrar que ${cat} j\xE1 est\xE1 dispon\xEDvel para voc\xEA. Qualquer d\xFAvida, me chama!`,
       category: cat
     }
   ];
@@ -359,9 +380,9 @@ function generateFallbackVariations(originalMessage) {
   const cleanBody = originalMessage.replace(/^(\{saudacao\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, "").trim();
   const body = cleanBody || originalMessage;
   return [
-    `Ol\xE1, {primeiro_nome}! {saudacao}! Passando para te avisar: ${body} Se precisar de qualquer ajuda, conte comigo!`,
-    `{saudacao}, {primeiro_nome}! Tudo bem? Gostaria de compartilhar uma informa\xE7\xE3o importante: ${body} Estamos 100% \xE0 disposi\xE7\xE3o por aqui!`,
-    `{primeiro_nome}, {saudacao}! Lembrete r\xE1pido para voc\xEA: ${body} Qualquer d\xFAvida \xE9 s\xF3 me chamar!`
+    `Ol\xE1, {primeiro_nome}! {saudacao}! Passando para te avisar: ${body} Se precisar de qualquer ajuda, conta comigo!`,
+    `{saudacao}, {primeiro_nome}! Tudo bem? Gostaria de compartilhar uma informa\xE7\xE3o importante: ${body} Estou 100% \xE0 disposi\xE7\xE3o por aqui!`,
+    `{saudacao}, {primeiro_nome}! Lembrete r\xE1pido para voc\xEA: ${body} Qualquer d\xFAvida \xE9 s\xF3 me chamar!`
   ];
 }
 app.get("/api/health", (req, res) => {
@@ -378,14 +399,15 @@ Neg\xF3cio/Contexto: ${businessType || "Geral"}
 Instru\xE7\xF5es adicionais: ${context || "Nenhuma"}
 
 Regras:
-1. Use vari\xE1veis din\xE2micas no formato {nome}, {primeiro_nome}, {empresa}, {saudacao}, {data}, {horario}.
-2. Mantenha a mensagem engajadora, clara e pronta para envio no WhatsApp (pode usar emojis de forma moderada).
-3. Formate a resposta EXCLUSIVAMENTE em formato JSON com o seguinte formato:
+1. Use vari\xE1veis din\xE2micas no formato {nome}, {primeiro_nome}, {saudacao}, {data}, {horario}.
+2. A sauda\xE7\xE3o e o nome ({saudacao}, {primeiro_nome}!) DEVEM estar sempre no in\xEDcio da mensagem.
+3. O remetente trabalha SOZINHO. Escreva SEMPRE na 1\xAA pessoa do singular ("eu", "comigo", "estou \xE0 disposi\xE7\xE3o", "me chama"). NUNCA use plural como "nosso time", "nossa equipe", "estamos" ou "conosco".
+4. Formate a resposta EXCLUSIVAMENTE em formato JSON com o seguinte formato:
 {
   "templates": [
     {
       "title": "Nome do Modelo 1",
-      "content": "Texto do modelo com {nome}...",
+      "content": "Texto do modelo com {saudacao}, {primeiro_nome}...",
       "category": "Categoria"
     }
   ]
@@ -407,18 +429,19 @@ app.post("/api/ai/generate-variations", async (req, res) => {
   const { originalMessage } = req.body;
   try {
     const prompt = `Voc\xEA \xE9 um copywriter profissional especialista em mensagens de WhatsApp e prote\xE7\xE3o anti-spam.
-Dada a mensagem original abaixo, crie 3 varia\xE7\xF5es REAIS E DISTINTAS do texto, reescrevendo as frases com naturalidade, variando conectivos, ordem e vocabul\xE1rio, para que o WhatsApp n\xE3o detecte repeti\xE7\xE3o durante envios em massa.
+Dada a mensagem original abaixo, crie 3 varia\xE7\xF5es REAIS E DISTINTAS do texto, reescrevendo as frases com naturalidade, variando conectivos e vocabul\xE1rio, para que o WhatsApp n\xE3o detecte repeti\xE7\xE3o durante envios em massa.
 
 MENSAGEM ORIGINAL:
 "${originalMessage}"
 
 DIRETRIZES OBRIGAT\xD3RIAS:
-1. Mantenha 100% fiel ao assunto, sentido e informa\xE7\xF5es que o usu\xE1rio escreveu. N\xC3O invente novos brindes, valores ou prazos que n\xE3o estavam no original.
-2. Mantenha EXATAMENTE as vari\xE1veis do sistema presentes na mensagem ({nome}, {primeiro_nome}, {saudacao}, {empresa}, etc.).
-3. Estilos das varia\xE7\xF5es:
+1. Mantenha 100% fiel ao assunto, sentido, tempo verbal e informa\xE7\xF5es que o usu\xE1rio escreveu. N\xC3O invente novos brindes, valores ou prazos que n\xE3o estavam no original.
+2. Mantenha a sauda\xE7\xE3o e o nome ({saudacao}, {primeiro_nome}!) sempre no IN\xCDCIO da mensagem (nunca jogue a sauda\xE7\xE3o para o final).
+3. O remetente trabalha SOZINHO. Escreva SEMPRE na 1\xAA pessoa do singular ("eu", "comigo", "estou \xE0 disposi\xE7\xE3o", "me chama"). NUNCA use plural como "nosso time", "nossa equipe", "estamos", "conosco" ou "separamos".
+4. Estilos das varia\xE7\xF5es:
    - Varia\xE7\xE3o 1: Tom direto, \xE1gil e claro.
    - Varia\xE7\xE3o 2: Tom cordial, emp\xE1tico e prestativo.
-   - Varia\xE7\xE3o 3: Tom conversacional e din\xE2mico, focado em facilidade.
+   - Varia\xE7\xE3o 3: Tom conversacional e din\xE2mico, focado em parceria individual.
 
 Responda EXCLUSIVAMENTE no formato JSON:
 {
@@ -454,11 +477,15 @@ CONTEXTO:
 
 DIRETRIZES RIGOROSAS:
 1. GERE EXATAMENTE ${quantity} OP\xC7\xD5ES DE MENSAGENS!
-2. GERE TODAS AS OP\xC7\xD5ES COMO VARIA\xC7\xD5ES REAIS DE COPYWRITING DA MENSAGEM DO USU\xC1RIO!
-   - REESCREVA a estrutura com vocabul\xE1rio diferente, aberturas variadas e ordem de frases alternada (para prote\xE7\xE3o anti-spam).
-   - Mantenha 100% a fidelidade aos fatos, valores e termos que o usu\xE1rio escreveu (N\xC3O invente promo\xE7\xF5es ou valores n\xE3o mencionados).
-   - Use vari\xE1veis adequadas: {saudacao} e {primeiro_nome}.
-   - Cada op\xE7\xE3o deve ser um texto diferente, persuasivo, profissional e pronto para envio.
+2. ESTRUTURA OBRIGAT\xD3RIA DE CADA MENSAGEM:
+   - In\xEDcio: SEMPRE comece com a sauda\xE7\xE3o e o nome ({saudacao}, {primeiro_nome}!). NUNCA coloque a sauda\xE7\xE3o no final da mensagem!
+   - Meio: Se houver apresenta\xE7\xE3o do remetente, coloque-a logo ap\xF3s a sauda\xE7\xE3o inicial, seguida da mensagem/frase de impacto conectada ao t\xF3pico "${topicName}".
+   - Final: Encerre colocando-se \xE0 disposi\xE7\xE3o no SINGULAR.
+3. TRABALHO INDIVIDUAL (1\xAA PESSOA DO SINGULAR):
+   - O remetente trabalha SOZINHO. Use SEMPRE o singular ("eu", "conta comigo", "me chama", "estou \xE0 disposi\xE7\xE3o", "vou te ajudar").
+   - \xC9 PROIBIDO usar plural como "nosso time", "nossa equipe", "estamos", "conosco", "separamos".
+4. FIDELIDADE E COER\xCANCIA:
+   - Mantenha 100% a fidelidade aos fatos, valores, datas e tempos verbais que o usu\xE1rio escreveu (N\xC3O troque "corridas nas pr\xF3ximas semanas" por "viagens realizadas").
 
 Responda EXCLUSIVAMENTE no formato JSON:
 {
@@ -467,8 +494,7 @@ Responda EXCLUSIVAMENTE no formato JSON:
       "title": "${topicName} - Op\xE7\xE3o 1",
       "content": "...",
       "category": "${topicName}"
-    },
-    ... (devem ter exatamente ${quantity} itens aqui)
+    }
   ]
 }`;
     const text = await callGemini(prompt, { responseMimeType: "application/json" });

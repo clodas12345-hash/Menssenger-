@@ -19,7 +19,7 @@ public class MainActivity extends BridgeActivity {
                 Log.e(TAG, "Uncaught native exception on thread " + (paramThread != null ? paramThread.getName() : "unknown"), paramThrowable);
                 if (paramThrowable != null && paramThrowable.getMessage() != null) {
                     String msg = paramThrowable.getMessage().toLowerCase();
-                    if (msg.contains("firebaseapp") || msg.contains("alarm") || msg.contains("notification") || msg.contains("fileuriexposed")) {
+                    if (msg.contains("alarm") || msg.contains("notification") || msg.contains("fileuriexposed")) {
                         Log.w(TAG, "Prevented app shutdown from non-fatal native exception: " + msg);
                         return;
                     }
@@ -31,11 +31,6 @@ public class MainActivity extends BridgeActivity {
         });
 
         super.onCreate(savedInstanceState);
-        try {
-            com.google.firebase.FirebaseApp.initializeApp(this);
-        } catch (Exception e) {
-            Log.e(TAG, "Firebase initialization failed", e);
-        }
     }
 }
 

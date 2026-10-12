@@ -40,16 +40,6 @@ jobs:
         npm run apply-icons || true
         npx cap sync android
 
-    - name: Garantir google-services.json no local correto
-      run: |
-        if [ -f "android/app/google-services.json" ]; then
-          echo "✅ google-services.json encontrado em android/app/"
-        else
-          echo "⚠️ google-services.json não encontrado em android/app/"
-          exit 1
-        fi
-
-
     - name: Forçar ícone personalizado
       run: |
         RES=android/app/src/main/res
