@@ -255,46 +255,5 @@ export async function loadUserCloudBackup(
   return null;
 }
 
-export async function saveUserPushTokenToFirestore(fcmToken: string, platform: string = 'android'): Promise<void> {
-  const user = auth.currentUser;
-  if (!user || !fcmToken || fcmToken.length < 10) return;
-
-  const sanitizedOwnerId = user.uid.slice(0, 128);
-  const sanitizedToken = fcmToken.slice(0, 4096);
-  const sanitizedPlatform = (platform || 'android').slice(0, 32);
-  const path = `user_push_tokens/${sanitizedOwnerId}`;
-  const docRef = doc(db, 'user_push_tokens', sanitizedOwnerId);
-
-  let exists = false;
-  try {
-    const snap = await getDoc(docRef);
-    exists = snap.exists();
-  } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
-  }
-
-  if (!exists) {
-    try {
-      await setDoc(docRef, {
-        ownerId: sanitizedOwnerId,
-        fcmToken: sanitizedToken,
-        platform: sanitizedPlatform,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, path);
-    }
-  } else {
-    try {
-      await updateDoc(docRef, {
-        fcmToken: sanitizedToken,
-        platform: sanitizedPlatform,
-        updatedAt: serverTimestamp(),
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
-    }
-  }
-}
+export async function saveUserPushTokenToFirestore(fcmToken: string, platform: string = 'android'): Promise<void> {}
 

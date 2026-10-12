@@ -37,14 +37,7 @@ export async function registerFcmTokenOnBackend(fcmToken: string): Promise<void>
 
 export async function triggerPushMessageNotification(payload: any): Promise<void> {}
 
-export async function initializePushNotifications(onOpenConversation?: any) {
-  try {
-    const { PushNotifications } = await import('@capacitor/push-notifications');
-    await PushNotifications.register();
-  } catch (error) {
-    console.error('Erro ao registrar push notifications:', error);
-  }
-}
+export async function initializePushNotifications(onOpenConversation?: any) {}
 
 export async function syncLocalNotifications(campaigns: any[]): Promise<void> {}
 
