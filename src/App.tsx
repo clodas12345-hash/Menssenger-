@@ -1820,7 +1820,7 @@ export default function App() {
   }, [logs, settings.maxMessagesPer24Hours, settings.chips]);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#0A0C10] text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#1E283F] text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
       {/* Due Campaign Top Alert Banner */}
       {dueCampaignAlert && (
         <div className="bg-red-950/95 border-b-2 border-red-500 px-4 py-3 flex flex-wrap items-center justify-between text-xs text-red-100 z-50 shadow-2xl shadow-red-500/50 gap-2 animate-pulse">
@@ -2022,7 +2022,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[#1F2229] bg-[#0A0C10] py-6 text-center text-xs text-gray-500">
+      <footer className="border-t border-[#2A3245] bg-[#1E283F] py-6 text-center text-xs text-gray-400">
         <p>Mensseger • Gerenciador de Disparos e Mensagens GKD</p>
       </footer>
 

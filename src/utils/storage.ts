@@ -736,7 +736,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showOnlySkipped: false,
   hideAlreadyScheduled: false,
   historicalSentCount: 0,
-  totalSentCount: 0
+  totalSentCount: 0,
+  keyboardMode: 'alphanumeric'
 };
 
 // Storage Helpers

@@ -166,4 +166,5 @@ export interface AppSettings {
   historicalSentCount?: number;
   totalSentCount?: number;
   notificationToggles?: NotificationPreferences;
+  keyboardMode?: 'numeric' | 'alphanumeric';
 }

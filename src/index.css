@@ -6,8 +6,8 @@
     max-width: 100%;
     overflow-x: hidden;
     overflow-y: auto;
-    background-color: #0A0C10;
-    color: #D1D5DB;
+    background-color: #1E283F;
+    color: #F3F4F6;
     color-scheme: dark;
     margin: 0;
     padding: 0;
@@ -20,8 +20,8 @@
     max-width: 100%;
     min-height: 100vh;
     overflow-x: hidden;
-    background-color: #0A0C10;
-    color: #D1D5DB;
+    background-color: #1E283F;
+    color: #F3F4F6;
     color-scheme: dark;
     margin: 0;
     padding: 0;
@@ -34,7 +34,7 @@
   #root {
     width: 100%;
     min-height: 100vh;
-    background-color: #0A0C10;
+    background-color: #1E283F;
     margin: 0;
     padding: 0;
     display: flex;

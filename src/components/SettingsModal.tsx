@@ -189,6 +189,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [sortOldestContactedFirst, setSortOldestContactedFirst] = useState<boolean>(settings.sortOldestContactedFirst ?? true);
   const [showOnlySkipped, setShowOnlySkipped] = useState<boolean>(settings.showOnlySkipped ?? false);
   const [hideAlreadyScheduled, setHideAlreadyScheduled] = useState<boolean>(settings.hideAlreadyScheduled ?? false);
+  const [keyboardMode, setKeyboardMode] = useState<'numeric' | 'alphanumeric'>(settings.keyboardMode || 'alphanumeric');
 
   // Chip management
   const [chips, setChips] = useState<WhatsAppChip[]>(settings.chips || [
@@ -342,6 +343,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       showOnlySkipped,
       hideAlreadyScheduled,
       notificationToggles,
+      keyboardMode,
     });
     if (activeChipId !== settings.activeChipId) {
       const chipObj = chips.find(c => c.id === activeChipId);
@@ -523,6 +525,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                     <div className="w-10 h-5 bg-[#1F2229] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D4AF37]"></div>
                   </label>
+                </div>
+
+                {/* Modo de Teclado (Numérico ou Alfanumérico) */}
+                <div className="bg-[#14171E] border border-[#232732] rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 rounded-lg bg-[#0A0C10] border border-[#232732] text-[#D4AF37]">
+                      <Smartphone className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-xs">Tipo de Teclado (Numérico ou Alfanumérico)</h4>
+                      <p className="text-[11px] text-gray-400">Escolha o layout de teclado preferido ao preencher números e dados.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setKeyboardMode('alphanumeric')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        keyboardMode === 'alphanumeric'
+                          ? 'bg-[#D4AF37] text-black shadow-md'
+                          : 'bg-[#0A0C10] text-gray-400 border border-[#232732] hover:text-white'
+                      }`}
+                    >
+                      Alfanumérico
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setKeyboardMode('numeric')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        keyboardMode === 'numeric'
+                          ? 'bg-[#D4AF37] text-black shadow-md'
+                          : 'bg-[#0A0C10] text-gray-400 border border-[#232732] hover:text-white'
+                      }`}
+                    >
+                      Numérico
+                    </button>
+                  </div>
                 </div>
 
                 {/* Status Automatizado */}
