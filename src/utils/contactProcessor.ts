@@ -204,12 +204,15 @@ export function processContactName(rawName: string): { cleanName: string; detect
     }
   }
 
-  // 4. Remove other noise symbols at beginning / end
-  cleanName = cleanName.replace(/^[\s\.\-_#@*+~!?\d\/\\:=|]+|[\s\.\-_#@*+~!?\d\/\\:=|]+$/g, '').trim();
+  // 4. Strip any leading non-alphabetic characters / symbols / dots / underscores / punctuation (e.g. .Alex -> Alex, .Amanda -> Amanda)
+  cleanName = cleanName.replace(/^[\s\.\-_#@*+~!?\d\/\\:=|]+/, '').trim();
 
-  // 5. Fallback if cleanName becomes empty
+  // 5. Remove trailing symbols
+  cleanName = cleanName.replace(/[\s\.\-_#@*+~!?\d\/\\:=|]+$/, '').trim();
+
+  // 6. Fallback if cleanName becomes empty
   if (!cleanName || cleanName.length < 2) {
-    cleanName = rawName.replace(/^\.+/, '').trim() || 'Contato Sem Nome';
+    cleanName = rawName.replace(/^[\s\.\-_#@*+~!?\d\/\\:=|]+/, '').trim() || 'Contato Sem Nome';
   }
 
   // 6. Proper capitalization for name
