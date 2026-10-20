@@ -46,6 +46,7 @@ interface HistoryViewProps {
   onReturnToQueue?: (campaignId: string, contactId: string) => void;
   onCreateProjectArchive?: (name: string, startDate: string, endDate: string, resetData: boolean) => void;
   onDeleteProjectArchive?: (id: string) => void;
+  onPreviewReport?: (html: string) => void;
 }
 
 export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
@@ -61,6 +62,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   onReturnToQueue,
   onCreateProjectArchive,
   onDeleteProjectArchive,
+  onPreviewReport,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'general' | 'hourly' | 'projects' | 'contactsAudit'>('general');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -607,62 +609,94 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   };
 
   const handleExportPdf = () => {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Relatório de Histórico de Disparos - PDF</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #111; margin: 20px; font-size: 12px; }
+          h1 { font-size: 20px; color: #A88B4B; border-bottom: 2px solid #A88B4B; padding-bottom: 8px; margin-bottom: 15px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+          th { background-color: #f4f4f4; color: #333; font-weight: bold; }
+          tr:nth-child(even) { background-color: #fafafa; }
+          .meta { margin-bottom: 15px; color: #555; }
+          @media print {
+            .no-print { display: none !important; }
+            body { margin: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="position: sticky; top: 0; background: #15181E; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 9999; margin: -20px -20px 20px -20px; border-bottom: 2px solid #A88B4B; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+          <button onclick="closeReportPreview()" style="background: #A88B4B; color: #000; font-weight: 800; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+            ⬅ Voltar ao Aplicativo
+          </button>
+          <div style="display: flex; gap: 8px;">
+            <button onclick="window.print()" style="background: #232730; color: #fff; font-weight: bold; padding: 9px 16px; border: 1px solid #3E4452; border-radius: 8px; cursor: pointer; font-size: 13px;">
+              🖨️ Imprimir / Salvar PDF
+            </button>
+            <button onclick="closeReportPreview()" style="background: #e11d48; color: #fff; font-weight: bold; padding: 9px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px;">
+              ✕ Fechar
+            </button>
+          </div>
+        </div>
+        <button onclick="closeReportPreview()" class="no-print" style="position: fixed; bottom: 20px; right: 20px; background: #A88B4B; color: #000; font-weight: 800; padding: 12px 22px; border: 2px solid #000; border-radius: 30px; box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: pointer; font-size: 13px; z-index: 99999;">
+          ⬅ Voltar ao Aplicativo
+        </button>
+        <h1>Relatório de Histórico e Relatórios de Disparo</h1>
+        <div class="meta">
+          <p><strong>Data de Geração:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+          <p><strong>Total de Registros Exibidos:</strong> ${filteredLogs.length} (de ${logs.length} totais)</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Campanha</th>
+              <th>Contato</th>
+              <th>Telefone</th>
+              <th>Status</th>
+              <th>Data Envio</th>
+              <th>Mensagem</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredLogs.map(l => `
+              <tr>
+                <td>${l.campaignTitle}</td>
+                <td>${l.contactName}</td>
+                <td>${l.phone}</td>
+                <td><strong>${l.status}</strong></td>
+                <td>${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}</td>
+                <td>${l.messageText}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <script>
+          function closeReportPreview() {
+            try { window.parent.postMessage({ type: 'CLOSE_REPORT_PREVIEW' }, '*'); } catch (e) {}
+            try { window.close(); } catch (e) {}
+            try { window.history.back(); } catch (e) {}
+          }
+          window.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeReportPreview();
+          });
+        </script>
+      </body>
+      </html>
+    `;
+
+    if (onPreviewReport) {
+      onPreviewReport(htmlContent);
+      return;
+    }
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="pt-BR">
-        <head>
-          <meta charset="UTF-8">
-          <title>Relatório de Histórico de Disparos - PDF</title>
-          <style>
-            body { font-family: Arial, sans-serif; color: #111; margin: 20px; font-size: 12px; }
-            h1 { font-size: 20px; color: #A88B4B; border-bottom: 2px solid #A88B4B; padding-bottom: 8px; margin-bottom: 15px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-            th { background-color: #f4f4f4; color: #333; font-weight: bold; }
-            tr:nth-child(even) { background-color: #fafafa; }
-            .meta { margin-bottom: 15px; color: #555; }
-          </style>
-        </head>
-        <body>
-          <h1>Relatório de Histórico e Relatórios de Disparo</h1>
-          <div class="meta">
-            <p><strong>Data de Geração:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-            <p><strong>Total de Registros Exibidos:</strong> ${filteredLogs.length} (de ${logs.length} totais)</p>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Campanha</th>
-                <th>Contato</th>
-                <th>Telefone</th>
-                <th>Status</th>
-                <th>Data Envio</th>
-                <th>Mensagem</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredLogs.map(l => `
-                <tr>
-                  <td>${l.campaignTitle}</td>
-                  <td>${l.contactName}</td>
-                  <td>${l.phone}</td>
-                  <td><strong>${l.status}</strong></td>
-                  <td>${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}</td>
-                  <td>${l.messageText}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
-        </body>
-        </html>
-      `;
       printWindow.document.write(htmlContent);
       printWindow.document.close();
     }

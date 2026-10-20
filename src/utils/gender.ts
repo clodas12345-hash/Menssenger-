@@ -136,7 +136,7 @@ export function isGenericOrInvalidName(rawName?: string): boolean {
 /**
  * Known tag words or patterns to filter out when extracting human names.
  */
-const KNOWN_TAG_PATTERNS = /^(t\d+|tr\d*|tx\d*|corr\d*|cg\d*|r?\$?\d+|\d+\$|moto|carro|pop|99moto|99pop|99|elegivel|inativo|ativo|novo|falta\d*|sem_?nome|contato\d*|lead\d*|grupo\d*|p|m|g|sp|rj|mg|ba|df|pr|rs|sc|pe|ce|go|am|es|ma|pb|pa|rn|pi|al|se|to|ro|ac|ap|rr|ms|mt)$/i;
+const KNOWN_TAG_PATTERNS = /^(t\d+|tr\d*|tx\d*|corr\d*|cg\d*|r?\$?\d+|\d+\$|moto|carro|pop|99moto|99pop|99|elegivel|inativo|ativo|novo|falta\d*|sem_?nome|contato\d*|lead\d*|grupo\d*|sp|rj|mg|ba|df|pr|rs|sc|pe|ce|go|am|es|ma|pb|pa|rn|pi|al|se|to|ro|ac|ap|rr|ms|mt)$/i;
 
 function isTagToken(token: string): boolean {
   if (!token) return true;
@@ -155,7 +155,7 @@ function isTagToken(token: string): boolean {
  * Correctly handles prepended or appended tags like "CG05 - Marcos Antonio", "T20_Marco Antonio", ".Aline Alves_CG05_$50", etc.
  */
 export function extractCleanNameComponents(rawName: string): { firstName: string; fullName: string } {
-  if (!rawName || isGenericOrInvalidName(rawName)) {
+  if (!rawName) {
     return { firstName: '', fullName: '' };
   }
 
@@ -167,8 +167,9 @@ export function extractCleanNameComponents(rawName: string): { firstName: string
     .replace(/^[\s\.\-_#@*+~!?\d\/\\:=|]+/, '')
     .trim();
 
-  if (!cleaned || isGenericOrInvalidName(cleaned)) {
-    return { firstName: '', fullName: '' };
+  if (!cleaned) {
+    const trimmed = rawName.trim();
+    return { firstName: trimmed, fullName: trimmed };
   }
 
   // 2. Split string into major blocks using common separators: _, -, |, /, :, ;, ,
@@ -184,8 +185,8 @@ export function extractCleanNameComponents(rawName: string): { firstName: string
     for (const word of words) {
       if (isTagToken(word)) continue;
       const cleanWord = word.replace(/[^\p{L}]/gu, '');
-      if (cleanWord.length >= 2 || (words.length === 1 && cleanWord.length > 1)) {
-        if (!isTagToken(cleanWord) && !isGenericOrInvalidName(cleanWord)) {
+      if (cleanWord.length >= 1) {
+        if (!isTagToken(cleanWord)) {
           // Capitalize properly (keep lowercase prepositions like da, de, do, dos, das)
           const lowerW = cleanWord.toLowerCase();
           const formatted = ['da', 'de', 'do', 'dos', 'das', 'e'].includes(lowerW) && validWordsInBlock.length > 0
@@ -204,7 +205,6 @@ export function extractCleanNameComponents(rawName: string): { firstName: string
   // Pick the best candidate block (the block with the most valid name words, or first valid block)
   let bestWords: string[] = [];
   if (candidateBlocks.length > 0) {
-    // Sort candidate blocks by word count descending so "Marcos Antonio" is preferred over "M"
     candidateBlocks.sort((a, b) => b.length - a.length);
     bestWords = candidateBlocks[0];
   }
@@ -215,8 +215,8 @@ export function extractCleanNameComponents(rawName: string): { firstName: string
     for (const w of allWords) {
       if (isTagToken(w)) continue;
       const cleanW = w.replace(/[^\p{L}]/gu, '');
-      if (cleanW.length >= 2) {
-        if (!isTagToken(cleanW) && !isGenericOrInvalidName(cleanW)) {
+      if (cleanW.length >= 1) {
+        if (!isTagToken(cleanW)) {
           const formatted = cleanW.charAt(0).toUpperCase() + cleanW.slice(1).toLowerCase();
           bestWords.push(formatted);
         }
@@ -225,7 +225,8 @@ export function extractCleanNameComponents(rawName: string): { firstName: string
   }
 
   if (bestWords.length === 0) {
-    return { firstName: '', fullName: '' };
+    const trimmed = rawName.trim();
+    return { firstName: trimmed, fullName: trimmed };
   }
 
   const firstName = bestWords[0];

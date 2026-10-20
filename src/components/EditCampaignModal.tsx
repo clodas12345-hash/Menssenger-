@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { ScheduledCampaign, Contact, CardItem, MessageTemplate } from '../types';
 import { loadFromStorage, getSettings, getTemplates } from '../utils/storage';
-import { parseLocalDatetimeString, toDatetimeLocal, getTodayDateLocal, isWithinBusinessHours, clampDateToBusinessHours, advanceNextBusinessSlot } from '../utils/dateParser';
+import { parseLocalDatetimeString, toDatetimeLocal, getTodayDateLocal, isWithinBusinessHours, clampDateToBusinessHours, advanceNextBusinessSlot, getNextDayFirstSlotIfPast19 } from '../utils/dateParser';
 import { TimeSelect } from './TimeSelect';
 import { cleanChipName } from '../utils/whatsapp';
 
@@ -230,7 +230,14 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
 
       const baseT = getBaseTitle(campaign.title || '');
       setTitle(baseT || campaign.title || '');
-      setScheduledAtLocal(toDatetimeLocal(campaign.scheduledAt));
+      
+      const now = new Date();
+      let initialScheduledStr = toDatetimeLocal(campaign.scheduledAt);
+      if (now.getHours() >= 19) {
+        const nextDaySlot = getNextDayFirstSlotIfPast19(now);
+        initialScheduledStr = toDatetimeLocal(nextDaySlot.toISOString());
+      }
+      setScheduledAtLocal(initialScheduledStr);
       setIntervalSeconds(campaign.intervalSeconds || 8);
       setSendMode(campaign.sendMode === 'webhook' ? 'webhook' : 'whatsapp_desktop');
       setSelectedChipId(campaign.chipId || '');
@@ -269,8 +276,14 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
       setApplyToAllParts(foundParts.length > 1);
 
       const initialMap: Record<string, string> = {};
-      foundParts.forEach((p) => {
-        initialMap[p.id] = toDatetimeLocal(p.scheduledAt);
+      foundParts.forEach((p, idx) => {
+        if (now.getHours() >= 19) {
+          const nextDaySlot = getNextDayFirstSlotIfPast19(now);
+          const pDate = new Date(nextDaySlot.getTime() + idx * 60 * 60 * 1000);
+          initialMap[p.id] = toDatetimeLocal(pDate.toISOString());
+        } else {
+          initialMap[p.id] = toDatetimeLocal(p.scheduledAt);
+        }
       });
       setPartScheduleMap(initialMap);
     }
@@ -311,8 +324,9 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
       const currentLocal = partScheduleMap[p.id] || toDatetimeLocal(p.scheduledAt);
       const currentDate = parseLocalDatetimeString(currentLocal);
       if (!isNaN(currentDate.getTime())) {
-        const newDate = new Date(currentDate.getTime() + shiftMs);
-        updatedMap[p.id] = toDatetimeLocal(newDate.toISOString());
+        const candidateDate = new Date(currentDate.getTime() + shiftMs);
+        const finalDate = getNextDayFirstSlotIfPast19(candidateDate);
+        updatedMap[p.id] = toDatetimeLocal(finalDate.toISOString());
       }
     });
     setPartScheduleMap(updatedMap);
@@ -324,6 +338,16 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
   };
 
   const handleQuickAddMinutes = (mins: number) => {
+    const now = new Date();
+    if (now.getHours() >= 19) {
+      const nextDaySlot = getNextDayFirstSlotIfPast19(now);
+      const newStr = toDatetimeLocal(nextDaySlot.toISOString());
+      setScheduledAtLocal(newStr);
+      setPartScheduleMap((prev) => ({ ...prev, [campaign.id]: newStr }));
+      setStatus('agendado');
+      return;
+    }
+
     let baseMs = Date.now();
     if (scheduledAtLocal) {
       const parsed = parseLocalDatetimeString(scheduledAtLocal).getTime();
@@ -331,8 +355,9 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
         baseMs = parsed;
       }
     }
-    const newDate = new Date(baseMs + mins * 60 * 1000);
-    const newStr = toDatetimeLocal(newDate.toISOString());
+    const candidateDate = new Date(baseMs + mins * 60 * 1000);
+    const finalDate = getNextDayFirstSlotIfPast19(candidateDate);
+    const newStr = toDatetimeLocal(finalDate.toISOString());
     setScheduledAtLocal(newStr);
     setPartScheduleMap((prev) => ({ ...prev, [campaign.id]: newStr }));
     setStatus('agendado');
@@ -462,6 +487,11 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
       }
     }
 
+    const currentNow = new Date();
+    if (currentNow.getHours() >= 19 || finalScheduledDate.getHours() >= 19) {
+      finalScheduledDate = getNextDayFirstSlotIfPast19(currentNow.getHours() >= 19 ? currentNow : finalScheduledDate);
+    }
+
     const baseTitleClean = title.trim().replace(/\s*\(Parte\s+\d+\)$/i, '');
 
     const updatedMain: ScheduledCampaign = {
@@ -502,6 +532,9 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
         const partTag = p.title.match(/Parte\s+\d+/i)?.[0];
         
         let finalScheduledAt = isCurrent ? finalScheduledDate.toISOString() : validTime;
+        if (currentNow.getHours() >= 19 || new Date(finalScheduledAt).getHours() >= 19) {
+          finalScheduledAt = getNextDayFirstSlotIfPast19(new Date(finalScheduledAt)).toISOString();
+        }
         let pStatus = p.status;
         let pResetProgress = false;
         const partMs = new Date(finalScheduledAt).getTime();

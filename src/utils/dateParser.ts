@@ -91,4 +91,17 @@ export function advanceNextBusinessSlot(currentDate: Date, hourStep: number = 1)
   return d;
 }
 
+/**
+ * Se já passou das 19h (ou se o horário proposto for a partir das 19h),
+ * agenda automaticamente para o primeiro horário do dia seguinte (09:00).
+ */
+export function getNextDayFirstSlotIfPast19(date: Date = new Date()): Date {
+  const h = date.getHours();
+  if (h >= 19) {
+    const nextDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 9, 0, 0, 0);
+    return nextDay;
+  }
+  return date;
+}
+
 

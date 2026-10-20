@@ -50,6 +50,7 @@ import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
 import { processContactName, enrichContacts, isIgnoredSequenceTag, isInvalidCategoryName } from './utils/contactProcessor';
 import { downloadFileSafely, handleDownloadBackup } from './utils/downloadHelper';
+import { getNextDayFirstSlotIfPast19 } from './utils/dateParser';
 import { testFirestoreConnection } from './firebase';
 import { Send, X, Bell, CheckCircle2, AlertCircle, Shield, Printer } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
@@ -588,10 +589,18 @@ export default function App() {
       handle = h;
     }).catch(() => {});
 
+    const handleWindowMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === 'CLOSE_REPORT_PREVIEW') {
+        setReportPreviewHtml(null);
+      }
+    };
+    window.addEventListener('message', handleWindowMessage);
+
     return () => {
       if (handle && typeof handle.remove === 'function') {
         handle.remove();
       }
+      window.removeEventListener('message', handleWindowMessage);
     };
   }, [handleAppBackButton]);
 
@@ -1496,9 +1505,16 @@ export default function App() {
     const targetCamp = campaigns.find((c) => c.id === campaignId);
     if (!targetCamp) return;
 
-    const now = Date.now();
+    const now = new Date();
+    let newTargetDate: Date;
+    if (now.getHours() >= 19) {
+      newTargetDate = getNextDayFirstSlotIfPast19(now);
+    } else {
+      const candidate = new Date(Date.now() + minutes * 60 * 1000);
+      newTargetDate = getNextDayFirstSlotIfPast19(candidate);
+    }
+    const newTargetTime = newTargetDate.getTime();
     const targetTime = new Date(targetCamp.scheduledAt).getTime();
-    const newTargetTime = now + minutes * 60 * 1000;
     const shiftMs = newTargetTime - targetTime;
 
     const updated = campaigns.map((c) => {
@@ -1508,14 +1524,16 @@ export default function App() {
           autoOpenedCampaignsRef.current.delete(c.id);
           return {
             ...c,
-            scheduledAt: new Date(newTargetTime).toISOString(),
+            scheduledAt: newTargetDate.toISOString(),
             status: 'agendado' as const,
           };
         } else if (cTime > targetTime) {
           autoOpenedCampaignsRef.current.delete(c.id);
+          const candidatePart = new Date(cTime + shiftMs);
+          const finalPartDate = getNextDayFirstSlotIfPast19(candidatePart);
           return {
             ...c,
-            scheduledAt: new Date(cTime + shiftMs).toISOString(),
+            scheduledAt: finalPartDate.toISOString(),
             status: 'agendado' as const,
           };
         }
@@ -1524,18 +1542,23 @@ export default function App() {
     });
 
     updateCampaignsState(updated);
-    const newTimeStr = new Date(newTargetTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const newTimeStr = newTargetDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     showToast(`Agendamento reajustado para ${newTimeStr}`);
   };
 
   const handlePostponeCampaign = (campaignId: string, minutes: number) => {
     autoOpenedCampaignsRef.current.delete(campaignId);
     if (dueCampaignAlert?.id === campaignId) setDueCampaignAlert(null);
-    let newTimeStr = '';
-    const now = Date.now();
-    const newScheduledMs = now + minutes * 60 * 1000;
-    const newScheduled = new Date(newScheduledMs).toISOString();
-    newTimeStr = new Date(newScheduled).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
+    let newScheduledDate: Date;
+    if (now.getHours() >= 19) {
+      newScheduledDate = getNextDayFirstSlotIfPast19(now);
+    } else {
+      const candidate = new Date(now.getTime() + minutes * 60 * 1000);
+      newScheduledDate = getNextDayFirstSlotIfPast19(candidate);
+    }
+    const newScheduled = newScheduledDate.toISOString();
+    const newTimeStr = newScheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
     const updated = campaigns.map((c) => {
       if (c.id === campaignId) {
@@ -1553,23 +1576,35 @@ export default function App() {
   const handleRescheduleCampaign = (campaignId: string, newScheduledAtIso: string) => {
     autoOpenedCampaignsRef.current.delete(campaignId);
     if (dueCampaignAlert?.id === campaignId) setDueCampaignAlert(null);
+    const now = new Date();
+    let targetDate = new Date(newScheduledAtIso);
+    if (now.getHours() >= 19 || targetDate.getHours() >= 19) {
+      targetDate = getNextDayFirstSlotIfPast19(now.getHours() >= 19 ? now : targetDate);
+    }
+    const finalIso = targetDate.toISOString();
     const updated = campaigns.map((c) => {
       if (c.id === campaignId) {
-        return { ...c, scheduledAt: newScheduledAtIso, status: 'agendado' as const };
+        return { ...c, scheduledAt: finalIso, status: 'agendado' as const };
       }
       return c;
     });
     updateCampaignsState(updated);
     setActiveDispatcherCampaign(null);
-    const timeStr = new Date(newScheduledAtIso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const timeStr = targetDate.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     showToast(`Campanha reagendada para ${timeStr}`);
   };
 
   const handlePostponeAllCampaigns = (minutes: number) => {
-    const now = Date.now();
-    const newScheduledMs = now + minutes * 60 * 1000;
-    const newScheduled = new Date(newScheduledMs).toISOString();
-    const newTimeStr = new Date(newScheduled).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
+    let newScheduledDate: Date;
+    if (now.getHours() >= 19) {
+      newScheduledDate = getNextDayFirstSlotIfPast19(now);
+    } else {
+      const candidate = new Date(now.getTime() + minutes * 60 * 1000);
+      newScheduledDate = getNextDayFirstSlotIfPast19(candidate);
+    }
+    const newScheduled = newScheduledDate.toISOString();
+    const newTimeStr = newScheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const updated = campaigns.map((c) => {
       if (c.status === 'agendado' || c.status === 'em_andamento') {
         autoOpenedCampaignsRef.current.delete(c.id);
@@ -1922,6 +1957,8 @@ export default function App() {
             }}
             onResetChipLogs={handleResetChipLogs}
             onResetAllChips={handleResetAllChips}
+            onUpdateContactsChip={handleUpdateMultipleContacts}
+            showNotification={showToast}
           />
         )}
 
@@ -1944,6 +1981,7 @@ export default function App() {
             onAddGroup={handleAddGroup}
             onUpdateGroup={handleUpdateGroup}
             onReplaceAllContacts={handleReplaceAllContacts}
+            onUpdateLogs={updateLogsState}
             defaultCountryCode={settings.defaultCountryCode}
             onSendWhatsAppToContact={handleSendWhatsAppToContact}
             onToggleContactedToday={handleToggleContactedToday}
@@ -2010,6 +2048,7 @@ export default function App() {
             onReturnToQueue={handleReturnToQueue}
             onCreateProjectArchive={handleCreateProjectArchive}
             onDeleteProjectArchive={handleDeleteProjectArchive}
+            onPreviewReport={setReportPreviewHtml}
           />
         )}
 
@@ -2190,28 +2229,39 @@ export default function App() {
       {/* Report Preview Modal */}
       {reportPreviewHtml && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-gray-100 h-[100dvh] w-[100vw]">
-          <div className="flex-none flex items-center justify-between p-3 md:p-4 bg-gray-900 shadow-lg text-white">
-            <h2 className="text-base md:text-lg font-semibold text-gray-100">Visualização do Relatório</h2>
+          <div className="flex-none flex items-center justify-between p-3 md:p-4 pt-[max(12px,env(safe-area-inset-top))] bg-[#12141A] border-b-2 border-[#A88B4B]/40 shadow-xl text-white">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setReportPreviewHtml(null)}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#A88B4B] hover:bg-[#C5A968] text-black font-extrabold rounded-lg text-xs md:text-sm transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                <span>⬅ Voltar ao Aplicativo</span>
+              </button>
+              <h2 className="text-xs md:text-base font-semibold text-gray-200 hidden xs:inline">Visualização do Relatório</h2>
+            </div>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => {
                   const iframe = document.getElementById('report-preview-iframe') as HTMLIFrameElement;
                   if (iframe && iframe.contentWindow) {
                     iframe.contentWindow.print();
                   }
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-[#A88B4B] hover:bg-[#92783E] text-white rounded-lg text-sm transition-colors"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-lg text-xs md:text-sm transition-colors cursor-pointer"
               >
-                <Printer size={16} />
+                <Printer size={15} />
                 <span className="hidden sm:inline">Baixar / Imprimir PDF</span>
                 <span className="sm:hidden">PDF</span>
               </button>
               <button
+                type="button"
                 onClick={() => setReportPreviewHtml(null)}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-gray-700 text-sm transition-colors"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-xs md:text-sm transition-colors shadow cursor-pointer active:scale-95"
               >
                 <X size={16} />
-                <span className="hidden sm:inline">Fechar</span>
+                <span>Fechar</span>
               </button>
             </div>
           </div>
@@ -2222,6 +2272,15 @@ export default function App() {
               className="absolute inset-0 w-full h-full border-none"
               sandbox="allow-same-origin allow-scripts allow-modals"
             />
+            {/* Floating Exit Button */}
+            <button
+              type="button"
+              onClick={() => setReportPreviewHtml(null)}
+              className="fixed bottom-6 right-6 z-[120] bg-[#12141A] hover:bg-black text-[#A88B4B] border-2 border-[#A88B4B] px-5 py-3 rounded-full shadow-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+            >
+              <X size={16} className="text-red-400" />
+              <span>Sair do Relatório</span>
+            </button>
           </div>
         </div>
       )}

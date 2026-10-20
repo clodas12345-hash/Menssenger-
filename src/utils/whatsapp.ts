@@ -183,28 +183,9 @@ export function replaceTemplateVariables(
     .replace(/\bSepamos para você\b/gi, 'Está disponível para você')
     .replace(/\bviagens realizadas\s+(nas?\s+próximas?)/gi, 'corridas $1');
 
-  // Auto-correct weekdays based on targetDate
   const todayIndex = targetDate.getDay();
-  const daysPt = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sábado'];
   const daysFullPt = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-  const allDaysPt = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
-  const todayNamePt = allDaysPt[todayIndex];
   const todayFullPt = daysFullPt[todayIndex];
-
-  for (let i = 0; i < 7; i++) {
-    if (i === todayIndex) continue;
-    const otherDay = allDaysPt[i];
-    const otherDayFull = daysFullPt[i];
-    
-    const regexFull = new RegExp(otherDayFull, 'gi');
-    const regexShort = new RegExp(otherDay, 'gi');
-    
-    if (processed.toLowerCase().includes(otherDay)) {
-      processed = processed
-        .replace(regexFull, todayFullPt)
-        .replace(regexShort, todayNamePt);
-    }
-  }
 
   if (todayIndex > 1 && todayIndex < 5) {
     processed = processed

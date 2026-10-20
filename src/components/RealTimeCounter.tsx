@@ -1,21 +1,26 @@
 import React, { useMemo, useState } from 'react';
 import { Zap, Smartphone, History, CheckCircle2, AlertOctagon, Trash2, AlertTriangle, X } from 'lucide-react';
-import { DispatchLogItem, AppSettings, WhatsAppChip } from '../types';
+import { DispatchLogItem, AppSettings, WhatsAppChip, Contact } from '../types';
 import { cleanChipName, calculateChipReleaseTimes } from '../utils/whatsapp';
+import { ChipSentContactsModal } from './ChipSentContactsModal';
 
 interface RealTimeCounterProps {
   logs: DispatchLogItem[];
   settings: AppSettings;
+  contacts?: Contact[];
   compact?: boolean;
   onResetChip?: (chipId: string) => void;
   onResetAll?: () => void;
+  onUpdateContactsChip?: (contactIds: string[], chipId: string, chipName: string) => void;
+  showNotification?: (msg: string) => void;
 }
 
-export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ logs, settings, compact = false, onResetChip, onResetAll }) => {
+export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ logs, settings, contacts = [], compact = false, onResetChip, onResetAll, onUpdateContactsChip, showNotification = () => {} }) => {
   const allChips = useMemo(() => settings.chips || [], [settings.chips]);
   
-  // Modal state for confirmation
+  // Modal state for confirmation and chip sent contacts
   const [chipToReset, setChipToReset] = useState<{ id: string; name: string } | null>(null);
+  const [selectedChipForModal, setSelectedChipForModal] = useState<any | null>(null);
   
   // Update sliding window every 60s
   const [nowMs, setNowMs] = React.useState(Date.now());
@@ -134,7 +139,9 @@ export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ log
           return (
             <div 
               key={chip.id} 
-              className="p-4 rounded-2xl border transition-all duration-500 shadow-xl overflow-hidden relative group bg-[#15181E]"
+              onClick={() => setSelectedChipForModal(chip)}
+              title="Clique para ver a lista de contatos enviados e mudar de chip"
+              className="p-4 rounded-2xl border transition-all duration-500 shadow-xl overflow-hidden relative group bg-[#15181E] cursor-pointer hover:border-[#A88B4B]"
               style={{ 
                 borderColor: isEstourado ? '#EF444455' : `${color}44`,
                 boxShadow: `0 4px 24px -2px ${isEstourado ? '#EF444415' : `${color}15`}`
@@ -359,6 +366,23 @@ export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ log
             </div>
           </div>
         </div>
+      )}
+
+      {/* Chip Sent Contacts Modal */}
+      {selectedChipForModal && (
+        <ChipSentContactsModal
+          chip={selectedChipForModal}
+          logs={logs}
+          contacts={contacts}
+          settings={settings}
+          onClose={() => setSelectedChipForModal(null)}
+          onUpdateContactsChip={(contactIds, chipId, chipName) => {
+            if (onUpdateContactsChip) {
+              onUpdateContactsChip(contactIds, chipId, chipName);
+            }
+          }}
+          showNotification={showNotification}
+        />
       )}
     </div>
   </div>

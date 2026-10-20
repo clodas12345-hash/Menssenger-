@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { replaceTemplateVariables, buildWhatsAppLink, openWhatsAppLink, safeConfirm, cleanChipName, incrementMessageCount } from '../utils/whatsapp';
 import { playSuccessChime } from '../utils/audio';
-import { toDatetimeLocal } from '../utils/dateParser';
+import { toDatetimeLocal, getNextDayFirstSlotIfPast19 } from '../utils/dateParser';
 import { getTodayDateString } from '../utils/storage';
 import { copyImageDataUrlToClipboard, shareImageFile, downloadImageFile, isWebShareFileSupported } from '../utils/imageSharing';
 import { RealTimeCounter } from './RealTimeCounter';
@@ -147,6 +147,16 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
   const handleOpenReschedule = () => {
     setShowAdiarOptions(false);
     if (onEditCampaign && campaign) {
+      const now = new Date();
+      if (now.getHours() >= 19) {
+        const nextDaySlot = getNextDayFirstSlotIfPast19(now);
+        onEditCampaign({
+          ...campaign,
+          scheduledAt: nextDaySlot.toISOString(),
+          status: 'agendado'
+        });
+        return;
+      }
       onEditCampaign(campaign);
     }
   };
@@ -154,6 +164,20 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
   const handlePostponeMinutes = (mins: number) => {
     setShowAdiarOptions(false);
     if (onPostponeCampaign && campaign) {
+      const now = new Date();
+      if (now.getHours() >= 19) {
+        const nextDaySlot = getNextDayFirstSlotIfPast19(now);
+        const diffMins = Math.max(15, Math.round((nextDaySlot.getTime() - now.getTime()) / (60 * 1000)));
+        onPostponeCampaign(campaign.id, diffMins);
+        return;
+      }
+      const candidateDate = new Date(now.getTime() + mins * 60 * 1000);
+      if (candidateDate.getHours() >= 19) {
+        const nextDaySlot = getNextDayFirstSlotIfPast19(candidateDate);
+        const diffMins = Math.max(15, Math.round((nextDaySlot.getTime() - now.getTime()) / (60 * 1000)));
+        onPostponeCampaign(campaign.id, diffMins);
+        return;
+      }
       onPostponeCampaign(campaign.id, mins);
     }
   };
@@ -161,8 +185,8 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
   const handlePostponeTomorrowMorning = () => {
     setShowAdiarOptions(false);
     const now = new Date();
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 8, 0, 0);
-    const diffMins = Math.max(15, Math.round((tomorrow.getTime() - now.getTime()) / (60 * 1000)));
+    const nextDaySlot = getNextDayFirstSlotIfPast19(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 0, 0));
+    const diffMins = Math.max(15, Math.round((nextDaySlot.getTime() - now.getTime()) / (60 * 1000)));
     if (onPostponeCampaign && campaign) {
       onPostponeCampaign(campaign.id, diffMins);
     }

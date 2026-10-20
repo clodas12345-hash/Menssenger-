@@ -144,6 +144,8 @@ export const HelpModal: React.FC<HelpModalProps> = ({
           <!DOCTYPE html>
           <html>
           <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Relatório Geral e Histórico - GKD Messenger</title>
             <style>
               body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 25px; color: #111; }
@@ -158,9 +160,23 @@ export const HelpModal: React.FC<HelpModalProps> = ({
               tr:nth-child(even) { background-color: #fafafa; }
               .badge-fem { color: #c026d3; font-weight: bold; }
               .badge-masc { color: #0284c7; font-weight: bold; }
+              @media print { .no-print { display: none !important; } }
             </style>
           </head>
           <body>
+            <div class="no-print" style="position: sticky; top: 0; background: #15181E; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 9999; margin: -25px -25px 20px -25px; border-bottom: 2px solid #A88B4B;">
+              <button onclick="try{window.parent.postMessage({type:'CLOSE_REPORT_PREVIEW'},'*');}catch(e){}; try{window.close();}catch(e){}; try{window.history.back();}catch(e){};" style="background: #A88B4B; color: #000; font-weight: 800; padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                ⬅ Voltar ao Aplicativo
+              </button>
+              <div style="display: flex; gap: 8px;">
+                <button onclick="window.print()" style="background: #232730; color: #fff; font-weight: bold; padding: 9px 16px; border: 1px solid #3E4452; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                  🖨️ Imprimir
+                </button>
+                <button onclick="try{window.parent.postMessage({type:'CLOSE_REPORT_PREVIEW'},'*');}catch(e){}; try{window.close();}catch(e){}; try{window.history.back();}catch(e){};" style="background: #e11d48; color: #fff; font-weight: bold; padding: 9px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                  ✕ Fechar
+                </button>
+              </div>
+            </div>
             <h1>GKD Messenger • Relatório Geral de Disparos e Contatos</h1>
             <div class="meta">
               Gerado em: ${new Date().toLocaleString('pt-BR')} | Total de Registros: ${logs.length} disparos, ${contacts.length} contatos

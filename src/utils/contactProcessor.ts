@@ -211,8 +211,8 @@ export function processContactName(rawName: string): { cleanName: string; detect
   cleanName = cleanName.replace(/[\s\.\-_#@*+~!?\d\/\\:=|]+$/, '').trim();
 
   // 6. Fallback if cleanName becomes empty
-  if (!cleanName || cleanName.length < 2) {
-    cleanName = rawName.replace(/^[\s\.\-_#@*+~!?\d\/\\:=|]+/, '').trim() || 'Contato Sem Nome';
+  if (!cleanName || cleanName.length < 1) {
+    cleanName = rawName.trim() || 'Contato Sem Nome';
   }
 
   // 6. Proper capitalization for name

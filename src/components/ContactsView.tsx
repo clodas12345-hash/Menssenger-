@@ -72,6 +72,7 @@ interface ContactsViewProps {
   onAddGroup?: (name: string, color: string) => void;
   onUpdateGroup?: (groupId: string, newName: string, color: string) => void;
   onReplaceAllContacts?: (contacts: Contact[]) => void;
+  onUpdateLogs?: (logs: DispatchLogItem[]) => void;
   defaultCountryCode: string;
   onSendWhatsAppToContact?: (contact: Contact, customMsg?: string) => void;
   onToggleContactedToday?: (contactId: string, isSent: boolean) => void;
@@ -97,6 +98,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
   onAddGroup,
   onUpdateGroup,
   onReplaceAllContacts,
+  onUpdateLogs,
   defaultCountryCode,
   onSendWhatsAppToContact,
   onToggleContactedToday,
@@ -1934,11 +1936,13 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
           contacts={contacts}
           groups={groups}
           campaigns={campaigns}
+          logs={logs}
           onUpdateContacts={(updated) => {
             if (onReplaceAllContacts) {
               onReplaceAllContacts(updated);
             }
           }}
+          onUpdateLogs={onUpdateLogs}
         />
       )}
 

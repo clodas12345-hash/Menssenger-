@@ -41,6 +41,8 @@ interface DashboardViewProps {
   onUpdateCampaign?: (campaign: ScheduledCampaign) => void;
   onResetChipLogs?: (chipId: string) => void;
   onResetAllChips?: () => void;
+  onUpdateContactsChip?: (contactIds: string[], chipId: string, chipName: string) => void;
+  showNotification?: (msg: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
@@ -60,6 +62,8 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
   onUpdateCampaign,
   onResetChipLogs,
   onResetAllChips,
+  onUpdateContactsChip,
+  showNotification,
 }) => {
   const activeCampaigns = useMemo(() => {
     if (!isAppReady) return [];
@@ -120,8 +124,11 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
         <RealTimeCounter 
           logs={logs} 
           settings={settings} 
+          contacts={contacts}
           onResetChip={onResetChipLogs}
           onResetAll={onResetAllChips}
+          onUpdateContactsChip={onUpdateContactsChip}
+          showNotification={showNotification}
         />
       </div>
 
