@@ -1199,6 +1199,21 @@ export default function App() {
     });
   }, []);
 
+  const handleAssignChipToContacts = React.useCallback((contactIds: string[], chipId: string, chipName: string) => {
+    const idSet = new Set(contactIds);
+    setContacts((prev) => {
+      const updated = prev.map((c) => {
+        if (idSet.has(c.id)) {
+          return { ...c, chipId, chipName };
+        }
+        return c;
+      });
+      saveContacts(updated);
+      return updated;
+    });
+    showToast(`📲 ${contactIds.length} contato(s) vinculados ao chip ${chipName}!`);
+  }, []);
+
   const handleReplaceAllContacts = React.useCallback((newList: Contact[]) => {
     setContacts(newList);
     saveContacts(newList);
@@ -1957,7 +1972,7 @@ export default function App() {
             }}
             onResetChipLogs={handleResetChipLogs}
             onResetAllChips={handleResetAllChips}
-            onUpdateContactsChip={handleUpdateMultipleContacts}
+            onUpdateContactsChip={handleAssignChipToContacts}
             showNotification={showToast}
           />
         )}
