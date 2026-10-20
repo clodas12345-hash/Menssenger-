@@ -70,8 +70,11 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
   const [deleteScope, setDeleteScope] = useState<'selected' | 'today' | 'week' | 'month' | 'all'>('today');
-  const [isTableExpanded, setIsTableExpanded] = useState<boolean>(false);
-  const [chipFilter, setChipFilter] = useState<string>(() => settings.chips?.[0]?.id || 'chip_1');
+  const [isTableExpanded, setIsTableExpanded] = useState<boolean>(true);
+  const [chipFilter, setChipFilter] = useState<string>('all');
+  // Advanced Filter: Date range state
+  const [startDateFilter, setStartDateFilter] = useState<string>('');
+  const [endDateFilter, setEndDateFilter] = useState<string>('');
   const [logToDelete, setLogToDelete] = useState<DispatchLogItem | null>(null);
   const [undoPromptItem, setUndoPromptItem] = useState<DispatchLogItem | null>(null);
   const [bulkReturnToQueue, setBulkReturnToQueue] = useState<boolean>(false);
@@ -252,6 +255,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   }, [logs]);
 
   const chipFilteredLogs = useMemo(() => {
+    if (chipFilter === 'all') return logs;
     if (chipFilter === 'default') return logs.filter((l) => !l.chipId);
     return logs.filter((l) => l.chipId === chipFilter);
   }, [logs, chipFilter]);
@@ -494,31 +498,81 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 50;
 
+  // Estatísticas de performance calculadas para o intervalo de datas selecionado (e busca)
+  const dateRangePerformanceStats = useMemo(() => {
+    let total = 0;
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+
+    chipFilteredLogs.forEach((l) => {
+      const logDate = getLogDate(l);
+      if (startDateFilter) {
+        const [sy, sm, sd] = startDateFilter.split('-').map(Number);
+        const start = new Date(sy, sm - 1, sd, 0, 0, 0, 0);
+        if (logDate < start) return;
+      }
+      if (endDateFilter) {
+        const [ey, em, ed] = endDateFilter.split('-').map(Number);
+        const end = new Date(ey, em - 1, ed, 23, 59, 59, 999);
+        if (logDate > end) return;
+      }
+
+      total++;
+      if (l.status === 'enviado') sent++;
+      else if (l.status === 'falha') failed++;
+      else if (l.status === 'pulado' || l.status === 'ignorado') skipped++;
+    });
+
+    const successRate = total > 0 ? Math.round((sent / total) * 100) : 0;
+    const failRate = total > 0 ? Math.round((failed / total) * 100) : 0;
+    const skipRate = total > 0 ? Math.round((skipped / total) * 100) : 0;
+
+    return { total, sent, failed, skipped, successRate, failRate, skipRate };
+  }, [chipFilteredLogs, startDateFilter, endDateFilter]);
+
   const filteredLogs = useMemo(() => {
     return chipFilteredLogs.filter((l) => {
       const contactName = l.contactName || '';
       const phone = l.phone || '';
       const campaignTitle = l.campaignTitle || '';
 
+      // Filtro de intervalo de datas específico
+      const logDate = getLogDate(l);
+      if (startDateFilter) {
+        const [sy, sm, sd] = startDateFilter.split('-').map(Number);
+        const start = new Date(sy, sm - 1, sd, 0, 0, 0, 0);
+        if (logDate < start) return false;
+      }
+      if (endDateFilter) {
+        const [ey, em, ed] = endDateFilter.split('-').map(Number);
+        const end = new Date(ey, em - 1, ed, 23, 59, 59, 999);
+        if (logDate > end) return false;
+      }
+
+      // Filtro de performance (ex: sucesso, erro, pulado)
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'enviado' && l.status !== 'enviado') return false;
+        if (statusFilter === 'falha' && l.status !== 'falha') return false;
+        if (statusFilter === 'pulado' && l.status !== 'pulado' && l.status !== 'ignorado') return false;
+      }
+
       const term = searchTerm.trim();
-      if (!term) return statusFilter === 'all' || l.status === statusFilter;
+      if (!term) return true;
 
       const normTerm = normalizeSearchText(term);
       const normName = normalizeSearchText(contactName);
       const normTitle = normalizeSearchText(campaignTitle);
       const normMsg = normalizeSearchText(l.messageText);
 
-      const matchesSearch =
+      return (
         normName.includes(normTerm) ||
         normTitle.includes(normTerm) ||
         normMsg.includes(normTerm) ||
-        matchPhoneNumber(phone, term);
-
-      const matchesStatus = statusFilter === 'all' || l.status === statusFilter;
-
-      return matchesSearch && matchesStatus;
+        matchPhoneNumber(phone, term)
+      );
     });
-  }, [chipFilteredLogs, searchTerm, statusFilter]);
+  }, [chipFilteredLogs, searchTerm, statusFilter, startDateFilter, endDateFilter]);
 
   const totalPages = Math.ceil(filteredLogs.length / pageSize) || 1;
 
@@ -530,7 +584,69 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   // Reset page on filter change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, chipFilter]);
+  }, [searchTerm, statusFilter, chipFilter, startDateFilter, endDateFilter]);
+
+  const handleSetDatePreset = (preset: 'today' | 'yesterday' | '7days' | '15days' | '30days' | 'thisMonth' | 'clear') => {
+    setIsTableExpanded(true);
+    const today = new Date();
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    if (preset === 'clear') {
+      setStartDateFilter('');
+      setEndDateFilter('');
+      return;
+    }
+
+    if (preset === 'today') {
+      const t = formatDate(today);
+      setStartDateFilter(t);
+      setEndDateFilter(t);
+    } else if (preset === 'yesterday') {
+      const y = new Date(today);
+      y.setDate(today.getDate() - 1);
+      const yt = formatDate(y);
+      setStartDateFilter(yt);
+      setEndDateFilter(yt);
+    } else if (preset === '7days') {
+      const past = new Date(today);
+      past.setDate(today.getDate() - 6);
+      setStartDateFilter(formatDate(past));
+      setEndDateFilter(formatDate(today));
+    } else if (preset === '15days') {
+      const past = new Date(today);
+      past.setDate(today.getDate() - 14);
+      setStartDateFilter(formatDate(past));
+      setEndDateFilter(formatDate(today));
+    } else if (preset === '30days') {
+      const past = new Date(today);
+      past.setDate(today.getDate() - 29);
+      setStartDateFilter(formatDate(past));
+      setEndDateFilter(formatDate(today));
+    } else if (preset === 'thisMonth') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      setStartDateFilter(formatDate(firstDay));
+      setEndDateFilter(formatDate(today));
+    }
+  };
+
+  const handleClearAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setStartDateFilter('');
+    setEndDateFilter('');
+  };
+
+  const hasActiveFilters = Boolean(
+    searchTerm.trim() ||
+    statusFilter !== 'all' ||
+    startDateFilter ||
+    endDateFilter
+  );
 
   const handleSelectAll = () => {
     if (selectedIds.length === filteredLogs.length) {
@@ -650,6 +766,18 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
         <h1>Relatório de Histórico e Relatórios de Disparo</h1>
         <div class="meta">
           <p><strong>Data de Geração:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+          <p><strong>Filtro de Performance:</strong> ${
+            statusFilter === 'all'
+              ? 'Todos os Status (Sucessos, Falhas e Pulados)'
+              : statusFilter === 'enviado'
+              ? 'Apenas Enviados com Sucesso'
+              : statusFilter === 'falha'
+              ? 'Apenas Erros / Falhas'
+              : 'Apenas Pulados / Cancelados'
+          }</p>
+          ${startDateFilter || endDateFilter ? `
+            <p><strong>Intervalo de Datas:</strong> ${startDateFilter ? new Date(startDateFilter + 'T00:00:00').toLocaleDateString('pt-BR') : 'Início'} até ${endDateFilter ? new Date(endDateFilter + 'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje'}</p>
+          ` : ''}
           <p><strong>Total de Registros Exibidos:</strong> ${filteredLogs.length} (de ${logs.length} totais)</p>
         </div>
         <table>
@@ -2012,31 +2140,330 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
 
       {isTableExpanded && (
         <div className="space-y-4 animate-fade-in">
-          {/* Filter and Search */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por contato, telefone ou campanha..."
-                className="w-full bg-[#15181E] border border-[#1F2229] rounded-lg pl-10 pr-4 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-[#A88B4B]"
-              />
+          {/* Filtro Avançado: Performance & Intervalo de Datas */}
+          <div className="bg-[#15181E] border border-[#1F2229] rounded-xl p-4 md:p-5 shadow-lg space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1F2229] pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-1.5 bg-[#0A0C10] border border-[#1F2229] rounded-lg text-[#A88B4B]">
+                  <Filter className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-white flex items-center space-x-2">
+                    <span>Filtro Avançado de Histórico</span>
+                    <span className="text-[10px] font-mono text-[#A88B4B] bg-[#0A0C10] border border-[#1F2229] px-2 py-0.5 rounded">
+                      Performance & Intervalo de Datas
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    Filtre disparos por taxa de sucesso, erro ou pulados dentro de qualquer período específico.
+                  </p>
+                </div>
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 self-start sm:self-auto cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Limpar Filtros</span>
+                </button>
+              )}
             </div>
 
-            <div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full bg-[#15181E] border border-[#1F2229] rounded-lg px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-[#A88B4B]"
-              >
-                <option value="all">Todos os Status</option>
-                <option value="enviado">Enviados com Sucesso</option>
-                <option value="pulado">Pulados / Cancelados</option>
-                <option value="falha">Falhas</option>
-              </select>
+            {/* Performance Selector (ex: sucesso, erro, pulado) */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center space-x-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-[#A88B4B]" />
+                <span>Filtrar por Performance do Disparo:</span>
+              </label>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {/* Todos */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setIsTableExpanded(true);
+                  }}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                    statusFilter === 'all'
+                      ? 'bg-[#A88B4B]/15 border-[#A88B4B] text-white shadow'
+                      : 'bg-[#0A0C10] border-[#1F2229] text-gray-400 hover:text-white hover:border-gray-700'
+                  }`}
+                >
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Todos os Status</div>
+                  <div className="text-base font-extrabold font-mono text-white mt-0.5 flex items-baseline justify-between">
+                    <span>{dateRangePerformanceStats.total}</span>
+                    <span className="text-[10px] text-gray-500 font-sans font-normal">100%</span>
+                  </div>
+                </button>
+
+                {/* Sucesso (Enviado) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter('enviado');
+                    setIsTableExpanded(true);
+                  }}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                    statusFilter === 'enviado'
+                      ? 'bg-emerald-500/15 border-emerald-500 text-white shadow'
+                      : 'bg-[#0A0C10] border-[#1F2229] text-gray-400 hover:text-emerald-400 hover:border-emerald-500/30'
+                  }`}
+                >
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center space-x-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <span>Sucesso (Enviado)</span>
+                  </div>
+                  <div className="text-base font-extrabold font-mono text-emerald-400 mt-0.5 flex items-baseline justify-between">
+                    <span>{dateRangePerformanceStats.sent}</span>
+                    <span className="text-[10px] font-sans font-bold bg-emerald-500/10 text-emerald-400 px-1 rounded">
+                      {dateRangePerformanceStats.successRate}%
+                    </span>
+                  </div>
+                </button>
+
+                {/* Erro / Falha */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter('falha');
+                    setIsTableExpanded(true);
+                  }}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                    statusFilter === 'falha'
+                      ? 'bg-red-500/15 border-red-500 text-white shadow'
+                      : 'bg-[#0A0C10] border-[#1F2229] text-gray-400 hover:text-red-400 hover:border-red-500/30'
+                  }`}
+                >
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-red-400 flex items-center space-x-1">
+                    <XCircle className="w-3 h-3 text-red-400" />
+                    <span>Erro / Falha</span>
+                  </div>
+                  <div className="text-base font-extrabold font-mono text-red-400 mt-0.5 flex items-baseline justify-between">
+                    <span>{dateRangePerformanceStats.failed}</span>
+                    <span className="text-[10px] font-sans font-bold bg-red-500/10 text-red-400 px-1 rounded">
+                      {dateRangePerformanceStats.failRate}%
+                    </span>
+                  </div>
+                </button>
+
+                {/* Pulado / Cancelado */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter('pulado');
+                    setIsTableExpanded(true);
+                  }}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                    statusFilter === 'pulado'
+                      ? 'bg-amber-500/15 border-amber-500 text-white shadow'
+                      : 'bg-[#0A0C10] border-[#1F2229] text-gray-400 hover:text-amber-400 hover:border-amber-500/30'
+                  }`}
+                >
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center space-x-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-400" />
+                    <span>Pulado / Cancelado</span>
+                  </div>
+                  <div className="text-base font-extrabold font-mono text-amber-400 mt-0.5 flex items-baseline justify-between">
+                    <span>{dateRangePerformanceStats.skipped}</span>
+                    <span className="text-[10px] font-sans font-bold bg-amber-500/10 text-amber-400 px-1 rounded">
+                      {dateRangePerformanceStats.skipRate}%
+                    </span>
+                  </div>
+                </button>
+              </div>
             </div>
+
+            {/* Date Range Interval Filter */}
+            <div className="space-y-2 pt-2 border-t border-[#1F2229]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center space-x-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-[#A88B4B]" />
+                  <span>Intervalo de Datas Específico:</span>
+                </label>
+
+                {/* Date presets */}
+                <div className="flex flex-wrap items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleSetDatePreset('today')}
+                    className="px-2 py-1 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-300 hover:text-white border border-[#1F2229] rounded text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    Hoje
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetDatePreset('yesterday')}
+                    className="px-2 py-1 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-300 hover:text-white border border-[#1F2229] rounded text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    Ontem
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetDatePreset('7days')}
+                    className="px-2 py-1 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-300 hover:text-white border border-[#1F2229] rounded text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    7 Dias
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetDatePreset('15days')}
+                    className="px-2 py-1 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-300 hover:text-white border border-[#1F2229] rounded text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    15 Dias
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetDatePreset('30days')}
+                    className="px-2 py-1 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-300 hover:text-white border border-[#1F2229] rounded text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    30 Dias
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetDatePreset('thisMonth')}
+                    className="px-2 py-1 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-300 hover:text-white border border-[#1F2229] rounded text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    Este Mês
+                  </button>
+                  {(startDateFilter || endDateFilter) && (
+                    <button
+                      type="button"
+                      onClick={() => handleSetDatePreset('clear')}
+                      className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded text-[10px] font-bold transition-all flex items-center space-x-1 cursor-pointer"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                      <span>Limpar Datas</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex items-center space-x-2 bg-[#0A0C10] border border-[#1F2229] rounded-lg px-3 py-2">
+                  <span className="text-[11px] font-mono text-gray-400 shrink-0">De:</span>
+                  <input
+                    type="date"
+                    value={startDateFilter}
+                    onChange={(e) => {
+                      setStartDateFilter(e.target.value);
+                      setIsTableExpanded(true);
+                    }}
+                    className="w-full bg-transparent text-xs text-white font-mono focus:outline-none"
+                    placeholder="Data inicial"
+                  />
+                  {startDateFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setStartDateFilter('')}
+                      className="text-gray-500 hover:text-white p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-2 bg-[#0A0C10] border border-[#1F2229] rounded-lg px-3 py-2">
+                  <span className="text-[11px] font-mono text-gray-400 shrink-0">Até:</span>
+                  <input
+                    type="date"
+                    value={endDateFilter}
+                    onChange={(e) => {
+                      setEndDateFilter(e.target.value);
+                      setIsTableExpanded(true);
+                    }}
+                    className="w-full bg-transparent text-xs text-white font-mono focus:outline-none"
+                    placeholder="Data final"
+                  />
+                  {endDateFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setEndDateFilter('')}
+                      className="text-gray-500 hover:text-white p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Search Input Row */}
+            <div className="pt-2 border-t border-[#1F2229]">
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setIsTableExpanded(true);
+                  }}
+                  placeholder="Buscar por contato, telefone, mensagem ou campanha..."
+                  className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-lg pl-10 pr-10 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-[#A88B4B]"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-2.5 text-gray-500 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Active Filters Summary Strip */}
+            {hasActiveFilters && (
+              <div className="bg-[#0A0C10] border border-[#A88B4B]/30 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="font-bold text-[#A88B4B]">Filtro Ativo:</span>
+                  {statusFilter !== 'all' && (
+                    <span className="bg-[#15181E] border border-[#1F2229] px-2 py-0.5 rounded text-gray-300 font-mono">
+                      Performance:{' '}
+                      <strong className={
+                        statusFilter === 'enviado' ? 'text-emerald-400' :
+                        statusFilter === 'falha' ? 'text-red-400' : 'text-amber-400'
+                      }>
+                        {statusFilter === 'enviado' ? 'SUCESSO' : statusFilter === 'falha' ? 'ERRO/FALHA' : 'PULADO'}
+                      </strong>
+                    </span>
+                  )}
+                  {(startDateFilter || endDateFilter) && (
+                    <span className="bg-[#15181E] border border-[#1F2229] px-2 py-0.5 rounded text-gray-300 font-mono">
+                      Intervalo:{' '}
+                      <strong className="text-white">
+                        {startDateFilter ? startDateFilter.split('-').reverse().join('/') : 'Início'}
+                      </strong>{' '}
+                      até{' '}
+                      <strong className="text-white">
+                        {endDateFilter ? endDateFilter.split('-').reverse().join('/') : 'Hoje'}
+                      </strong>
+                    </span>
+                  )}
+                  {searchTerm && (
+                    <span className="bg-[#15181E] border border-[#1F2229] px-2 py-0.5 rounded text-gray-300">
+                      Busca: <strong className="text-white font-mono">"{searchTerm}"</strong>
+                    </span>
+                  )}
+                  <span className="text-[#A88B4B] font-bold font-mono">
+                    • {filteredLogs.length} disparo(s) encontrado(s)
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  className="text-gray-400 hover:text-red-400 text-[10px] font-bold uppercase tracking-wider underline shrink-0 cursor-pointer"
+                >
+                  Limpar Todos
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Table */}
@@ -2065,8 +2492,29 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                 <tbody className="divide-y divide-[#1F2229] text-gray-300">
                   {filteredLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-gray-500">
-                        Nenhum registro de envio localizado.
+                      <td colSpan={7} className="p-8 text-center text-gray-400">
+                        <div className="flex flex-col items-center justify-center space-y-2 py-4">
+                          <Filter className="w-8 h-8 text-gray-600 mb-1" />
+                          <p className="font-semibold text-gray-300">
+                            {hasActiveFilters
+                              ? 'Nenhum disparo encontrado para os filtros selecionados.'
+                              : 'Nenhum registro de envio localizado.'}
+                          </p>
+                          {hasActiveFilters && (
+                            <p className="text-xs text-gray-500 max-w-sm">
+                              Tente ajustar a performance escolhida ou ampliar o intervalo de datas.
+                            </p>
+                          )}
+                          {hasActiveFilters && (
+                            <button
+                              type="button"
+                              onClick={handleClearAllFilters}
+                              className="mt-2 bg-[#0A0C10] hover:bg-[#1A1D23] text-[#A88B4B] border border-[#1F2229] hover:border-[#A88B4B]/50 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+                            >
+                              Limpar Todos os Filtros
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ) : (
