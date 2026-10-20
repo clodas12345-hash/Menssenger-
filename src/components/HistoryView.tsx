@@ -617,8 +617,8 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Relatório de Histórico de Disparos - PDF</title>
         <style>
-          body { font-family: Arial, sans-serif; color: #111; margin: 20px; font-size: 12px; }
-          h1 { font-size: 20px; color: #A88B4B; border-bottom: 2px solid #A88B4B; padding-bottom: 8px; margin-bottom: 15px; }
+          body { font-family: Arial, sans-serif; color: #111; margin: 0; padding: 0 16px 20px 16px; font-size: 12px; }
+          h1 { font-size: 20px; color: #A88B4B; border-bottom: 2px solid #A88B4B; padding-bottom: 8px; margin-bottom: 15px; margin-top: 15px; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
           th { background-color: #f4f4f4; color: #333; font-weight: bold; }
@@ -626,12 +626,12 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
           .meta { margin-bottom: 15px; color: #555; }
           @media print {
             .no-print { display: none !important; }
-            body { margin: 0; }
+            body { margin: 0; padding: 0; }
           }
         </style>
       </head>
       <body>
-        <div class="no-print" style="position: sticky; top: 0; background: #15181E; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 9999; margin: -20px -20px 20px -20px; border-bottom: 2px solid #A88B4B; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+        <div class="no-print" style="position: sticky; top: 0; left: 0; right: 0; background: #15181E; color: white; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 9999; margin: 0 -16px 20px -16px; border-bottom: 2px solid #A88B4B; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
           <button onclick="closeReportPreview()" style="background: #A88B4B; color: #000; font-weight: 800; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
             ⬅ Voltar ao Aplicativo
           </button>
