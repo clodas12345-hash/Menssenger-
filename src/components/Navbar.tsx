@@ -261,7 +261,7 @@ export const Navbar: React.FC<NavbarProps> = React.memo(({
 
       {/* Fixed Mobile Bottom Navigation Bar for APK & Mobile View */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0A0C10]/95 backdrop-blur-md border-t border-[#1F2229] px-1.5 py-1.5 pb-[max(8px,env(safe-area-inset-bottom))] shadow-2xl">
-        <div className="grid grid-cols-6 gap-1 items-center max-w-lg mx-auto">
+        <div className="grid grid-cols-5 gap-1 items-center max-w-lg mx-auto">
           {/* Painel */}
           <button
             type="button"
@@ -284,20 +284,6 @@ export const Navbar: React.FC<NavbarProps> = React.memo(({
           >
             <Users className="w-4 h-4 mb-0.5" />
             <span>Contatos</span>
-          </button>
-
-          {/* Varredura - Botão de Destaque no Centro */}
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenScanModal) onOpenScanModal();
-              else setActiveTab('contacts');
-            }}
-            className="flex flex-col items-center justify-center -mt-2 py-1 px-1 text-[9px] font-black uppercase tracking-wider rounded-xl bg-gradient-to-t from-emerald-700 to-emerald-500 text-white shadow-lg shadow-emerald-900/50 active:scale-95 transition-all cursor-pointer select-none border border-emerald-400/40"
-            title="Fazer Varredura e Corrigir Erros na Lista"
-          >
-            <ShieldCheck className="w-4 h-4 mb-0.5" />
-            <span>Varredura</span>
           </button>
 
           {/* Modelos */}
