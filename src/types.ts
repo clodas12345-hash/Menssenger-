@@ -121,6 +121,7 @@ export interface ProjectArchive {
   categoryStats: { [categoryName: string]: number };
   logs: DispatchLogItem[];
   campaigns: ScheduledCampaign[];
+  contacts?: Contact[];
 }
 
 export interface NotificationPreferences {

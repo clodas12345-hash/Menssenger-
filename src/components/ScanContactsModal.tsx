@@ -321,25 +321,28 @@ export const ScanContactsModal: React.FC<ScanContactsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85">
-      <div className="bg-[#0F1115] border border-[#2A2D35] rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-5 text-gray-200 relative overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))] bg-black/85 backdrop-blur-sm">
+      <div className="bg-[#0F1115] border border-[#2A2D35] rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 text-gray-200 relative overflow-hidden max-h-[92vh] flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1F2229] pb-4">
+        <div className="flex items-center justify-between border-b border-[#1F2229] pb-3.5 gap-2">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-[#A88B4B]/10 border border-[#A88B4B]/30 text-[#A88B4B] rounded-lg">
+            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-serif italic text-xl text-white">Varredura e Diagnóstico da Lista</h3>
-              <p className="text-xs text-gray-400">Verificação avançada de saúde dos contatos e validação de números reais</p>
+              <h3 className="font-serif italic text-lg sm:text-xl text-white">Varredura e Diagnóstico da Lista</h3>
+              <p className="text-[11px] sm:text-xs text-gray-400">Verificação de saúde dos contatos, números reais e correção de erros</p>
             </div>
           </div>
           <button 
+            type="button"
             onClick={onClose} 
-            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-[#1A1D23] transition-colors"
+            className="bg-[#1A1D23] hover:bg-[#252830] text-gray-200 border border-[#2A2E39] font-bold text-xs uppercase px-3 py-2 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer shrink-0 shadow-sm active:scale-95"
+            title="Fechar Varredura"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 text-red-400" />
+            <span>Fechar</span>
           </button>
         </div>
 

@@ -81,8 +81,8 @@ export const SaveAndResetModal: React.FC<SaveAndResetModalProps> = ({
       setSaveCampaigns(true);
       setSaveContacts(true);
       setResetLogs(true);
-      setResetCampaigns(false);
-      setResetContacts(false);
+      setResetCampaigns(true);
+      setResetContacts(true);
       setExportChoice('pdf');
     } else if (preset === 'all') {
       setArchiveName(`Fechamento Completo - ${new Date().toLocaleDateString('pt-BR')}`);
@@ -91,7 +91,7 @@ export const SaveAndResetModal: React.FC<SaveAndResetModalProps> = ({
       setSaveContacts(true);
       setResetLogs(true);
       setResetCampaigns(true);
-      setResetContacts(false);
+      setResetContacts(true);
       setExportChoice('pdf');
     } else if (preset === 'safe') {
       setArchiveName(`Backup Seguro - ${new Date().toLocaleDateString('pt-BR')}`);

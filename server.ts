@@ -11,7 +11,7 @@ dotenv.config();
 
 // Initialize Firebase Admin SDK for FCM Push Notifications
 try {
-  if (!admin.apps.length) {
+  if (!admin.apps || !Array.isArray(admin.apps) || admin.apps.length === 0) {
     let projectId = process.env.FIREBASE_PROJECT_ID;
     const configPath = path.join(process.cwd(), "firebase-applet-config.json");
     if (!projectId && fs.existsSync(configPath)) {

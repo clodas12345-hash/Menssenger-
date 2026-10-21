@@ -18,7 +18,8 @@ import {
   BarChart3,
   MessageCircle,
   Save,
-  Activity
+  Activity,
+  ShieldCheck
 } from 'lucide-react';
 import { ScheduledCampaign, DispatchLogItem, AppSettings } from '../types';
 import { GKDLogo } from './GKDLogo';
@@ -40,6 +41,7 @@ interface NavbarProps {
   onOpenLogoInfo?: () => void;
   onOpenSaveAndReset?: () => void;
   onOpenPermissions?: () => void;
+  onOpenScanModal?: () => void;
   logs: DispatchLogItem[];
   settings: AppSettings;
 }
@@ -59,11 +61,13 @@ export const Navbar: React.FC<NavbarProps> = React.memo(({
   onOpenLogoInfo,
   onOpenSaveAndReset,
   onOpenPermissions,
+  onOpenScanModal,
   logs,
   settings,
 }) => {
   return (
-    <header className="bg-[#0F1115] text-[#D1D5DB] border-b border-[#1F2229] sticky top-0 z-40 shadow-xl">
+    <>
+      <header className="bg-[#0F1115] text-[#D1D5DB] border-b border-[#1F2229] sticky top-0 z-40 shadow-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Brand Logo */}
@@ -253,81 +257,89 @@ export const Navbar: React.FC<NavbarProps> = React.memo(({
         </div>
       </div>
 
-      {/* Mobile Navigation Bar */}
-      <div className="md:hidden grid grid-cols-4 gap-1 bg-[#0A0C10] border-t border-[#1F2229] py-2 px-1">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center justify-center py-2 px-1 text-[10px] font-semibold uppercase tracking-wider rounded ${
-            activeTab === 'dashboard' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-500 hover:bg-[#15181E]'
-          }`}
-        >
-          <Clock className="w-5 h-5 mb-1" />
-          <span>Painel</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('contacts')}
-          className={`flex flex-col items-center justify-center py-2 px-1 text-[10px] font-semibold uppercase tracking-wider rounded ${
-            activeTab === 'contacts' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-500 hover:bg-[#15181E]'
-          }`}
-        >
-          <Users className="w-5 h-5 mb-1" />
-          <span>Contatos</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('templates')}
-          className={`flex flex-col items-center justify-center py-2 px-1 text-[10px] font-semibold uppercase tracking-wider rounded ${
-            activeTab === 'templates' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-500 hover:bg-[#15181E]'
-          }`}
-        >
-          <MessageSquare className="w-5 h-5 mb-1" />
-          <span>Modelos</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('cards')}
-          className={`flex flex-col items-center justify-center py-2 px-1 text-[10px] font-semibold uppercase tracking-wider rounded ${
-            activeTab === 'cards' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-500 hover:bg-[#15181E]'
-          }`}
-        >
-          <ImageIcon className="w-5 h-5 mb-1 text-[#A88B4B]" />
-          <span>Cards</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('voice')}
-          className={`flex flex-col items-center justify-center py-2 px-1 text-[10px] font-semibold uppercase tracking-wider rounded ${
-            activeTab === 'voice' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-500 hover:bg-[#15181E]'
-          }`}
-        >
-          <Mic className="w-5 h-5 mb-1 text-purple-400" />
-          <span>Voz</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('campaigns')}
-          className={`flex flex-col items-center justify-center py-2 px-1 text-[10px] font-semibold uppercase tracking-wider rounded ${
-            activeTab === 'campaigns' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-500 hover:bg-[#15181E]'
-          }`}
-        >
-          <Calendar className="w-5 h-5 mb-1" />
-          <span>Agenda</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`flex flex-col items-center justify-center py-2 px-1 text-[10px] font-semibold uppercase tracking-wider rounded ${
-            activeTab === 'history' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-500 hover:bg-[#15181E]'
-          }`}
-        >
-          <FileText className="w-5 h-5 mb-1" />
-          <span>Histórico</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('analytics')}
-          className={`flex flex-col items-center justify-center py-2 px-1 text-[10px] font-semibold uppercase tracking-wider rounded ${
-            activeTab === 'analytics' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-500 hover:bg-[#15181E]'
-          }`}
-        >
-          <BarChart3 className="w-5 h-5 mb-1 text-[#A88B4B]" />
-          <span>Análise</span>
-        </button>
-      </div>
-    </header>
+      </header>
+
+      {/* Fixed Mobile Bottom Navigation Bar for APK & Mobile View */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0A0C10]/95 backdrop-blur-md border-t border-[#1F2229] px-1.5 py-1.5 pb-[max(8px,env(safe-area-inset-bottom))] shadow-2xl">
+        <div className="grid grid-cols-6 gap-1 items-center max-w-lg mx-auto">
+          {/* Painel */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer select-none ${
+              activeTab === 'dashboard' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Clock className="w-4 h-4 mb-0.5" />
+            <span>Painel</span>
+          </button>
+
+          {/* Contatos */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('contacts')}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer select-none ${
+              activeTab === 'contacts' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Users className="w-4 h-4 mb-0.5" />
+            <span>Contatos</span>
+          </button>
+
+          {/* Varredura - Botão de Destaque no Centro */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenScanModal) onOpenScanModal();
+              else setActiveTab('contacts');
+            }}
+            className="flex flex-col items-center justify-center -mt-2 py-1 px-1 text-[9px] font-black uppercase tracking-wider rounded-xl bg-gradient-to-t from-emerald-700 to-emerald-500 text-white shadow-lg shadow-emerald-900/50 active:scale-95 transition-all cursor-pointer select-none border border-emerald-400/40"
+            title="Fazer Varredura e Corrigir Erros na Lista"
+          >
+            <ShieldCheck className="w-4 h-4 mb-0.5" />
+            <span>Varredura</span>
+          </button>
+
+          {/* Modelos */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('templates')}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer select-none ${
+              activeTab === 'templates' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4 mb-0.5" />
+            <span>Modelos</span>
+          </button>
+
+          {/* Agenda */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('campaigns')}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer select-none relative ${
+              activeTab === 'campaigns' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Calendar className="w-4 h-4 mb-0.5" />
+            <span>Agenda</span>
+            {activeCampaignsCount > 0 && (
+              <span className="absolute top-0.5 right-1 w-2 h-2 rounded-full bg-[#A88B4B]" />
+            )}
+          </button>
+
+          {/* Histórico */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer select-none ${
+              activeTab === 'history' ? 'bg-[#1A1D23] text-[#A88B4B]' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <FileText className="w-4 h-4 mb-0.5" />
+            <span>Histórico</span>
+          </button>
+        </div>
+      </nav>
+    </>
   );
 });

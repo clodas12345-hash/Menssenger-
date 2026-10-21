@@ -1509,3 +1509,25 @@ export function getProjectArchives(): ProjectArchive[] {
 export function saveProjectArchives(archives: ProjectArchive[]): void {
   saveToStorage(STORAGE_KEYS.PROJECTS, archives);
 }
+
+export function resetAppExceptArchives(): void {
+  // Clears active contacts, campaigns, logs, templates, groups, settings, but preserves projectArchives (PROJECTS)
+  const keysToReset = [
+    STORAGE_KEYS.CONTACTS,
+    STORAGE_KEYS.TEMPLATES,
+    STORAGE_KEYS.CAMPAIGNS,
+    STORAGE_KEYS.LOGS,
+    STORAGE_KEYS.GROUPS,
+    STORAGE_KEYS.SETTINGS,
+    STORAGE_KEYS.CARDS,
+    STORAGE_KEYS.DELETED_TEMPLATE_IDS,
+    STORAGE_KEYS.DELETED_TOPICS,
+    STORAGE_KEYS.TEMPLATES_INITIALIZED,
+  ];
+  keysToReset.forEach(k => {
+    localStorage.removeItem(k);
+    sessionStorage.removeItem(k);
+  });
+  localStorage.removeItem('zap_active_topic_v1');
+  invalidateAllStorageCaches();
+}

@@ -78,12 +78,14 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { LogoInfoModal } from './components/LogoInfoModal';
 import { SaveAndResetModal } from './components/SaveAndResetModal';
 import { TopicGeneratorModal } from './components/TopicGeneratorModal';
+import { ScanContactsModal } from './components/ScanContactsModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isLogoInfoModalOpen, setIsLogoInfoModalOpen] = useState<boolean>(false);
   const [isSaveAndResetOpen, setIsSaveAndResetOpen] = useState<boolean>(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState<boolean>(false);
+  const [isScanModalOpen, setIsScanModalOpen] = useState<boolean>(false);
   const [reportPreviewHtml, setReportPreviewHtml] = useState<string | null>(null);
 
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'checking'>('checking');
@@ -859,12 +861,20 @@ export default function App() {
 
     if (config.resetLogs) {
       updateLogsState([]);
+      updateSettingsState({
+        ...settings,
+        totalSentCount: 0,
+        historicalSentCount: 0,
+      });
+      handleResetAllChips();
     }
     if (config.resetCampaigns) {
       updateCampaignsState([]);
     }
     if (config.resetContacts) {
-      updateContactsState([]);
+      setContacts([]);
+      saveContacts([]);
+      syncGroupsWithContacts([]);
     }
 
     showToast(`✅ Projeto finalizado e salvo com sucesso!`);
@@ -901,7 +911,7 @@ export default function App() {
     const categoryStats: { [categoryName: string]: number } = {};
 
     logsToArchive.forEach((l) => {
-      contactIdsSet.add(l.contactId);
+      if (l.contactId) contactIdsSet.add(l.contactId);
       if (l.status === 'enviado') totalSent++;
       else if (l.status === 'falha') totalFailed++;
       else if (l.status === 'pendente') totalPending++;
@@ -921,17 +931,18 @@ export default function App() {
       startDate,
       endDate,
       createdAt: new Date().toISOString(),
-      totalSent,
+      totalSent: Math.max(totalSent, settings.totalSentCount || 0),
       totalFailed,
       totalPending,
       totalSkipped,
-      totalContacts: contactIdsSet.size,
+      totalContacts: contacts.length > 0 ? contacts.length : contactIdsSet.size,
       logsCount: logsToArchive.length,
       campaignsCount: campaignsToArchive.length,
       chipStats,
       categoryStats,
       logs: logsToArchive,
       campaigns: campaignsToArchive,
+      contacts: [...contacts],
     };
 
     const updatedArchives = [newArchive, ...projectArchives];
@@ -939,18 +950,42 @@ export default function App() {
     saveProjectArchives(updatedArchives);
 
     if (resetData) {
-      // Clear active logs to start fresh from zero
-      const archiveLogIds = new Set(logsToArchive.map((l) => l.id));
-      const remainingLogs = logs.filter((l) => !archiveLogIds.has(l.id));
-      updateLogsState(remainingLogs);
+      // 1. Zera todos os registros de disparos ativos
+      updateLogsState([]);
 
-      // Keep only active/scheduled campaigns, clear completed
-      const remainingCampaigns = campaigns.filter((c) => c.status === 'agendado' || c.status === 'em_andamento');
-      updateCampaignsState(remainingCampaigns);
+      // 2. Zera contatos da lista ativa (já foram arquivados com segurança na pasta)
+      setContacts([]);
+      saveContacts([]);
+      syncGroupsWithContacts([]);
 
-      showToast(`📁 Projeto "${newArchive.name}" arquivado! Disparos e histórico zerados para o próximo ciclo.`);
+      // 3. Limpa campanhas ativas/concluídas do ciclo
+      updateCampaignsState([]);
+
+      // 4. Zera o total de enviadas e histórico no painel
+      updateSettingsState({
+        ...settings,
+        totalSentCount: 0,
+        historicalSentCount: 0,
+      });
+
+      // 5. Zera contadores em tempo real dos chips
+      handleResetAllChips();
+
+      showToast(`📁 Projeto "${newArchive.name}" finalizado! Todos os dados arquivados e o painel foi zerado com sucesso para iniciar do zero.`);
     } else {
       showToast(`📁 Projeto "${newArchive.name}" salvo na pasta de histórico com sucesso!`);
+    }
+  };
+
+  const handleStartNewProjectFromZero = () => {
+    const totalSentCurrent = Math.max(settings.totalSentCount || 0, logs.filter(l => l.status === 'enviado').length);
+    if (safeConfirm(`🚨 ATENÇÃO: Deseja zerar os dados atuais (${contacts.length} contatos e ${totalSentCurrent} enviadas) para iniciar o novo ciclo de 15 dias do zero?\n\nOs dados atuais serão salvos automaticamente em uma pasta de histórico antes de zerar.`)) {
+      handleCreateProjectArchive(
+        `Projeto 15 Dias - Finalizado em ${new Date().toLocaleDateString('pt-BR')}`,
+        new Date(Date.now() - 15 * 86400000).toISOString().slice(0, 10),
+        new Date().toISOString().slice(0, 10),
+        true
+      );
     }
   };
 
@@ -1928,6 +1963,7 @@ export default function App() {
         onOpenLogoInfo={() => setIsLogoInfoModalOpen(true)}
         onOpenSaveAndReset={() => setIsSaveAndResetOpen(true)}
         onOpenPermissions={() => setIsPermissionsModalOpen(true)}
+        onOpenScanModal={() => setIsScanModalOpen(true)}
         logs={logs}
         settings={settings}
         onOpenActiveDispatcher={() => {
@@ -1942,7 +1978,7 @@ export default function App() {
       
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8 relative">
         {!isAppReady && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0B0E11]/80 backdrop-blur-sm rounded-3xl">
             <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
@@ -1974,6 +2010,8 @@ export default function App() {
             onResetAllChips={handleResetAllChips}
             onUpdateContactsChip={handleAssignChipToContacts}
             showNotification={showToast}
+            onOpenScanModal={() => setIsScanModalOpen(true)}
+            onStartNewProjectFromZero={handleStartNewProjectFromZero}
           />
         )}
 
@@ -2219,6 +2257,22 @@ export default function App() {
           setGroups(getGroups());
           updateSettingsState(getSettings());
         }}
+      />
+
+      {/* Scan Contacts Modal */}
+      <ScanContactsModal
+        isOpen={isScanModalOpen}
+        onClose={() => setIsScanModalOpen(false)}
+        contacts={contacts}
+        groups={groups}
+        campaigns={campaigns}
+        logs={logs}
+        onUpdateContacts={(updated) => {
+          setContacts(updated);
+          saveContacts(updated);
+          syncGroupsWithContacts(updated);
+        }}
+        onUpdateLogs={updateLogsState}
       />
 
       {/* Save and Reset Modal */}

@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import { AppSettings, WhatsAppChip, DispatchLogItem, Contact, ScheduledCampaign, MessageTemplate, ContactGroup, NotificationPreferences } from '../types';
 import { safeConfirm } from '../utils/whatsapp';
-import { restoreFromBackup } from '../utils/storage';
+import { restoreFromBackup, resetAppExceptArchives } from '../utils/storage';
 import { downloadFileSafely, handleDownloadBackup } from '../utils/downloadHelper';
 import { BackupDownloadModal } from './BackupDownloadModal';
 import { 
@@ -1767,6 +1767,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Botão de Zerar Aplicativo (Mantendo Arquivos de Projetos) */}
+                <div className="bg-red-950/20 border border-red-500/30 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                    <h4 className="font-bold text-red-300 text-xs uppercase tracking-wider">
+                      Zerar Aplicativo (Manter Arquivos Salvos)
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    Limpa todos os dados ativos (contatos, campanhas, histórico, modelos e configurações), redefinindo o aplicativo para o estado inicial, <strong>preservando intactas todas as pastas de projetos salvos no histórico</strong>.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (safeConfirm('🚨 ATENÇÃO EXTREMA: Deseja realmente zerar todo o aplicativo?\n\nIsso apagará contatos ativos, campanhas e histórico ativo, mas as pastas de projetos salvos no histórico NÃO serão apagadas.')) {
+                        resetAppExceptArchives();
+                        sendAppNotification('♻️ Aplicativo Zerado', {
+                          body: 'O aplicativo foi reiniciado para o estado inicial. Os arquivos salvos foram preservados.'
+                        });
+                        alert('✅ Aplicativo zerado com sucesso! O painel foi reiniciado mantendo apenas as pastas de arquivos salvos.');
+                        onClose();
+                        if (onRefreshData) onRefreshData();
+                        window.location.reload();
+                      }
+                    }}
+                    className="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-lg shadow-red-600/30 active:scale-95"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>♻️ Zerar Aplicativo (Preservando Arquivos de Projetos)</span>
+                  </button>
                 </div>
 
                 {/* Suporte WhatsApp */}

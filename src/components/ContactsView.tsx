@@ -39,7 +39,8 @@ import {
   RefreshCcw,
   FolderMinus,
   Settings,
-  UserPlus
+  UserPlus,
+  ShieldCheck
 } from 'lucide-react';
 import { Contact, ContactGroup, DispatchLogItem, ScheduledCampaign, AppSettings, ProjectArchive, MessageTemplate, CardItem } from '../types';
 import { formatPhoneDisplay, cleanPhoneNumber, downloadVcfFile, parseVcfContent } from '../utils/vcfParser';
@@ -1065,40 +1066,60 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
           </div>
 
 
-          <div className="relative sm:col-span-1 lg:col-span-1">
+          <div className="flex items-center gap-2 sm:col-span-1 lg:col-span-1">
             <button
-              onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
-              className="w-full bg-[#A88B4B] hover:bg-[#C5A968] text-black font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 tracking-wider transition-all duration-75 shadow-lg active:scale-95 touch-manipulation cursor-pointer select-none"
+              type="button"
+              onClick={() => setIsScanModalOpen(true)}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-3 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 tracking-wider transition-all shadow-lg active:scale-95 touch-manipulation cursor-pointer select-none shrink-0"
+              title="Fazer Varredura e Diagnóstico Completo da Lista"
             >
-              <span>Novo Contato / Configurações</span>
-              <Settings className="w-4 h-4 text-black" />
-              <ChevronDown className={`w-3.5 h-3.5 text-black transition-transform duration-100 ${isActionMenuOpen ? 'rotate-180' : ''}`} />
+              <ShieldCheck className="w-4 h-4" />
+              <span>Varredura</span>
             </button>
 
-            {isActionMenuOpen && (
-              <>
-                {/* Backdrop overlay */}
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setIsActionMenuOpen(false)} 
-                />
+            <div className="relative flex-1">
+              <button
+                onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
+                className="w-full bg-[#A88B4B] hover:bg-[#C5A968] text-black font-bold px-3 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 tracking-wider transition-all duration-75 shadow-lg active:scale-95 touch-manipulation cursor-pointer select-none"
+              >
+                <span>Ações</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-black transition-transform duration-100 ${isActionMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-                <div className="absolute right-0 mt-2 w-64 sm:w-72 bg-[#121215] border border-[#262629] rounded-2xl shadow-2xl z-50 p-2 flex flex-col gap-1 text-xs animate-in fade-in zoom-in-95 duration-75">
-                  <div className="px-3 py-1.5 border-b border-[#262629]/60 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Ações & Configurações de Contatos
-                  </div>
+              {isActionMenuOpen && (
+                <>
+                  {/* Backdrop overlay */}
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setIsActionMenuOpen(false)} 
+                  />
 
+                  <div className="absolute right-0 mt-2 w-64 sm:w-72 bg-[#121215] border border-[#262629] rounded-2xl shadow-2xl z-50 p-2 flex flex-col gap-1 text-xs animate-in fade-in zoom-in-95 duration-75">
+                    <div className="px-3 py-1.5 border-b border-[#262629]/60 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      Ações & Configurações de Contatos
+                    </div>
 
-                  <button
-                    onClick={() => {
-                      setIsActionMenuOpen(false);
-                      handleOpenAdd();
-                    }}
-                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#1C1C20] active:bg-[#26262C] text-gray-100 font-semibold flex items-center gap-2.5 transition-colors duration-75 touch-manipulation cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4 text-[#A88B4B]" />
-                    <span>Novo Contato (Manual)</span>
-                  </button>
+                    <button
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setIsScanModalOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2.5 rounded-xl bg-emerald-950/30 hover:bg-emerald-900/40 text-emerald-300 font-bold flex items-center gap-2.5 transition-colors duration-75 touch-manipulation cursor-pointer border border-emerald-500/30"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <span>🛡️ Fazer Varredura e Diagnóstico</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        handleOpenAdd();
+                      }}
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#1C1C20] active:bg-[#26262C] text-gray-100 font-semibold flex items-center gap-2.5 transition-colors duration-75 touch-manipulation cursor-pointer"
+                    >
+                      <UserPlus className="w-4 h-4 text-[#A88B4B]" />
+                      <span>Novo Contato (Manual)</span>
+                    </button>
 
                   <button
                     onClick={() => {
@@ -1183,6 +1204,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
               </>
             )}
           </div>
+        </div>
         </div>
 
         {/* Row 2: Quick Filter Pills & Results Counter */}

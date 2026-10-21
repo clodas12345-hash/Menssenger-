@@ -1310,12 +1310,16 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                   className="rounded bg-[#15181E] border-gray-700 text-[#A88B4B] focus:ring-0 w-4 h-4 cursor-pointer"
                 />
                 <label htmlFor="resetAfterArchive" className="text-xs text-gray-300 cursor-pointer select-none">
-                  <strong className="text-white font-bold">Começar tudo do zero:</strong> Limpar disparos do histórico ativo após salvar na pasta para iniciar o próximo projeto com a agenda e envios zerados.
+                  <strong className="text-white font-bold">Começar tudo do zero:</strong> Salvar tudo na pasta do projeto e limpar contatos, disparos e envios ativos para iniciar o próximo projeto com o painel 100% zerado (0 contatos, 0 enviadas).
                 </label>
               </div>
 
               {/* Archive Action Button */}
-              <div className="flex justify-end pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <span className="text-[11px] text-gray-400">
+                  {resetAfterArchive ? '⚡ Ao finalizar, todos os dados ativos serão arquivados e zerados.' : '📌 Apenas salvará uma cópia na pasta mantendo os dados ativos.'}
+                </span>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -1328,10 +1332,10 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                       setProjectNameInput('');
                     }
                   }}
-                  className="bg-[#A88B4B] hover:bg-[#C5A968] text-slate-950 font-extrabold text-xs uppercase tracking-widest px-6 py-3 rounded-lg shadow-lg shadow-[#A88B4B]/20 transition-all flex items-center space-x-2 cursor-pointer"
+                  className="bg-[#A88B4B] hover:bg-[#C5A968] text-slate-950 font-extrabold text-xs uppercase tracking-widest px-6 py-3 rounded-lg shadow-lg shadow-[#A88B4B]/20 transition-all flex items-center space-x-2 cursor-pointer active:scale-95"
                 >
                   <FolderCheck className="w-4 h-4" />
-                  <span>💾 Finalizar e Arquivar Projeto em Pasta Salva</span>
+                  <span>💾 Finalizar e Arquivar Projeto (Iniciar do Zero)</span>
                 </button>
               </div>
             </div>
