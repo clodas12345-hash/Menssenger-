@@ -1135,6 +1135,20 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
                   <button
                     onClick={() => {
                       setIsActionMenuOpen(false);
+                      if (onReplaceAllContacts) {
+                        const enriched = enrichContacts(contacts);
+                        onReplaceAllContacts(enriched);
+                      }
+                    }}
+                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#1C1C20] active:bg-[#26262C] text-blue-300 hover:text-blue-200 font-medium flex items-center gap-2.5 transition-colors duration-75 touch-manipulation cursor-pointer"
+                  >
+                    <Type className="w-4 h-4" />
+                    <span>🧹 Limpar Nomes dos Contatos</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
                       vcfFileInputRef.current?.click();
                     }}
                     className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#1C1C20] active:bg-[#26262C] text-gray-200 hover:text-white font-medium flex items-center gap-2.5 transition-colors duration-75 touch-manipulation cursor-pointer"

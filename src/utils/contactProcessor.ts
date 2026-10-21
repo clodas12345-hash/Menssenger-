@@ -204,11 +204,11 @@ export function processContactName(rawName: string): { cleanName: string; detect
     }
   }
 
-  // 4. Strip any leading non-alphabetic characters / symbols / dots / underscores / punctuation (e.g. .Alex -> Alex, .Amanda -> Amanda)
+  // 4. Strip any leading non-alphabetic characters (including dots) / symbols / underscores / punctuation (e.g. .Alex -> Alex, .Amanda -> Amanda)
   cleanName = cleanName.replace(/^[\s\.\-_#@*+~!?\d\/\\:=|]+/, '').trim();
 
-  // 5. Remove trailing symbols
-  cleanName = cleanName.replace(/[\s\.\-_#@*+~!?\d\/\\:=|]+$/, '').trim();
+  // 5. Remove trailing symbols and single isolated characters (e.g., ' p', '_P', ' a', ' A')
+  cleanName = cleanName.replace(/([\s\.\-_#@*+~!?\d\/\\:=|]+|[\s_]+[a-zA-Z])$/gi, '').trim();
 
   // 6. Fallback if cleanName becomes empty
   if (!cleanName || cleanName.length < 1) {
