@@ -219,34 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
         </div>
       </div>
 
-      {/* Quick Action: Iniciar Projeto do Zero */}
-      <div>
-        <button
-          type="button"
-          onClick={() => {
-            if (onStartNewProjectFromZero) onStartNewProjectFromZero();
-            else onNavigate('history');
-          }}
-          className="w-full bg-gradient-to-r from-[#1E1612] to-[#251A14] border border-[#A88B4B]/30 hover:border-[#A88B4B]/60 p-4 rounded-xl text-left transition-all shadow-md group flex items-center justify-between cursor-pointer"
-        >
-          <div className="flex items-center space-x-3">
-            <div className="p-3 rounded-xl bg-[#A88B4B]/10 border border-[#A88B4B]/30 text-[#A88B4B] group-hover:scale-105 transition-transform shrink-0">
-              <RefreshCw className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-xs font-bold text-white uppercase tracking-wider block">
-                Iniciar Projeto do Zero
-              </span>
-              <span className="text-[11px] text-gray-400 mt-0.5 block">
-                Salvar ciclo anterior em pasta e zerar contatos/envios ativos
-              </span>
-            </div>
-          </div>
-          <span className="text-xs font-bold text-[#A88B4B] bg-[#A88B4B]/10 border border-[#A88B4B]/30 px-3 py-1.5 rounded-lg shrink-0 hidden xs:inline-block">
-            Zerar
-          </span>
-        </button>
-      </div>
+
       <div className="bg-[#15181E] border border-[#1F2229] rounded-xl overflow-hidden shadow-xl">
         <div className="p-5 border-b border-[#1F2229] flex items-center justify-between bg-[#0F1115]">
           <div className="flex items-center space-x-2">
