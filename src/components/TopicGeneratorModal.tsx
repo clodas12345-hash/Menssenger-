@@ -344,8 +344,8 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
           <div className="space-y-6">
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center space-x-2">
-                  <MessageSquare className="w-3 h-3 text-purple-400" />
+                <label className="text-xs font-bold text-gray-300 uppercase tracking-widest mb-1.5 flex items-center space-x-2">
+                  <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
                   <span>Nome do Tópico</span>
                 </label>
                 <input
@@ -353,27 +353,27 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                   value={topicName}
                   onChange={(e) => setTopicName(e.target.value)}
                   placeholder="Ex: Promoção 150"
-                  className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-xl p-3 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-all"
+                  className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-xl p-3.5 text-sm sm:text-base text-gray-100 focus:outline-none focus:border-purple-500 transition-all font-medium"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center space-x-2">
-                  <Megaphone className="w-3 h-3 text-purple-400" />
+                <label className="text-xs font-bold text-gray-300 uppercase tracking-widest mb-1.5 flex items-center space-x-2">
+                  <Megaphone className="w-3.5 h-3.5 text-purple-400" />
                   <span>Frase de Impacto</span>
                 </label>
                 <textarea
-                  rows={3}
+                  rows={4}
                   value={hook}
                   onChange={(e) => setHook(e.target.value)}
                   placeholder="Ex: Corra e ganhe 150..."
-                  className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-xl p-3 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-all resize-none"
+                  className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-xl p-3.5 text-sm sm:text-base text-gray-100 focus:outline-none focus:border-purple-500 transition-all resize-y min-h-[110px] leading-relaxed font-sans"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center space-x-2">
-                  <User className="w-3 h-3 text-purple-400" />
+                <label className="text-xs font-bold text-gray-300 uppercase tracking-widest mb-1.5 flex items-center space-x-2">
+                  <User className="w-3.5 h-3.5 text-purple-400" />
                   <span>Apresentação (Opcional)</span>
                 </label>
                 <input
@@ -381,24 +381,24 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                   value={presentation}
                   onChange={(e) => setPresentation(e.target.value)}
                   placeholder="Ex: Consultor GKD"
-                  className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-xl p-3 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-all"
+                  className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-xl p-3.5 text-sm sm:text-base text-gray-100 focus:outline-none focus:border-purple-500 transition-all font-medium"
                 />
               </div>
 
-              <div className="flex items-center justify-between bg-[#0A0C10] p-3 rounded-xl border border-[#1F2229]">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center space-x-2">
-                  <Hash className="w-3 h-3 text-purple-400" />
+              <div className="flex items-center justify-between bg-[#0A0C10] p-3.5 rounded-xl border border-[#1F2229]">
+                <label className="text-xs font-bold text-gray-300 uppercase tracking-widest flex items-center space-x-2">
+                  <Hash className="w-3.5 h-3.5 text-purple-400" />
                   <span>Quantidade</span>
                 </label>
                 <div className="flex items-center space-x-3">
                   <button 
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-8 h-8 rounded-lg bg-[#1F2229] hover:bg-[#2A2D35] flex items-center justify-center text-white"
+                    className="w-9 h-9 rounded-lg bg-[#1F2229] hover:bg-[#2A2D35] flex items-center justify-center text-white text-base font-bold cursor-pointer"
                   >-</button>
-                  <span className="text-sm font-bold text-white w-4 text-center">{quantity}</span>
+                  <span className="text-base font-bold text-white w-6 text-center">{quantity}</span>
                   <button 
                     onClick={() => setQuantity(Math.min(15, quantity + 1))}
-                    className="w-8 h-8 rounded-lg bg-[#1F2229] hover:bg-[#2A2D35] flex items-center justify-center text-white"
+                    className="w-9 h-9 rounded-lg bg-[#1F2229] hover:bg-[#2A2D35] flex items-center justify-center text-white text-base font-bold cursor-pointer"
                   >+</button>
                 </div>
               </div>
@@ -442,20 +442,20 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
           </div>
 
           {/* Results Side */}
-          <div className="bg-[#0A0C10]/50 rounded-2xl border border-[#1F2229] flex flex-col h-[440px]">
-            <div className="p-4 border-b border-[#1F2229] flex items-center justify-between shrink-0">
+          <div className="bg-[#0A0C10]/50 rounded-2xl border border-[#1F2229] flex flex-col min-h-[500px]">
+            <div className="p-4 sm:p-5 border-b border-[#1F2229] flex items-center justify-between shrink-0">
               <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                <span className="text-xs sm:text-sm font-bold text-gray-300 uppercase tracking-widest block">
                   Mensagens para Aprovação ({generatedResults.length})
                 </span>
-                <span className="text-[9px] text-gray-500">
+                <span className="text-[11px] sm:text-xs text-gray-400">
                   {generatedResults.length > 0 
                     ? `${selectedIndices.length} de ${generatedResults.length} aprovadas para salvar`
                     : 'Gere ou carregue ao lado para revisar'}
                 </span>
               </div>
               {generatedResults.length > 0 && (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -465,7 +465,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                         setSelectedIndices(generatedResults.map((_, i) => i));
                       }
                     }}
-                    className="text-[9px] text-[#A88B4B] hover:text-[#C5A968] font-bold uppercase tracking-wider underline"
+                    className="text-xs text-[#A88B4B] hover:text-[#C5A968] font-bold uppercase tracking-wider underline cursor-pointer"
                   >
                     {selectedIndices.length === generatedResults.length ? 'Desmarcar Todas' : 'Marcar Todas'}
                   </button>
@@ -475,7 +475,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                       setGeneratedResults([]);
                       setSelectedIndices([]);
                     }}
-                    className="text-[9px] text-red-400 hover:text-red-300 uppercase font-bold"
+                    className="text-xs text-red-400 hover:text-red-300 uppercase font-bold cursor-pointer"
                   >
                     Limpar
                   </button>
@@ -483,11 +483,11 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+            <div className="flex-1 p-4 sm:p-5 space-y-4">
               {generatedResults.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center space-y-3 opacity-40 px-6">
-                  <Bot className="w-10 h-10 text-[#A88B4B]" />
-                  <p className="text-xs text-gray-300">
+                <div className="h-full min-h-[220px] flex flex-col items-center justify-center text-center space-y-3 opacity-40 px-6">
+                  <Bot className="w-12 h-12 text-[#A88B4B]" />
+                  <p className="text-sm text-gray-300 max-w-xs">
                     Preencha os campos ao lado e clique em <strong>"Gerar Mensagens para Revisão"</strong> para ver, aprovar e salvar as opções.
                   </p>
                 </div>
@@ -497,21 +497,21 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                   return (
                     <div
                       key={idx}
-                      className={`p-3.5 bg-[#0A0C10] border rounded-xl transition-all ${
+                      className={`p-4 sm:p-5 bg-[#0A0C10] border rounded-2xl transition-all shadow-md ${
                         isSelected
-                          ? 'border-purple-500/60 bg-purple-950/10'
+                          ? 'border-purple-500/60 bg-purple-950/15 ring-1 ring-purple-500/30'
                           : 'border-[#1F2229] opacity-70 hover:opacity-100'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="flex items-center space-x-2 cursor-pointer select-none">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="flex items-center space-x-2.5 cursor-pointer select-none">
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelectIndex(idx)}
-                            className="w-4 h-4 rounded border-gray-700 bg-[#0A0C10] text-amber-500 focus:ring-amber-400"
+                            className="w-5 h-5 rounded border-gray-700 bg-[#0A0C10] text-amber-500 focus:ring-amber-400 cursor-pointer"
                           />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                          <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-purple-300">
                             Opção {idx + 1} (Variação IA)
                             {isSelected ? ' [Aprovada]' : ' [Não Selecionada]'}
                           </span>
@@ -520,20 +520,20 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                           <button
                             type="button"
                             onClick={() => removeResult(idx)}
-                            className="px-2.5 py-1 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-md transition-all flex items-center space-x-1 border border-red-500/20 cursor-pointer"
+                            className="px-3 py-1.5 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-lg transition-all flex items-center space-x-1.5 border border-red-500/20 cursor-pointer"
                             title="Excluir opção"
                           >
-                            <Trash2 className="w-3 h-3" />
-                            <span className="text-[10px] font-bold uppercase">Excluir</span>
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="text-xs font-bold uppercase">Excluir</span>
                           </button>
                         </div>
                       </div>
                       <textarea
                         value={tmpl.content}
                         onChange={(e) => handleUpdateItemContent(idx, e.target.value)}
-                        rows={3}
+                        rows={6}
                         placeholder="Texto da mensagem..."
-                        className="w-full text-[11px] text-gray-200 leading-relaxed font-sans bg-[#15181E] border border-[#1F2229] rounded-lg p-2.5 focus:outline-none focus:border-purple-500 resize-y"
+                        className="w-full text-sm sm:text-base text-gray-100 leading-relaxed font-sans bg-[#15181E] border border-[#1F2229] rounded-xl p-3.5 sm:p-4 focus:outline-none focus:border-purple-500 resize-y min-h-[140px]"
                       />
                     </div>
                   );
@@ -542,13 +542,13 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
             </div>
 
             {generatedResults.length > 0 && (
-              <div className="p-3 border-t border-[#1F2229] bg-[#0F1115] flex flex-col gap-2">
+              <div className="p-4 border-t border-[#1F2229] bg-[#0F1115] flex flex-col gap-2.5">
                 <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
                     onClick={handleSaveSelected}
                     disabled={selectedIndices.length === 0}
-                    className="w-full bg-[#A88B4B] hover:bg-[#C5A968] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0C10] font-bold py-2.5 px-3 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-1.5 cursor-pointer"
+                    className="w-full bg-[#A88B4B] hover:bg-[#C5A968] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0C10] font-bold py-3.5 px-4 rounded-xl text-xs sm:text-sm uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-2 cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
                     <span>Salvar Selecionadas ({selectedIndices.length})</span>
@@ -558,9 +558,9 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                   <button
                     type="button"
                     onClick={handleSaveAll}
-                    className="w-full bg-[#1F2229] hover:bg-[#2A2D35] text-gray-300 font-bold py-2 px-3 rounded-xl text-xs uppercase tracking-widest transition-all border border-[#2A2D35] flex items-center justify-center space-x-1.5 cursor-pointer"
+                    className="w-full bg-[#1F2229] hover:bg-[#2A2D35] text-gray-300 font-bold py-2.5 px-4 rounded-xl text-xs uppercase tracking-widest transition-all border border-[#2A2D35] flex items-center justify-center space-x-2 cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-4 h-4" />
                     <span>Salvar Todas ({generatedResults.length})</span>
                   </button>
                 )}

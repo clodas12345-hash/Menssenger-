@@ -1502,16 +1502,16 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
 
               {/* Textarea */}
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-widest mb-1.5">
                   Texto da Mensagem *
                 </label>
                 <textarea
-                  rows={4}
+                  rows={6}
                   required
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Escreva sua mensagem original personalizada..."
-                  className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-xl p-3 text-sm text-gray-200 focus:outline-none focus:border-purple-500 leading-relaxed font-sans"
+                  className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-xl p-3.5 sm:p-4 text-sm sm:text-base text-gray-100 focus:outline-none focus:border-purple-500 leading-relaxed font-sans min-h-[140px] resize-y"
                 />
               </div>
 
@@ -1552,28 +1552,28 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
                 {variations.length > 0 ? (
                   <div className="space-y-3 pt-2 border-t border-[#1F2229]">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider block">
+                      <span className="text-xs text-purple-300 font-bold uppercase tracking-wider block">
                         {variations.length} Variação(ões) Cadastrada(s):
                       </span>
                       <button
                         type="button"
                         onClick={() => setVariations([...variations, ''])}
-                        className="text-[10px] text-purple-400 hover:text-purple-300 font-bold flex items-center space-x-1"
+                        className="text-xs text-purple-400 hover:text-purple-300 font-bold flex items-center space-x-1"
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className="w-3.5 h-3.5" />
                         <span>Adicionar Manual</span>
                       </button>
                     </div>
                     {variations.map((varText, idx) => (
-                      <div key={idx} className="bg-[#15181E] p-3 rounded-xl border border-purple-500/20 space-y-2">
+                      <div key={idx} className="bg-[#15181E] p-3.5 sm:p-4 rounded-xl border border-purple-500/20 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">
+                          <span className="text-xs text-purple-400 font-bold uppercase tracking-wider">
                             Variação {idx + 1}
                           </span>
                           <button
                             type="button"
                             onClick={() => setVariations(variations.filter((_, i) => i !== idx))}
-                            className="text-gray-500 hover:text-red-400 p-1 flex items-center space-x-1 text-[10px]"
+                            className="text-gray-500 hover:text-red-400 p-1 flex items-center space-x-1 text-xs"
                             title="Remover esta variação"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1581,7 +1581,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
                           </button>
                         </div>
                         <textarea
-                          rows={2}
+                          rows={4}
                           value={varText}
                           onChange={(e) => {
                             const newVars = [...variations];
@@ -1589,7 +1589,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
                             setVariations(newVars);
                           }}
                           placeholder="Texto da variação..."
-                          className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-lg p-2.5 text-xs text-gray-200 focus:outline-none focus:border-purple-500 font-sans"
+                          className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-xl p-3 sm:p-3.5 text-sm sm:text-base text-gray-100 focus:outline-none focus:border-purple-500 font-sans leading-relaxed min-h-[100px] resize-y"
                         />
                       </div>
                     ))}

@@ -162,20 +162,20 @@ export const AiTemplateModal: React.FC<AiTemplateModalProps> = ({
               <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest block">
                 Escolha um dos modelos sugeridos:
               </span>
-              <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                 {generatedResults.map((tmpl, idx) => (
                   <div
                     key={idx}
-                    className="p-4 bg-[#0A0C10] border border-[#1F2229] rounded hover:border-[#A88B4B]/50 transition-all flex flex-col justify-between space-y-3 group"
+                    className="p-4 bg-[#0A0C10] border border-[#1F2229] rounded-xl hover:border-[#A88B4B]/50 transition-all flex flex-col justify-between space-y-3 group"
                   >
                     <div>
                       <h4 className="text-sm font-serif italic text-[#A88B4B] flex items-center justify-between">
                         <span>{tmpl.title}</span>
-                        <span className="text-[9px] bg-[#15181E] text-gray-400 px-2 py-0.5 rounded font-sans uppercase tracking-wider">
+                        <span className="text-[10px] bg-[#15181E] text-gray-400 px-2 py-0.5 rounded font-sans uppercase tracking-wider">
                           {tmpl.category || category}
                         </span>
                       </h4>
-                      <p className="text-xs text-gray-300 mt-2 whitespace-pre-wrap font-sans leading-relaxed bg-[#15181E]/60 p-2.5 rounded border border-[#1F2229]">
+                      <p className="text-sm text-gray-200 mt-2 whitespace-pre-wrap font-sans leading-relaxed bg-[#15181E]/80 p-3.5 rounded-lg border border-[#1F2229]">
                         {tmpl.content}
                       </p>
                     </div>
