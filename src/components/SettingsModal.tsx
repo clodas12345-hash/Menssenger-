@@ -1232,7 +1232,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 }}
                                 className="text-[10px] text-gray-400 hover:text-amber-300 px-2 py-1 bg-[#1A1D25] rounded-lg border border-[#232732] cursor-pointer"
                               >
-                                Zerar Contador
+                                Zerar Manualmente
                               </button>
                             )}
                             {chips.length > 1 && (
