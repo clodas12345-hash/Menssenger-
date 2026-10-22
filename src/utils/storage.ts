@@ -1102,12 +1102,9 @@ export function getTemplates(): MessageTemplate[] {
 
   const loaded = loadFromStorage<MessageTemplate[] | null>(STORAGE_KEYS.TEMPLATES, null);
 
-  // If never initialized before and no loaded templates exist, seed initial templates
+  // If never initialized before and no loaded templates exist, do NOT seed initial templates automatically
   if (!isInitialized && (!loaded || loaded.length === 0)) {
-    saveToStorage(STORAGE_KEYS.TEMPLATES, INITIAL_TEMPLATES);
-    localStorage.setItem(STORAGE_KEYS.TEMPLATES_INITIALIZED, 'true');
-    templatesCache = INITIAL_TEMPLATES;
-    return INITIAL_TEMPLATES;
+    return [];
   }
 
   const rawTemplates: MessageTemplate[] = Array.isArray(loaded) ? loaded : [];
