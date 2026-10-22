@@ -15,6 +15,7 @@ interface ContactRowProps {
   
   onToggleSelect: (id: string) => void;
   onOpenEdit: (contact: Contact) => void;
+  onUpdateContact: (contact: Contact) => void;
   onDeleteContact: (id: string) => void;
   onSendWhatsAppToContact?: (contact: Contact) => void;
   showNotification: (msg: string) => void;
@@ -32,11 +33,13 @@ export const ContactRow = React.memo(({
   isHighlighted,
   onToggleSelect,
   onOpenEdit,
+  onUpdateContact,
   onDeleteContact,
   onSendWhatsAppToContact,
   showNotification,
   setSelectedIds,
 }: ContactRowProps) => {
+  const [showDeleteMenu, setShowDeleteMenu] = React.useState(false);
   return (
     <div 
       onClick={() => onToggleSelect(contact.id)}
@@ -154,19 +157,27 @@ export const ContactRow = React.memo(({
         </button>
 
         {/* Delete */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteContact(contact.id);
-            setSelectedIds(prev => prev.filter(id => id !== contact.id));
-            showNotification(`🗑️ Contato "${contact.name}" excluído com sucesso!`);
-          }}
-          className="p-2.5 min-w-[38px] min-h-[38px] bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow-sm"
-          title="Excluir Contato"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDeleteMenu(!showDeleteMenu);
+            }}
+            className="p-2.5 min-w-[38px] min-h-[38px] bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow-sm"
+            title="Excluir Contato"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+
+          {showDeleteMenu && (
+            <div className="absolute right-0 bottom-full mb-2 w-48 bg-[#121215] border border-[#262629] rounded-xl shadow-2xl z-[60] p-1 text-[11px]">
+              <button onClick={() => { setShowDeleteMenu(false); onDeleteContact(contact.id); setSelectedIds(prev => prev.filter(id => id !== contact.id)); showNotification(`🗑️ Contato "${contact.name}" excluído.`); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-950/40 text-gray-200">Excluir</button>
+              <button onClick={() => { setShowDeleteMenu(false); onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Já Correu'}); onDeleteContact(contact.id); setSelectedIds(prev => prev.filter(id => id !== contact.id)); showNotification(`🗑️ Contato "${contact.name}" marcado como "Já Correu" e excluído.`); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-950/40 text-gray-200">Excluir já Correu</button>
+              <button onClick={() => { setShowDeleteMenu(false); onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Sem Zap'}); onDeleteContact(contact.id); setSelectedIds(prev => prev.filter(id => id !== contact.id)); showNotification(`🗑️ Contato "${contact.name}" marcado como "Sem Zap" e excluído.`); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-950/40 text-gray-200">Excluir sem Zap</button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

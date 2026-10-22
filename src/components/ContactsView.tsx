@@ -1464,6 +1464,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
                                     onToggleSelect={handleToggleSelect}
                   onOpenEdit={handleOpenEdit}
                   onDeleteContact={onDeleteContact}
+                  onUpdateContact={onUpdateContact}
                   onSendWhatsAppToContact={onSendWhatsAppToContact}
                   showNotification={showNotification}
                   setSelectedIds={setSelectedIds}

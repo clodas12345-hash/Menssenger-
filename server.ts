@@ -427,7 +427,11 @@ DIRETRIZES OBRIGATÓRIAS:
 1. Mantenha 100% fiel ao assunto, sentido, tempo verbal e informações que o usuário escreveu. NÃO invente novos brindes, valores ou prazos que não estavam no original.
 2. Mantenha a saudação e o nome ({saudacao}, {primeiro_nome}!) sempre no INÍCIO da mensagem (nunca jogue a saudação para o final).
 3. O remetente trabalha SOZINHO. Escreva SEMPRE na 1ª pessoa do singular ("eu", "comigo", "estou à disposição", "me chama"). NUNCA use plural como "nosso time", "nossa equipe", "estamos", "conosco" ou "separamos".
-4. Estilos das variações:
+4. PROIBIDO MUDAR TERMOS ESPECÍFICOS: Se o usuário escreveu "Corre e Ganhe", mantenha exatamente "Corre e Ganhe". Não altere frases-chave, nomes de campanhas ou termos técnicos fornecidos pelo usuário.
+5. REQUISITOS DE VARIAÇÃO:
+   - Use vocabulário e estrutura de frases MUITO DISTINTOS entre as 3 variações. NÃO use palavras ou construções semelhantes.
+   - Adicione OBRIGATORIAMENTE pelo menos 2 emojis pertinentes em cada variação.
+6. Estilos das variações:
    - Variação 1: Tom direto, ágil e claro.
    - Variação 2: Tom cordial, empático e prestativo.
    - Variação 3: Tom conversacional e dinâmico, focado em parceria individual.
@@ -435,9 +439,9 @@ DIRETRIZES OBRIGATÓRIAS:
 Responda EXCLUSIVAMENTE no formato JSON:
 {
   "variations": [
-    "Variação 1...",
-    "Variação 2...",
-    "Variação 3..."
+    "Texto da variação 1 (com 2+ emojis)...",
+    "Texto da variação 2 (com 2+ emojis)...",
+    "Texto da variação 3 (com 2+ emojis)..."
   ]
 }`;
 
