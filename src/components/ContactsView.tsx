@@ -40,12 +40,13 @@ import {
   FolderMinus,
   Settings,
   UserPlus,
-  ShieldCheck
+  ShieldCheck,
+  Car
 } from 'lucide-react';
 import { Contact, ContactGroup, DispatchLogItem, ScheduledCampaign, AppSettings, ProjectArchive, MessageTemplate, CardItem } from '../types';
 import { formatPhoneDisplay, cleanPhoneNumber, downloadVcfFile, parseVcfContent } from '../utils/vcfParser';
 import { cleanChipName, getExpectedGroup, safeConfirm, detectGenderFromName, replaceTemplateVariables, matchPhoneNumber, matchContact, normalizeSearchText, isCategorySimilar } from '../utils/whatsapp';
-import { isContactedToday, getTemplates, loadFromStorage, getSettings, saveSettings, getTodayDateString } from '../utils/storage';
+import { isContactedToday, getTemplates, loadFromStorage, getSettings, saveSettings, getTodayDateString, recordExclusion } from '../utils/storage';
 import { isContactSkipped, isNotSentInLastThreeDays, getRegisteredChipForGroup } from '../utils/rules';
 import { enrichContacts, processContactName, isIgnoredSequenceTag, isInvalidCategoryName } from '../utils/contactProcessor';
 import { getChipTheme } from '../utils/chipTheme';
@@ -151,6 +152,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
   const [isQuickScheduleModalOpen, setIsQuickScheduleModalOpen] = useState<boolean>(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [isDeletingContact, setIsDeletingContact] = useState<boolean>(false);
+  const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   
   // Form fields for Add/Edit Contact
   const [formName, setFormName] = useState<string>('');
@@ -1464,6 +1466,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
                                     onToggleSelect={handleToggleSelect}
                   onOpenEdit={handleOpenEdit}
                   onDeleteContact={onDeleteContact}
+                  onRequestDelete={setContactToDelete}
                   onUpdateContact={onUpdateContact}
                   onSendWhatsAppToContact={onSendWhatsAppToContact}
                   showNotification={showNotification}
@@ -2014,6 +2017,231 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
           onUpdateGroup={onUpdateGroup || (() => {})}
           contactCounts={contactCounts}
         />
+      )}
+
+      {/* DEDICATED DELETE CONTACT MODAL / ACTION SHEET */}
+      {contactToDelete && (
+        <div 
+          className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-150"
+          onClick={() => setContactToDelete(null)}
+        >
+          <div 
+            className="w-full max-w-md bg-[#12141A] border border-[#2A2E38] rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-left animate-in zoom-in-95 slide-in-from-bottom-6 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header with Contact Info */}
+            <div className="flex items-start justify-between gap-3 border-b border-[#1F2229] pb-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 font-bold text-lg shrink-0">
+                  {contactToDelete.name ? contactToDelete.name.charAt(0).toUpperCase() : '?'}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-red-400 block mb-0.5">
+                    Opções de Exclusão
+                  </span>
+                  <h3 className="text-white font-bold text-base sm:text-lg truncate">
+                    {contactToDelete.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs font-mono text-gray-300 bg-[#1A1D24] px-2 py-0.5 rounded border border-[#262A34]">
+                      {formatPhoneDisplay(contactToDelete.phone)}
+                    </span>
+                    {contactToDelete.group && (
+                      <span className="text-[10px] font-medium text-gray-400 bg-[#16181D] px-2 py-0.5 rounded border border-[#262A34] truncate max-w-[120px]">
+                        {contactToDelete.group}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setContactToDelete(null)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-[#1C1F27] rounded-xl transition-colors shrink-0 cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400">
+              Escolha uma das opções para remover este contato:
+            </p>
+
+            {/* Options */}
+            <div className="space-y-2.5">
+              {/* Option 1: Me Bloqueou */}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = contactToDelete;
+                  setContactToDelete(null);
+                  recordExclusion(target, 'blocked');
+                  if (onUpdateContact) {
+                    onUpdateContact({
+                      ...target,
+                      notes: (target.notes ? target.notes + ' - ' : '') + 'Me Bloqueou'
+                    });
+                  }
+                  if (onUpdateLogs && logs) {
+                    const newLog: DispatchLogItem = {
+                      id: `excl_log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                      campaignId: 'manual_exclusion',
+                      campaignTitle: 'Baixa: Me Bloqueou',
+                      contactId: target.id,
+                      contactName: target.name,
+                      phone: target.phone,
+                      messageText: '[Baixa Registrada] Contato sinalizado como Me Bloqueou',
+                      scheduledAt: new Date().toISOString(),
+                      sentAt: new Date().toISOString(),
+                      status: 'ignorado',
+                      notes: 'Me Bloqueou',
+                      chipId: target.chipId,
+                      chipName: target.chipName,
+                    };
+                    onUpdateLogs([newLog, ...logs]);
+                  }
+                  onDeleteContact(target.id);
+                  setSelectedIds(prev => prev.filter(id => id !== target.id));
+                  showNotification(`🚫 Contato "${target.name}" contabilizado como "Me Bloqueou" e excluído.`);
+                }}
+                className="w-full text-left p-3.5 rounded-xl bg-red-500/10 hover:bg-red-600/20 active:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-200 transition-all flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-lg bg-red-500/20 text-red-300 group-hover:scale-110 transition-transform shrink-0">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-sm font-bold text-white block">
+                      Me Bloqueou
+                    </span>
+                    <span className="text-[11px] text-gray-400 block truncate">
+                      Entra no contador de relatórios como "Me Bloqueou"
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-red-400 shrink-0 ml-2">Me Bloqueou</span>
+              </button>
+
+              {/* Option 2: Excluir já Correu */}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = contactToDelete;
+                  setContactToDelete(null);
+                  recordExclusion(target, 'alreadyRan');
+                  if (onUpdateContact) {
+                    onUpdateContact({
+                      ...target,
+                      notes: (target.notes ? target.notes + ' - ' : '') + 'Já Correu'
+                    });
+                  }
+                  if (onUpdateLogs && logs) {
+                    const newLog: DispatchLogItem = {
+                      id: `excl_log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                      campaignId: 'manual_exclusion',
+                      campaignTitle: 'Baixa: Já Correu',
+                      contactId: target.id,
+                      contactName: target.name,
+                      phone: target.phone,
+                      messageText: '[Baixa Registrada] Contato sinalizado como Já Correu',
+                      scheduledAt: new Date().toISOString(),
+                      sentAt: new Date().toISOString(),
+                      status: 'pulado',
+                      notes: 'Já Correu',
+                      chipId: target.chipId,
+                      chipName: target.chipName,
+                    };
+                    onUpdateLogs([newLog, ...logs]);
+                  }
+                  onDeleteContact(target.id);
+                  setSelectedIds(prev => prev.filter(id => id !== target.id));
+                  showNotification(`🏃 Contato "${target.name}" contabilizado como "Já Correu" e excluído.`);
+                }}
+                className="w-full text-left p-3.5 rounded-xl bg-amber-500/10 hover:bg-amber-600/20 active:bg-amber-600/30 border border-amber-500/30 hover:border-amber-500/50 text-amber-200 transition-all flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-lg bg-amber-500/20 text-amber-300 group-hover:scale-110 transition-transform shrink-0">
+                    <Car className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-sm font-bold text-white block">
+                      Excluir já Correu
+                    </span>
+                    <span className="text-[11px] text-gray-400 block truncate">
+                      Entra no contador de relatórios como "Já Correu"
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-amber-400 shrink-0 ml-2">Já Correu</span>
+              </button>
+
+              {/* Option 3: Excluir sem Zap */}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = contactToDelete;
+                  setContactToDelete(null);
+                  recordExclusion(target, 'noZap');
+                  if (onUpdateContact) {
+                    onUpdateContact({
+                      ...target,
+                      notes: (target.notes ? target.notes + ' - ' : '') + 'Sem Zap'
+                    });
+                  }
+                  if (onUpdateLogs && logs) {
+                    const newLog: DispatchLogItem = {
+                      id: `excl_log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                      campaignId: 'manual_exclusion',
+                      campaignTitle: 'Baixa: Sem Zap',
+                      contactId: target.id,
+                      contactName: target.name,
+                      phone: target.phone,
+                      messageText: '[Baixa Registrada] Contato sinalizado como Sem Zap',
+                      scheduledAt: new Date().toISOString(),
+                      sentAt: new Date().toISOString(),
+                      status: 'falha',
+                      notes: 'Sem Zap',
+                      chipId: target.chipId,
+                      chipName: target.chipName,
+                    };
+                    onUpdateLogs([newLog, ...logs]);
+                  }
+                  onDeleteContact(target.id);
+                  setSelectedIds(prev => prev.filter(id => id !== target.id));
+                  showNotification(`📵 Contato "${target.name}" contabilizado como "Sem Zap" e excluído.`);
+                }}
+                className="w-full text-left p-3.5 rounded-xl bg-blue-500/10 hover:bg-blue-600/20 active:bg-blue-600/30 border border-blue-500/30 hover:border-blue-500/50 text-blue-200 transition-all flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-lg bg-blue-500/20 text-blue-300 group-hover:scale-110 transition-transform shrink-0">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-sm font-bold text-white block">
+                      Excluir sem Zap
+                    </span>
+                    <span className="text-[11px] text-gray-400 block truncate">
+                      Entra no contador de relatórios como "Sem Zap"
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-blue-400 shrink-0 ml-2">Sem Zap</span>
+              </button>
+            </div>
+
+            {/* Cancel Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setContactToDelete(null)}
+                className="w-full py-3 rounded-xl bg-[#1A1D24] hover:bg-[#232732] text-gray-300 hover:text-white font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer border border-[#2A2E38]"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

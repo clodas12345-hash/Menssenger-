@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { Contact, MessageTemplate, ScheduledCampaign, DispatchLogItem, AppSettings } from '../types';
 import { replaceTemplateVariables, safeConfirm, cleanChipName } from '../utils/whatsapp';
-import { getSettings } from '../utils/storage';
+import { getSettings, getExclusionCounters } from '../utils/storage';
 import { RealTimeCounter } from './RealTimeCounter';
 
 interface DashboardViewProps {
@@ -95,6 +95,10 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
     const calculatedTotal = currentSent + (settings.historicalSentCount || 0);
     return Math.max(settings.totalSentCount || 0, calculatedTotal);
   }, [logs, settings.historicalSentCount, settings.totalSentCount, isAppReady]);
+
+  const exclusionStats = useMemo(() => {
+    return getExclusionCounters();
+  }, [logs]);
 
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
@@ -219,6 +223,59 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
         </div>
       </div>
 
+      {/* Contador de Baixas e Exclusões para Relatórios */}
+      <div className="bg-[#15181E] border border-[#1F2229] hover:border-[#A88B4B]/30 rounded-xl p-4 shadow-xl transition-all">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1F2229] pb-3 mb-3">
+          <div className="flex items-center space-x-2">
+            <Trash2 className="w-4 h-4 text-red-400" />
+            <h3 className="text-xs font-black text-white uppercase tracking-widest">
+              Contadores de Baixas & Exclusões ({exclusionStats.total})
+            </h3>
+          </div>
+          <button
+            onClick={() => onNavigate('history')}
+            className="text-[11px] text-[#A88B4B] hover:text-[#C5A968] font-bold uppercase tracking-wider flex items-center space-x-1 cursor-pointer self-start sm:self-auto"
+          >
+            <span>Ver nos Relatórios</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div 
+            onClick={() => onNavigate('history')}
+            className="bg-[#0A0C10] border border-red-500/20 hover:border-red-500/50 p-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors group"
+          >
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block group-hover:text-red-300">Me Bloqueou</span>
+              <span className="text-xl font-mono font-bold text-red-400">{exclusionStats.blocked}</span>
+            </div>
+            <span className="text-sm">🚫</span>
+          </div>
+
+          <div 
+            onClick={() => onNavigate('history')}
+            className="bg-[#0A0C10] border border-amber-500/20 hover:border-amber-500/50 p-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors group"
+          >
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block group-hover:text-amber-300">Excluir já Correu</span>
+              <span className="text-xl font-mono font-bold text-amber-400">{exclusionStats.alreadyRan}</span>
+            </div>
+            <span className="text-sm">🏃</span>
+          </div>
+
+          <div 
+            onClick={() => onNavigate('history')}
+            className="bg-[#0A0C10] border border-blue-500/20 hover:border-blue-500/50 p-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors group"
+          >
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block group-hover:text-blue-300">Excluir sem Zap</span>
+              <span className="text-xl font-mono font-bold text-blue-400">{exclusionStats.noZap}</span>
+            </div>
+            <span className="text-sm">📵</span>
+          </div>
+        </div>
+      </div>
 
       <div className="bg-[#15181E] border border-[#1F2229] rounded-xl overflow-hidden shadow-xl">
         <div className="p-5 border-b border-[#1F2229] flex items-center justify-between bg-[#0F1115]">

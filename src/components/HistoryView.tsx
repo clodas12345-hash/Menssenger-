@@ -27,11 +27,13 @@ import {
   TrendingUp,
   Sparkles,
   Printer,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Car
 } from 'lucide-react';
-import { DispatchLogItem, AppSettings, ScheduledCampaign, ProjectArchive, Contact } from '../types';
+import { DispatchLogItem, AppSettings, ScheduledCampaign, ProjectArchive, Contact, ExclusionCounters } from '../types';
 import { formatPhoneDisplay, cleanChipName, matchContact, normalizeSearchText, matchPhoneNumber } from '../utils/whatsapp';
 import { downloadFileSafely } from '../utils/downloadHelper';
+import { getExclusionCounters, resetExclusionCounters } from '../utils/storage';
 
 interface HistoryViewProps {
   logs: DispatchLogItem[];
@@ -78,6 +80,16 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   const [logToDelete, setLogToDelete] = useState<DispatchLogItem | null>(null);
   const [undoPromptItem, setUndoPromptItem] = useState<DispatchLogItem | null>(null);
   const [bulkReturnToQueue, setBulkReturnToQueue] = useState<boolean>(false);
+
+  // Exclusion Counters & Modal State
+  const [exclusionStats, setExclusionStats] = useState<ExclusionCounters>(() => getExclusionCounters());
+  const [isExclusionModalOpen, setIsExclusionModalOpen] = useState<boolean>(false);
+  const [exclusionModalFilter, setExclusionModalFilter] = useState<'all' | 'blocked' | 'alreadyRan' | 'noZap'>('all');
+  const [exclusionSearch, setExclusionSearch] = useState<string>('');
+
+  React.useEffect(() => {
+    setExclusionStats(getExclusionCounters());
+  }, [logs]);
 
   // Contact Audit & Delivery Frequency State
   const [auditFilter, setAuditFilter] = useState<'all' | 'zero' | 'one' | 'multiple'>('all');
@@ -464,6 +476,12 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
       text += `🏆 Hora de Pico: ${hourlyData.peakHour.hourLabel} (${hourlyData.peakHour.total} msgs)\n`;
     }
     text += `----------------------------------------\n`;
+    text += `🚫 CONTADORES DE EXCLUSÕES / RETORNOS:\n`;
+    text += `• Me Bloqueou: ${exclusionStats.blocked}\n`;
+    text += `• Excluir já Correu: ${exclusionStats.alreadyRan}\n`;
+    text += `• Excluir sem Zap: ${exclusionStats.noZap}\n`;
+    text += `• Total de Exclusões: ${exclusionStats.total}\n`;
+    text += `----------------------------------------\n`;
     text += `DETALHAMENTO HORA A HORA:\n\n`;
 
     hourlyData.breakdown.forEach((slot) => {
@@ -724,6 +742,21 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
     downloadFileSafely(blob, `relatorio_disparos_${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
+  const handleExportExclusionsCsv = () => {
+    const headers = ['Nome Contato', 'Telefone', 'Motivo da Baixa', 'Grupo', 'Chip', 'Data / Horário'];
+    const rows = (exclusionStats.records || []).map((r) => [
+      `"${(r.contactName || '').replace(/"/g, '""')}"`,
+      `"${r.phone}"`,
+      `"${r.reasonLabel}"`,
+      `"${(r.group || '').replace(/"/g, '""')}"`,
+      `"${(r.chipName || '').replace(/"/g, '""')}"`,
+      `"${new Date(r.date).toLocaleString('pt-BR')}"`,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
+    downloadFileSafely(blob, `relatorio_baixas_exclusoes_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
   const handleExportPdf = () => {
     const htmlContent = `
       <!DOCTYPE html>
@@ -780,6 +813,58 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
           ` : ''}
           <p><strong>Total de Registros Exibidos:</strong> ${filteredLogs.length} (de ${logs.length} totais)</p>
         </div>
+
+        <div style="margin: 20px 0; padding: 16px; background: #fff8f8; border: 1.5px solid #fca5a5; border-radius: 8px;">
+          <h2 style="font-size: 15px; margin: 0 0 12px 0; color: #991b1b; text-transform: uppercase;">
+            🚫 Contadores de Baixas / Exclusões de Contatos
+          </h2>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+            <div style="background: white; border: 1px solid #fecaca; border-radius: 6px; padding: 10px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold; color: #dc2626;">${exclusionStats.blocked}</div>
+              <div style="font-size: 11px; font-weight: bold; color: #7f1d1d; text-transform: uppercase; margin-top: 2px;">Me Bloqueou</div>
+            </div>
+            <div style="background: white; border: 1px solid #fef3c7; border-radius: 6px; padding: 10px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold; color: #d97706;">${exclusionStats.alreadyRan}</div>
+              <div style="font-size: 11px; font-weight: bold; color: #92400e; text-transform: uppercase; margin-top: 2px;">Excluir já Correu</div>
+            </div>
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold; color: #475569;">${exclusionStats.noZap}</div>
+              <div style="font-size: 11px; font-weight: bold; color: #334155; text-transform: uppercase; margin-top: 2px;">Excluir sem Zap</div>
+            </div>
+            <div style="background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold; color: #0f172a;">${exclusionStats.total}</div>
+              <div style="font-size: 11px; font-weight: bold; color: #0f172a; text-transform: uppercase; margin-top: 2px;">Total Excluídos</div>
+            </div>
+          </div>
+          ${exclusionStats.records && exclusionStats.records.length > 0 ? `
+            <div style="margin-top: 10px;">
+              <strong style="font-size: 11px; color: #555;">Relação de Contatos Excluídos (${exclusionStats.records.length}):</strong>
+              <table style="margin-top: 6px; font-size: 11px;">
+                <thead>
+                  <tr style="background: #f1f5f9;">
+                    <th>Nome</th>
+                    <th>Telefone</th>
+                    <th>Motivo da Baixa</th>
+                    <th>Grupo</th>
+                    <th>Data / Horário</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${exclusionStats.records.slice(0, 100).map(r => `
+                    <tr>
+                      <td><strong>${r.contactName || 'Sem nome'}</strong></td>
+                      <td>${r.phone}</td>
+                      <td><span style="color: ${r.reason === 'blocked' ? '#dc2626' : r.reason === 'alreadyRan' ? '#d97706' : '#475569'}; font-weight: bold;">${r.reasonLabel}</span></td>
+                      <td>${r.group || '—'}</td>
+                      <td>${new Date(r.date).toLocaleString('pt-BR')}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
+        </div>
+
         <table>
           <thead>
             <tr>
@@ -1495,6 +1580,18 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
 
   ${chipRows ? `<div style="margin-bottom: 20px; background: #f8f9fa; padding: 10px 15px; border-radius: 6px;"><strong>Distribuição por Chip:</strong> <ul style="margin: 5px 0 0 0; padding-left: 20px;">${chipRows}</ul></div>` : ''}
 
+  ${project.exclusionStats ? `
+    <div style="margin-bottom: 20px; background: #fff8f8; border: 1.5px solid #fca5a5; padding: 12px 16px; border-radius: 8px;">
+      <strong style="color: #991b1b; text-transform: uppercase; font-size: 11px;">🚫 Contadores de Baixas / Exclusões do Projeto:</strong>
+      <div style="display: flex; gap: 20px; margin-top: 8px; font-size: 12px;">
+        <span><strong>Me Bloqueou:</strong> ${project.exclusionStats.blocked || 0}</span>
+        <span><strong>Já Correu:</strong> ${project.exclusionStats.alreadyRan || 0}</span>
+        <span><strong>Sem Zap:</strong> ${project.exclusionStats.noZap || 0}</span>
+        <span><strong>Total:</strong> ${(project.exclusionStats.blocked || 0) + (project.exclusionStats.alreadyRan || 0) + (project.exclusionStats.noZap || 0)}</span>
+      </div>
+    </div>
+  ` : ''}
+
   <h3>Auditoria de Disparos (${project.logs.length} registros)</h3>
   <table>
     <thead>
@@ -1740,6 +1837,61 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                   : '0'}
                 <span className="text-xs text-gray-500 font-sans ml-1">msgs/hora</span>
               </div>
+            </div>
+          </div>
+
+          {/* Hourly Exclusion Counters Strip */}
+          <div className="bg-[#15181E] border border-[#1F2229] hover:border-[#A88B4B]/30 rounded-xl p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 bg-[#0A0C10] border border-red-500/20 text-red-400 rounded-lg">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
+                  Contadores de Exclusões / Baixas de Contatos
+                </span>
+                <span className="text-xs font-bold text-white">
+                  {exclusionStats.total} contato(s) com baixa registrada
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setExclusionModalFilter('blocked');
+                  setIsExclusionModalOpen(true);
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-[#0A0C10] hover:bg-[#1A1D23] border border-red-500/30 text-xs font-mono font-bold text-red-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
+              >
+                <span>🚫 Me Bloqueou:</span>
+                <strong className="text-red-400">{exclusionStats.blocked}</strong>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setExclusionModalFilter('alreadyRan');
+                  setIsExclusionModalOpen(true);
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-[#0A0C10] hover:bg-[#1A1D23] border border-amber-500/30 text-xs font-mono font-bold text-amber-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
+              >
+                <span>🏃 Já Correu:</span>
+                <strong className="text-amber-400">{exclusionStats.alreadyRan}</strong>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setExclusionModalFilter('noZap');
+                  setIsExclusionModalOpen(true);
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-[#0A0C10] hover:bg-[#1A1D23] border border-blue-500/30 text-xs font-mono font-bold text-blue-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
+              >
+                <span>📵 Sem Zap:</span>
+                <strong className="text-blue-400">{exclusionStats.noZap}</strong>
+              </button>
             </div>
           </div>
 
@@ -2109,6 +2261,121 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
               <span className="text-[9px] text-gray-500 group-hover:text-red-400 uppercase tracking-wider font-semibold">Canceladas</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Contadores de Baixas / Exclusões de Contatos */}
+      <div className="bg-[#15181E] border border-[#1F2229] hover:border-[#A88B4B]/30 rounded-xl p-5 shadow-lg space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1F2229] pb-3">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 bg-[#0A0C10] border border-red-500/20 text-red-400 rounded-lg">
+              <Trash2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center space-x-2">
+                <span>Contadores de Baixas & Retorno de Contatos</span>
+                <span className="text-[10px] font-mono font-bold text-red-400 bg-[#0A0C10] border border-[#1F2229] px-2 py-0.5 rounded">
+                  {exclusionStats.total} Total
+                </span>
+              </h3>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Total acumulado de exclusões e baixas sinalizadas nos contatos para auditoria e relatórios.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsExclusionModalOpen(true)}
+              className="bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-200 border border-[#1F2229] hover:border-[#A88B4B]/50 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 cursor-pointer shadow-sm"
+            >
+              <Users className="w-3.5 h-3.5 text-[#A88B4B]" />
+              <span>Ver Relação Completa ({exclusionStats.total})</span>
+            </button>
+            {exclusionStats.records.length > 0 && (
+              <button
+                type="button"
+                onClick={handleExportExclusionsCsv}
+                className="bg-[#0A0C10] hover:bg-[#1A1D23] text-[#A88B4B] border border-[#1F2229] hover:border-[#A88B4B]/50 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 cursor-pointer shadow-sm"
+                title="Baixar lista de contatos excluídos em formato CSV"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exportar CSV</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Me Bloqueou */}
+          <button
+            type="button"
+            onClick={() => {
+              setExclusionModalFilter('blocked');
+              setIsExclusionModalOpen(true);
+            }}
+            className="p-3.5 rounded-xl bg-[#0A0C10] hover:bg-[#14171E] border border-red-500/30 hover:border-red-500/60 text-left transition-all group cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-red-300">Me Bloqueou</span>
+              <span className="p-1.5 rounded-md bg-red-500/10 text-red-400 border border-red-500/20 text-xs">
+                🚫
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-mono font-black text-red-400 group-hover:scale-105 transition-transform">
+                {exclusionStats.blocked}
+              </span>
+              <span className="text-[10px] text-gray-400 group-hover:text-red-300">Ver lista →</span>
+            </div>
+          </button>
+
+          {/* Excluir já Correu */}
+          <button
+            type="button"
+            onClick={() => {
+              setExclusionModalFilter('alreadyRan');
+              setIsExclusionModalOpen(true);
+            }}
+            className="p-3.5 rounded-xl bg-[#0A0C10] hover:bg-[#14171E] border border-amber-500/30 hover:border-amber-500/60 text-left transition-all group cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Excluir já Correu</span>
+              <span className="p-1.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs">
+                🏃
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-mono font-black text-amber-400 group-hover:scale-105 transition-transform">
+                {exclusionStats.alreadyRan}
+              </span>
+              <span className="text-[10px] text-gray-400 group-hover:text-amber-300">Ver lista →</span>
+            </div>
+          </button>
+
+          {/* Excluir sem Zap */}
+          <button
+            type="button"
+            onClick={() => {
+              setExclusionModalFilter('noZap');
+              setIsExclusionModalOpen(true);
+            }}
+            className="p-3.5 rounded-xl bg-[#0A0C10] hover:bg-[#14171E] border border-blue-500/30 hover:border-blue-500/60 text-left transition-all group cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-300">Excluir sem Zap</span>
+              <span className="p-1.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs">
+                📵
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-mono font-black text-blue-400 group-hover:scale-105 transition-transform">
+                {exclusionStats.noZap}
+              </span>
+              <span className="text-[10px] text-gray-400 group-hover:text-blue-300">Ver lista →</span>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -3310,6 +3577,18 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
 
   ${chipRows ? `<div style="margin-bottom: 20px; background: #f8f9fa; padding: 10px 15px; border-radius: 6px;"><strong>Distribuição por Chip:</strong> <ul style="margin: 5px 0 0 0; padding-left: 20px;">${chipRows}</ul></div>` : ''}
 
+  ${selectedArchivedProject.exclusionStats ? `
+    <div style="margin-bottom: 20px; background: #fff8f8; border: 1.5px solid #fca5a5; padding: 12px 16px; border-radius: 8px;">
+      <strong style="color: #991b1b; text-transform: uppercase; font-size: 11px;">🚫 Contadores de Baixas / Exclusões do Projeto:</strong>
+      <div style="display: flex; gap: 20px; margin-top: 8px; font-size: 12px;">
+        <span><strong>Me Bloqueou:</strong> ${selectedArchivedProject.exclusionStats.blocked || 0}</span>
+        <span><strong>Já Correu:</strong> ${selectedArchivedProject.exclusionStats.alreadyRan || 0}</span>
+        <span><strong>Sem Zap:</strong> ${selectedArchivedProject.exclusionStats.noZap || 0}</span>
+        <span><strong>Total:</strong> ${(selectedArchivedProject.exclusionStats.blocked || 0) + (selectedArchivedProject.exclusionStats.alreadyRan || 0) + (selectedArchivedProject.exclusionStats.noZap || 0)}</span>
+      </div>
+    </div>
+  ` : ''}
+
   <h3>Auditoria de Disparos (${selectedArchivedProject.logs.length} registros)</h3>
   <table>
     <thead>
@@ -3373,6 +3652,207 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                   type="button"
                   onClick={() => setSelectedArchivedProject(null)}
                   className="bg-[#1A1D23] hover:bg-[#252830] text-gray-300 hover:text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border border-[#1F2229]"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Exclusion Details Modal */}
+      {isExclusionModalOpen && (() => {
+        const filteredRecords = (exclusionStats.records || []).filter((r) => {
+          if (exclusionModalFilter !== 'all' && r.reason !== exclusionModalFilter) {
+            return false;
+          }
+          if (exclusionSearch.trim()) {
+            const term = exclusionSearch.trim().toLowerCase();
+            const name = (r.contactName || '').toLowerCase();
+            const phone = (r.phone || '').replace(/\D/g, '');
+            const grp = (r.group || '').toLowerCase();
+            return name.includes(term) || phone.includes(term) || grp.includes(term);
+          }
+          return true;
+        });
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-[#15181E] border border-[#1F2229] rounded-2xl max-w-2xl w-full p-5 sm:p-6 space-y-4 shadow-2xl relative max-h-[90vh] flex flex-col">
+              <button
+                onClick={() => setIsExclusionModalOpen(false)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors cursor-pointer p-1 rounded-lg hover:bg-[#1A1D23]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center space-x-3 border-b border-[#1F2229] pb-4 shrink-0">
+                <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                    <span>Relatório de Baixas de Contatos</span>
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[#0A0C10] border border-[#1F2229] text-red-400">
+                      {exclusionStats.total} total
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    Contadores persistentes de contatos excluídos por bloqueio, corrida efetuada ou ausência de WhatsApp.
+                  </p>
+                </div>
+              </div>
+
+              {/* Filters & Search */}
+              <div className="space-y-3 shrink-0">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExclusionModalFilter('all')}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      exclusionModalFilter === 'all'
+                        ? 'bg-[#A88B4B]/20 border-[#A88B4B] text-white'
+                        : 'bg-[#0A0C10] border-[#1F2229] text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Todos ({exclusionStats.total})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExclusionModalFilter('blocked')}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      exclusionModalFilter === 'blocked'
+                        ? 'bg-red-500/20 border-red-500 text-red-200'
+                        : 'bg-[#0A0C10] border-[#1F2229] text-gray-400 hover:text-red-300'
+                    }`}
+                  >
+                    🚫 Bloqueou ({exclusionStats.blocked})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExclusionModalFilter('alreadyRan')}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      exclusionModalFilter === 'alreadyRan'
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-200'
+                        : 'bg-[#0A0C10] border-[#1F2229] text-gray-400 hover:text-amber-300'
+                    }`}
+                  >
+                    🏃 Já Correu ({exclusionStats.alreadyRan})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExclusionModalFilter('noZap')}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      exclusionModalFilter === 'noZap'
+                        ? 'bg-blue-500/20 border-blue-500 text-blue-200'
+                        : 'bg-[#0A0C10] border-[#1F2229] text-gray-400 hover:text-blue-300'
+                    }`}
+                  >
+                    📵 Sem Zap ({exclusionStats.noZap})
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={exclusionSearch}
+                    onChange={(e) => setExclusionSearch(e.target.value)}
+                    placeholder="Filtrar por nome, telefone ou grupo..."
+                    className="w-full bg-[#0A0C10] border border-[#1F2229] text-white text-xs rounded-xl pl-8 pr-3 py-2 focus:outline-none focus:border-[#A88B4B]"
+                  />
+                </div>
+              </div>
+
+              {/* Records List */}
+              <div className="overflow-y-auto space-y-2 pr-1 flex-1 custom-scrollbar">
+                {filteredRecords.length === 0 ? (
+                  <div className="py-10 text-center text-gray-500 text-xs italic">
+                    Nenhum contato encontrado para esta seleção.
+                  </div>
+                ) : (
+                  filteredRecords.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-[#0A0C10] border border-[#1F2229] p-3 rounded-xl flex items-center justify-between gap-3 hover:border-gray-700 transition-colors"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-bold text-white truncate">
+                            {item.contactName || 'Contato sem nome'}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider shrink-0 ${
+                              item.reason === 'blocked'
+                                ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                                : item.reason === 'alreadyRan'
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                            }`}
+                          >
+                            {item.reasonLabel}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-3 text-xs text-gray-400 font-mono mt-0.5">
+                          <span className="text-[#A88B4B]">{formatPhoneDisplay(item.phone)}</span>
+                          {item.group && (
+                            <>
+                              <span>•</span>
+                              <span className="text-gray-500 font-sans truncate">{item.group}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] text-gray-500 font-mono block">
+                          {new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                        </span>
+                        <span className="text-[10px] text-gray-600 font-mono block">
+                          {new Date(item.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-3 border-t border-[#1F2229] flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center space-x-2">
+                  {exclusionStats.records.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleExportExclusionsCsv}
+                      className="bg-[#A88B4B] hover:bg-[#C5A968] text-slate-950 font-extrabold text-xs uppercase px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer shadow-md"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Exportar CSV</span>
+                    </button>
+                  )}
+                  {exclusionStats.total > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('Atenção: Os contadores de exclusão nunca zeram automaticamente. Deseja realmente zerar manualmente todos os contadores de baixas e exclusões agora?')) {
+                          resetExclusionCounters();
+                          setExclusionStats(getExclusionCounters());
+                        }
+                      }}
+                      className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold text-xs uppercase px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer"
+                      title="Zerar manualmente estes contadores"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Zerar Manualmente</span>
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsExclusionModalOpen(false)}
+                  className="bg-[#1A1D23] hover:bg-[#252830] text-gray-300 hover:text-white px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border border-[#1F2229] cursor-pointer"
                 >
                   Fechar
                 </button>

@@ -1,4 +1,4 @@
-import { Contact, MessageTemplate, ScheduledCampaign, DispatchLogItem, ContactGroup, AppSettings, ProjectArchive } from '../types';
+import { Contact, MessageTemplate, ScheduledCampaign, DispatchLogItem, ContactGroup, AppSettings, ProjectArchive, ExclusionCounters, ExclusionRecord } from '../types';
 import { USER_SAVED_CONTACTS } from '../data/userContacts';
 import { detectGenderFromName, isGenericOrInvalidName } from './gender';
 import { processContactName } from './contactProcessor';
@@ -15,6 +15,7 @@ const STORAGE_KEYS = {
   DELETED_TEMPLATE_IDS: 'zap_deleted_template_ids_v1',
   DELETED_TOPICS: 'zap_deleted_topics_v1',
   TEMPLATES_INITIALIZED: 'zap_templates_initialized_v2',
+  EXCLUSION_COUNTERS: 'zap_exclusion_counters_v1',
 };
 
 export const DEFAULT_GROUPS: ContactGroup[] = [
@@ -1520,6 +1521,7 @@ export function resetAppExceptArchives(): void {
     STORAGE_KEYS.DELETED_TEMPLATE_IDS,
     STORAGE_KEYS.DELETED_TOPICS,
     STORAGE_KEYS.TEMPLATES_INITIALIZED,
+    STORAGE_KEYS.EXCLUSION_COUNTERS,
   ];
   keysToReset.forEach(k => {
     localStorage.removeItem(k);
@@ -1527,4 +1529,71 @@ export function resetAppExceptArchives(): void {
   });
   localStorage.removeItem('zap_active_topic_v1');
   invalidateAllStorageCaches();
+}
+
+const DEFAULT_EXCLUSION_COUNTERS: ExclusionCounters = {
+  blocked: 0,
+  alreadyRan: 0,
+  noZap: 0,
+  total: 0,
+  records: [],
+};
+
+export function getExclusionCounters(): ExclusionCounters {
+  const loaded = loadFromStorage<ExclusionCounters>(STORAGE_KEYS.EXCLUSION_COUNTERS, DEFAULT_EXCLUSION_COUNTERS);
+  const records = Array.isArray(loaded?.records) ? loaded.records : [];
+  const blocked = typeof loaded?.blocked === 'number' ? loaded.blocked : 0;
+  const alreadyRan = typeof loaded?.alreadyRan === 'number' ? loaded.alreadyRan : 0;
+  const noZap = typeof loaded?.noZap === 'number' ? loaded.noZap : 0;
+
+  return {
+    blocked,
+    alreadyRan,
+    noZap,
+    total: blocked + alreadyRan + noZap,
+    records,
+  };
+}
+
+export function saveExclusionCounters(counters: ExclusionCounters): void {
+  saveToStorage(STORAGE_KEYS.EXCLUSION_COUNTERS, counters);
+}
+
+export function recordExclusion(
+  contact: Contact,
+  reason: 'blocked' | 'alreadyRan' | 'noZap'
+): ExclusionCounters {
+  const current = getExclusionCounters();
+  const labelMap: Record<'blocked' | 'alreadyRan' | 'noZap', 'Me Bloqueou' | 'Já Correu' | 'Sem Zap'> = {
+    blocked: 'Me Bloqueou',
+    alreadyRan: 'Já Correu',
+    noZap: 'Sem Zap',
+  };
+
+  const newRecord: ExclusionRecord = {
+    id: `excl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    contactId: contact.id,
+    contactName: contact.name,
+    phone: contact.phone,
+    group: contact.group,
+    chipId: contact.chipId,
+    chipName: contact.chipName,
+    reason,
+    reasonLabel: labelMap[reason],
+    date: new Date().toISOString(),
+  };
+
+  const updated: ExclusionCounters = {
+    ...current,
+    [reason]: (current[reason] || 0) + 1,
+    total: (current.total || 0) + 1,
+    records: [newRecord, ...current.records],
+  };
+
+  saveExclusionCounters(updated);
+  return updated;
+}
+
+export function resetExclusionCounters(): void {
+  saveExclusionCounters(DEFAULT_EXCLUSION_COUNTERS);
 }

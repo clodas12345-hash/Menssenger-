@@ -30,7 +30,8 @@ import {
   addDeletedTemplateIds,
   addDeletedTopic,
   renameTopicPermanently,
-  clearDeletedTemplatesAndTopics
+  clearDeletedTemplatesAndTopics,
+  getExclusionCounters
 } from './utils/storage';
 import { playNotificationSound, playDispatchAlertSound } from './utils/audio';
 import { 
@@ -748,6 +749,11 @@ export default function App() {
         campaignsCount: campsToSave.length,
         chipStats,
         categoryStats,
+        exclusionStats: {
+          blocked: getExclusionCounters().blocked,
+          alreadyRan: getExclusionCounters().alreadyRan,
+          noZap: getExclusionCounters().noZap,
+        },
         logs: logsToSave,
         campaigns: campsToSave,
       };
@@ -940,6 +946,11 @@ export default function App() {
       campaignsCount: campaignsToArchive.length,
       chipStats,
       categoryStats,
+      exclusionStats: {
+        blocked: getExclusionCounters().blocked,
+        alreadyRan: getExclusionCounters().alreadyRan,
+        noZap: getExclusionCounters().noZap,
+      },
       logs: logsToArchive,
       campaigns: campaignsToArchive,
       contacts: [...contacts],

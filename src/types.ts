@@ -104,6 +104,27 @@ export interface ContactGroup {
   color: string;
 }
 
+export interface ExclusionRecord {
+  id: string;
+  contactId: string;
+  contactName: string;
+  phone: string;
+  group?: string;
+  chipId?: string;
+  chipName?: string;
+  reason: 'blocked' | 'alreadyRan' | 'noZap';
+  reasonLabel: 'Me Bloqueou' | 'Já Correu' | 'Sem Zap';
+  date: string; // ISO date string
+}
+
+export interface ExclusionCounters {
+  blocked: number;
+  alreadyRan: number;
+  noZap: number;
+  total: number;
+  records: ExclusionRecord[];
+}
+
 export interface ProjectArchive {
   id: string;
   name: string;
@@ -119,6 +140,11 @@ export interface ProjectArchive {
   campaignsCount: number;
   chipStats: { [chipName: string]: number };
   categoryStats: { [categoryName: string]: number };
+  exclusionStats?: {
+    blocked: number;
+    alreadyRan: number;
+    noZap: number;
+  };
   logs: DispatchLogItem[];
   campaigns: ScheduledCampaign[];
   contacts?: Contact[];

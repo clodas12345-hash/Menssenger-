@@ -2,6 +2,7 @@ import React from 'react';
 import { Briefcase, Headphones, Smartphone, Send, Edit2, Trash2 } from 'lucide-react';
 import { Contact } from '../types';
 import { formatPhoneDisplay, matchPhoneNumber } from '../utils/whatsapp';
+import { recordExclusion } from '../utils/storage';
 
 interface ContactRowProps {
   contact: Contact;
@@ -15,8 +16,9 @@ interface ContactRowProps {
   
   onToggleSelect: (id: string) => void;
   onOpenEdit: (contact: Contact) => void;
-  onUpdateContact: (contact: Contact) => void;
+  onUpdateContact?: (contact: Contact) => void;
   onDeleteContact: (id: string) => void;
+  onRequestDelete?: (contact: Contact) => void;
   onSendWhatsAppToContact?: (contact: Contact) => void;
   showNotification: (msg: string) => void;
   setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
@@ -35,6 +37,7 @@ export const ContactRow = React.memo(({
   onOpenEdit,
   onUpdateContact,
   onDeleteContact,
+  onRequestDelete,
   onSendWhatsAppToContact,
   showNotification,
   setSelectedIds,
@@ -162,7 +165,11 @@ export const ContactRow = React.memo(({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setShowDeleteMenu(!showDeleteMenu);
+              if (onRequestDelete) {
+                onRequestDelete(contact);
+              } else {
+                setShowDeleteMenu(true);
+              }
             }}
             className="p-2.5 min-w-[38px] min-h-[38px] bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow-sm"
             title="Excluir Contato"
@@ -171,10 +178,81 @@ export const ContactRow = React.memo(({
           </button>
 
           {showDeleteMenu && (
-            <div className="absolute right-0 bottom-full mb-2 w-48 bg-[#121215] border border-[#262629] rounded-xl shadow-2xl z-[60] p-1 text-[11px]">
-              <button onClick={() => { setShowDeleteMenu(false); onDeleteContact(contact.id); setSelectedIds(prev => prev.filter(id => id !== contact.id)); showNotification(`🗑️ Contato "${contact.name}" excluído.`); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-950/40 text-gray-200">Excluir</button>
-              <button onClick={() => { setShowDeleteMenu(false); onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Já Correu'}); onDeleteContact(contact.id); setSelectedIds(prev => prev.filter(id => id !== contact.id)); showNotification(`🗑️ Contato "${contact.name}" marcado como "Já Correu" e excluído.`); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-950/40 text-gray-200">Excluir já Correu</button>
-              <button onClick={() => { setShowDeleteMenu(false); onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Sem Zap'}); onDeleteContact(contact.id); setSelectedIds(prev => prev.filter(id => id !== contact.id)); showNotification(`🗑️ Contato "${contact.name}" marcado como "Sem Zap" e excluído.`); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-950/40 text-gray-200">Excluir sem Zap</button>
+            <div 
+              className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteMenu(false);
+              }}
+            >
+              <div 
+                className="w-full max-w-xs bg-[#12141A] border border-[#262A34] rounded-2xl shadow-2xl p-4 flex flex-col gap-2.5 text-xs animate-in zoom-in-95 duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="border-b border-[#1F2229] pb-2 text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 block">Excluir Contato</span>
+                  <p className="text-white font-bold text-sm truncate">{contact.name}</p>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={() => { 
+                    setShowDeleteMenu(false); 
+                    recordExclusion(contact, 'blocked');
+                    if (onUpdateContact) {
+                      onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Me Bloqueou'}); 
+                    }
+                    onDeleteContact(contact.id); 
+                    setSelectedIds(prev => prev.filter(id => id !== contact.id)); 
+                    showNotification(`🚫 Contato "${contact.name}" marcado como "Me Bloqueou" e excluído.`); 
+                  }} 
+                  className="w-full text-left px-3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-600/30 text-red-200 border border-red-500/30 font-bold transition-colors cursor-pointer"
+                >
+                  🚫 Me Bloqueou
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => { 
+                    setShowDeleteMenu(false); 
+                    recordExclusion(contact, 'alreadyRan');
+                    if (onUpdateContact) {
+                      onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Já Correu'}); 
+                    }
+                    onDeleteContact(contact.id); 
+                    setSelectedIds(prev => prev.filter(id => id !== contact.id)); 
+                    showNotification(`🏃 Contato "${contact.name}" marcado como "Já Correu" e excluído.`); 
+                  }} 
+                  className="w-full text-left px-3 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-600/30 text-amber-200 border border-amber-500/30 font-bold transition-colors cursor-pointer"
+                >
+                  🏃 Excluir já Correu
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => { 
+                    setShowDeleteMenu(false); 
+                    recordExclusion(contact, 'noZap');
+                    if (onUpdateContact) {
+                      onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Sem Zap'}); 
+                    }
+                    onDeleteContact(contact.id); 
+                    setSelectedIds(prev => prev.filter(id => id !== contact.id)); 
+                    showNotification(`📵 Contato "${contact.name}" marcado como "Sem Zap" e excluído.`); 
+                  }} 
+                  className="w-full text-left px-3 py-2.5 rounded-xl bg-blue-500/15 hover:bg-blue-600/30 text-blue-200 border border-blue-500/30 font-bold transition-colors cursor-pointer"
+                >
+                  📵 Excluir sem Zap
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteMenu(false)}
+                  className="w-full text-center py-2 text-gray-400 hover:text-white font-medium text-[11px] uppercase tracking-wider mt-1"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           )}
         </div>
