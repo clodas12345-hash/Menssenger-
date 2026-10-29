@@ -33,7 +33,7 @@ import {
 import { DispatchLogItem, AppSettings, ScheduledCampaign, ProjectArchive, Contact, ExclusionCounters } from '../types';
 import { formatPhoneDisplay, cleanChipName, matchContact, normalizeSearchText, matchPhoneNumber } from '../utils/whatsapp';
 import { downloadFileSafely } from '../utils/downloadHelper';
-import { getExclusionCounters, resetExclusionCounters, updateExclusionRecordType } from '../utils/storage';
+import { getExclusionCounters, resetExclusionCounters, updateExclusionRecordType, deleteExclusionRecord } from '../utils/storage';
 
 interface HistoryViewProps {
   logs: DispatchLogItem[];
@@ -84,7 +84,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   // Exclusion Counters & Modal State
   const [exclusionStats, setExclusionStats] = useState<ExclusionCounters>(() => getExclusionCounters());
   const [isExclusionModalOpen, setIsExclusionModalOpen] = useState<boolean>(false);
-  const [exclusionModalFilter, setExclusionModalFilter] = useState<'all' | 'blocked' | 'alreadyRan' | 'noZap'>('all');
+  const [exclusionModalFilter, setExclusionModalFilter] = useState<'all' | 'blocked' | 'alreadyRan' | 'noZap' | 'deleted'>('all');
   const [exclusionSearch, setExclusionSearch] = useState<string>('');
 
   React.useEffect(() => {
@@ -3738,7 +3738,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
 
               {/* Filters & Search */}
               <div className="space-y-3 shrink-0">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   <button
                     type="button"
                     onClick={() => setExclusionModalFilter('all')}
@@ -3783,6 +3783,17 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                   >
                     📵 Sem Zap ({exclusionStats.noZap})
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setExclusionModalFilter('deleted')}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      exclusionModalFilter === 'deleted'
+                        ? 'bg-purple-500/20 border-purple-500 text-purple-200'
+                        : 'bg-[#0A0C10] border-[#1F2229] text-gray-400 hover:text-purple-300'
+                    }`}
+                  >
+                    🗑️ Excluídos ({exclusionStats.deleted || 0})
+                  </button>
                 </div>
 
                 <div className="relative">
@@ -3820,6 +3831,8 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                                 ? 'bg-red-500/10 text-red-400 border-red-500/30'
                                 : item.reason === 'alreadyRan'
                                 ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                : item.reason === 'deleted'
+                                ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
                                 : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
                             }`}
                           >
@@ -3880,6 +3893,20 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                             {new Date(item.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Deseja remover "${item.contactName || item.phone}" do relatório de baixas?`)) {
+                              const updated = deleteExclusionRecord(item.id);
+                              setExclusionStats(updated);
+                            }
+                          }}
+                          className="p-2 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all cursor-pointer shrink-0 ml-1"
+                          title="Excluir este contato da lista de baixas"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   ))

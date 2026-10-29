@@ -31,7 +31,8 @@ import {
   addDeletedTopic,
   renameTopicPermanently,
   clearDeletedTemplatesAndTopics,
-  getExclusionCounters
+  getExclusionCounters,
+  recordExclusion
 } from './utils/storage';
 import { playNotificationSound, playDispatchAlertSound } from './utils/audio';
 import { 
@@ -1211,6 +1212,10 @@ export default function App() {
   const handleDeleteContact = React.useCallback((id: string) => {
     setContacts((prev) => {
       const targetId = String(id).trim();
+      const target = prev.find((c) => String(c.id).trim() === targetId);
+      if (target) {
+        recordExclusion(target, 'deleted');
+      }
       const updated = prev.filter((c) => String(c.id).trim() !== targetId);
       saveContacts(updated);
       syncGroupsWithContacts(updated);
@@ -1221,6 +1226,11 @@ export default function App() {
   const handleDeleteMultipleContacts = React.useCallback((ids: string[]) => {
     const idSet = new Set(ids.map(id => String(id).trim()));
     setContacts((prev) => {
+      prev.forEach((c) => {
+        if (idSet.has(String(c.id).trim())) {
+          recordExclusion(c, 'deleted');
+        }
+      });
       const updated = prev.filter((c) => !idSet.has(String(c.id).trim()));
       saveContacts(updated);
       syncGroupsWithContacts(updated);
@@ -1261,9 +1271,17 @@ export default function App() {
   }, []);
 
   const handleReplaceAllContacts = React.useCallback((newList: Contact[]) => {
-    setContacts(newList);
-    saveContacts(newList);
-    syncGroupsWithContacts(newList);
+    setContacts((prev) => {
+      const newIds = new Set(newList.map(c => c.id));
+      prev.forEach((c) => {
+        if (!newIds.has(c.id)) {
+          recordExclusion(c, 'deleted');
+        }
+      });
+      saveContacts(newList);
+      syncGroupsWithContacts(newList);
+      return newList;
+    });
   }, [syncGroupsWithContacts]);
 
   const handleDeleteGroup = React.useCallback((groupId: string) => {

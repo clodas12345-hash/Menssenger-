@@ -1548,6 +1548,7 @@ export function getExclusionCounters(): ExclusionCounters {
   const blocked = typeof loaded?.blocked === 'number' ? loaded.blocked : 0;
   const alreadyRan = typeof loaded?.alreadyRan === 'number' ? loaded.alreadyRan : 0;
   const noZap = typeof loaded?.noZap === 'number' ? loaded.noZap : 0;
+  const deleted = typeof loaded?.deleted === 'number' ? loaded.deleted : records.filter(r => r.reason === 'deleted').length;
 
   let lessThan30 = 0;
   let moreThan30 = 0;
@@ -1573,10 +1574,11 @@ export function getExclusionCounters(): ExclusionCounters {
     blocked,
     alreadyRan,
     noZap,
+    deleted,
     lessThan30,
     moreThan30,
     totalEarnings,
-    total: blocked + alreadyRan + noZap,
+    total: blocked + alreadyRan + noZap + deleted,
     records,
   };
 }
@@ -1587,14 +1589,15 @@ export function saveExclusionCounters(counters: ExclusionCounters): void {
 
 export function recordExclusion(
   contact: Contact,
-  reason: 'blocked' | 'alreadyRan' | 'noZap',
+  reason: 'blocked' | 'alreadyRan' | 'noZap' | 'deleted',
   ranType?: 'lessThan30' | 'moreThan30'
 ): ExclusionCounters {
   const current = getExclusionCounters();
-  const labelMap: Record<'blocked' | 'alreadyRan' | 'noZap', 'Me Bloqueou' | 'Já Correu' | 'Sem Zap'> = {
+  const labelMap: Record<'blocked' | 'alreadyRan' | 'noZap' | 'deleted', 'Me Bloqueou' | 'Já Correu' | 'Sem Zap' | 'Excluído'> = {
     blocked: 'Me Bloqueou',
     alreadyRan: 'Já Correu',
     noZap: 'Sem Zap',
+    deleted: 'Excluído',
   };
 
   let earnings = 0;
@@ -1632,6 +1635,7 @@ export function recordExclusion(
   let blocked = current.blocked;
   let alreadyRan = current.alreadyRan;
   let noZap = current.noZap;
+  let deleted = current.deleted || 0;
   let lessThan30 = 0;
   let moreThan30 = 0;
   let totalEarnings = 0;
@@ -1639,6 +1643,7 @@ export function recordExclusion(
   if (reason === 'blocked') blocked++;
   if (reason === 'alreadyRan') alreadyRan++;
   if (reason === 'noZap') noZap++;
+  if (reason === 'deleted') deleted++;
 
   updatedRecords.forEach(r => {
     if (r.reason === 'alreadyRan') {
@@ -1656,10 +1661,11 @@ export function recordExclusion(
     blocked,
     alreadyRan,
     noZap,
+    deleted,
     lessThan30,
     moreThan30,
     totalEarnings,
-    total: blocked + alreadyRan + noZap,
+    total: blocked + alreadyRan + noZap + deleted,
     records: updatedRecords,
   };
 
@@ -1712,6 +1718,50 @@ export function updateExclusionRecordType(
     lessThan30,
     moreThan30,
     totalEarnings,
+    records: updatedRecords,
+  };
+
+  saveExclusionCounters(updated);
+  return updated;
+}
+
+export function deleteExclusionRecord(recordId: string): ExclusionCounters {
+  const current = getExclusionCounters();
+  const updatedRecords = current.records.filter(r => r.id !== recordId);
+
+  let blocked = 0;
+  let alreadyRan = 0;
+  let noZap = 0;
+  let deleted = 0;
+  let lessThan30 = 0;
+  let moreThan30 = 0;
+  let totalEarnings = 0;
+
+  updatedRecords.forEach(r => {
+    if (r.reason === 'blocked') blocked++;
+    if (r.reason === 'noZap') noZap++;
+    if (r.reason === 'deleted') deleted++;
+    if (r.reason === 'alreadyRan') {
+      alreadyRan++;
+      if (r.ranType === 'moreThan30') {
+        moreThan30++;
+        totalEarnings += (r.earnings || 50);
+      } else {
+        lessThan30++;
+        totalEarnings += (r.earnings || 30);
+      }
+    }
+  });
+
+  const updated: ExclusionCounters = {
+    blocked,
+    alreadyRan,
+    noZap,
+    deleted,
+    lessThan30,
+    moreThan30,
+    totalEarnings,
+    total: blocked + alreadyRan + noZap + deleted,
     records: updatedRecords,
   };
 
