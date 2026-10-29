@@ -1535,6 +1535,9 @@ const DEFAULT_EXCLUSION_COUNTERS: ExclusionCounters = {
   blocked: 0,
   alreadyRan: 0,
   noZap: 0,
+  lessThan30: 0,
+  moreThan30: 0,
+  totalEarnings: 0,
   total: 0,
   records: [],
 };
@@ -1546,10 +1549,33 @@ export function getExclusionCounters(): ExclusionCounters {
   const alreadyRan = typeof loaded?.alreadyRan === 'number' ? loaded.alreadyRan : 0;
   const noZap = typeof loaded?.noZap === 'number' ? loaded.noZap : 0;
 
+  let lessThan30 = 0;
+  let moreThan30 = 0;
+  let totalEarnings = 0;
+
+  records.forEach(r => {
+    if (r.reason === 'alreadyRan') {
+      if (r.ranType === 'lessThan30') {
+        lessThan30++;
+        totalEarnings += (r.earnings || 30);
+      } else if (r.ranType === 'moreThan30') {
+        moreThan30++;
+        totalEarnings += (r.earnings || 50);
+      } else {
+        // Fallback for legacy alreadyRan records without ranType
+        lessThan30++;
+        totalEarnings += 30;
+      }
+    }
+  });
+
   return {
     blocked,
     alreadyRan,
     noZap,
+    lessThan30,
+    moreThan30,
+    totalEarnings,
     total: blocked + alreadyRan + noZap,
     records,
   };
@@ -1561,7 +1587,8 @@ export function saveExclusionCounters(counters: ExclusionCounters): void {
 
 export function recordExclusion(
   contact: Contact,
-  reason: 'blocked' | 'alreadyRan' | 'noZap'
+  reason: 'blocked' | 'alreadyRan' | 'noZap',
+  ranType?: 'lessThan30' | 'moreThan30'
 ): ExclusionCounters {
   const current = getExclusionCounters();
   const labelMap: Record<'blocked' | 'alreadyRan' | 'noZap', 'Me Bloqueou' | 'Já Correu' | 'Sem Zap'> = {
@@ -1569,6 +1596,20 @@ export function recordExclusion(
     alreadyRan: 'Já Correu',
     noZap: 'Sem Zap',
   };
+
+  let earnings = 0;
+  let ranDaysLabel: 'Menos de 30 dias' | 'Mais de 30 dias' | undefined = undefined;
+
+  if (reason === 'alreadyRan') {
+    if (ranType === 'moreThan30') {
+      earnings = 50;
+      ranDaysLabel = 'Mais de 30 dias';
+    } else {
+      ranType = 'lessThan30';
+      earnings = 30;
+      ranDaysLabel = 'Menos de 30 dias';
+    }
+  }
 
   const newRecord: ExclusionRecord = {
     id: `excl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -1580,14 +1621,46 @@ export function recordExclusion(
     chipName: contact.chipName,
     reason,
     reasonLabel: labelMap[reason],
+    ranType,
+    ranDaysLabel,
+    earnings: reason === 'alreadyRan' ? earnings : undefined,
     date: new Date().toISOString(),
   };
 
+  const updatedRecords = [newRecord, ...current.records];
+  
+  let blocked = current.blocked;
+  let alreadyRan = current.alreadyRan;
+  let noZap = current.noZap;
+  let lessThan30 = 0;
+  let moreThan30 = 0;
+  let totalEarnings = 0;
+
+  if (reason === 'blocked') blocked++;
+  if (reason === 'alreadyRan') alreadyRan++;
+  if (reason === 'noZap') noZap++;
+
+  updatedRecords.forEach(r => {
+    if (r.reason === 'alreadyRan') {
+      if (r.ranType === 'moreThan30') {
+        moreThan30++;
+        totalEarnings += (r.earnings || 50);
+      } else {
+        lessThan30++;
+        totalEarnings += (r.earnings || 30);
+      }
+    }
+  });
+
   const updated: ExclusionCounters = {
-    ...current,
-    [reason]: (current[reason] || 0) + 1,
-    total: (current.total || 0) + 1,
-    records: [newRecord, ...current.records],
+    blocked,
+    alreadyRan,
+    noZap,
+    lessThan30,
+    moreThan30,
+    totalEarnings,
+    total: blocked + alreadyRan + noZap,
+    records: updatedRecords,
   };
 
   saveExclusionCounters(updated);
@@ -1596,4 +1669,52 @@ export function recordExclusion(
 
 export function resetExclusionCounters(): void {
   saveExclusionCounters(DEFAULT_EXCLUSION_COUNTERS);
+}
+
+export function updateExclusionRecordType(
+  recordId: string,
+  newRanType: 'lessThan30' | 'moreThan30'
+): ExclusionCounters {
+  const current = getExclusionCounters();
+  const newEarnings = newRanType === 'moreThan30' ? 50 : 30;
+  const newLabel: 'Menos de 30 dias' | 'Mais de 30 dias' = newRanType === 'moreThan30' ? 'Mais de 30 dias' : 'Menos de 30 dias';
+
+  const updatedRecords = current.records.map(r => {
+    if (r.id === recordId && r.reason === 'alreadyRan') {
+      return {
+        ...r,
+        ranType: newRanType,
+        ranDaysLabel: newLabel,
+        earnings: newEarnings,
+      };
+    }
+    return r;
+  });
+
+  let lessThan30 = 0;
+  let moreThan30 = 0;
+  let totalEarnings = 0;
+
+  updatedRecords.forEach(r => {
+    if (r.reason === 'alreadyRan') {
+      if (r.ranType === 'moreThan30') {
+        moreThan30++;
+        totalEarnings += (r.earnings || 50);
+      } else {
+        lessThan30++;
+        totalEarnings += (r.earnings || 30);
+      }
+    }
+  });
+
+  const updated: ExclusionCounters = {
+    ...current,
+    lessThan30,
+    moreThan30,
+    totalEarnings,
+    records: updatedRecords,
+  };
+
+  saveExclusionCounters(updated);
+  return updated;
 }

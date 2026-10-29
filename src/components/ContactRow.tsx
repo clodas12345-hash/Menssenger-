@@ -43,6 +43,7 @@ export const ContactRow = React.memo(({
   setSelectedIds,
 }: ContactRowProps) => {
   const [showDeleteMenu, setShowDeleteMenu] = React.useState(false);
+  const [alreadyRanPrompt, setAlreadyRanPrompt] = React.useState(false);
   return (
     <div 
       onClick={() => onToggleSelect(contact.id)}
@@ -215,13 +216,7 @@ export const ContactRow = React.memo(({
                   type="button"
                   onClick={() => { 
                     setShowDeleteMenu(false); 
-                    recordExclusion(contact, 'alreadyRan');
-                    if (onUpdateContact) {
-                      onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Já Correu'}); 
-                    }
-                    onDeleteContact(contact.id); 
-                    setSelectedIds(prev => prev.filter(id => id !== contact.id)); 
-                    showNotification(`🏃 Contato "${contact.name}" marcado como "Já Correu" e excluído.`); 
+                    setAlreadyRanPrompt(true);
                   }} 
                   className="w-full text-left px-3 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-600/30 text-amber-200 border border-amber-500/30 font-bold transition-colors cursor-pointer"
                 >
@@ -252,6 +247,77 @@ export const ContactRow = React.memo(({
                 >
                   Cancelar
                 </button>
+              </div>
+            </div>
+          )}
+
+          {alreadyRanPrompt && (
+            <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-[#15181E] border border-[#2A2E38] rounded-2xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative animate-scale-up text-center">
+                <div className="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto border border-amber-500/40">
+                  <Briefcase className="w-6 h-6" />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-serif italic text-white mb-1">Tempo de Cadastro</h3>
+                  <p className="text-xs text-gray-300">
+                    O motorista <strong className="text-white">{contact.name}</strong> tem menos de 30 dias ou mais de 30 dias cadastrados?
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAlreadyRanPrompt(false);
+                      recordExclusion(contact, 'alreadyRan', 'lessThan30');
+                      if (onUpdateContact) {
+                        onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Já Correu (Menos de 30 dias - R$ 30)'});
+                      }
+                      onDeleteContact(contact.id);
+                      setSelectedIds(prev => prev.filter(id => id !== contact.id));
+                      showNotification(`🏃 Contato "${contact.name}" (< 30 dias) contabilizado: R$ 30 adicionados!`);
+                    }}
+                    className="w-full text-left p-3.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-200 transition-all flex items-center justify-between group cursor-pointer"
+                  >
+                    <div>
+                      <span className="text-sm font-bold text-white block">Menos de 30 dias</span>
+                      <span className="text-[11px] text-emerald-400 font-bold">Comissão: R$ 30,00</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">R$ 30</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAlreadyRanPrompt(false);
+                      recordExclusion(contact, 'alreadyRan', 'moreThan30');
+                      if (onUpdateContact) {
+                        onUpdateContact({...contact, notes: (contact.notes ? contact.notes + ' - ' : '') + 'Já Correu (Mais de 30 dias - R$ 50)'});
+                      }
+                      onDeleteContact(contact.id);
+                      setSelectedIds(prev => prev.filter(id => id !== contact.id));
+                      showNotification(`🏃 Contato "${contact.name}" (> 30 dias) contabilizado: R$ 50 adicionados!`);
+                    }}
+                    className="w-full text-left p-3.5 rounded-xl bg-amber-500/15 hover:bg-amber-600/30 border border-amber-500/40 text-amber-200 transition-all flex items-center justify-between group cursor-pointer"
+                  >
+                    <div>
+                      <span className="text-sm font-bold text-white block">Mais de 30 dias</span>
+                      <span className="text-[11px] text-amber-400 font-bold">Comissão: R$ 50,00</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded">R$ 50</span>
+                  </button>
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setAlreadyRanPrompt(false)}
+                    className="w-full py-2.5 rounded-xl bg-[#1A1D24] hover:bg-[#232732] text-gray-400 hover:text-white font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </div>
               </div>
             </div>
           )}

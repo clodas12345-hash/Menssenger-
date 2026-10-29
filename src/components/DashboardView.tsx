@@ -255,13 +255,19 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
 
           <div 
             onClick={() => onNavigate('history')}
-            className="bg-[#0A0C10] border border-amber-500/20 hover:border-amber-500/50 p-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors group"
+            className="bg-[#0A0C10] border border-amber-500/20 hover:border-amber-500/50 p-3 rounded-lg flex flex-col justify-between cursor-pointer transition-colors group space-y-2"
           >
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block group-hover:text-amber-300">Excluir já Correu</span>
-              <span className="text-xl font-mono font-bold text-amber-400">{exclusionStats.alreadyRan}</span>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block group-hover:text-amber-300">Excluir já Correu</span>
+                <span className="text-xl font-mono font-bold text-amber-400">{exclusionStats.alreadyRan}</span>
+              </div>
+              <span className="text-sm">🏃</span>
             </div>
-            <span className="text-sm">🏃</span>
+            <div className="pt-2 border-t border-[#1F2229] grid grid-cols-2 gap-1 text-[10px] font-mono">
+              <div className="text-emerald-400">&lt;30d: <strong>{exclusionStats.lessThan30 || 0}</strong> (R$ {(exclusionStats.lessThan30 || 0) * 30})</div>
+              <div className="text-amber-300 text-right">&gt;30d: <strong>{exclusionStats.moreThan30 || 0}</strong> (R$ {(exclusionStats.moreThan30 || 0) * 50})</div>
+            </div>
           </div>
 
           <div 
@@ -274,6 +280,26 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
             </div>
             <span className="text-sm">📵</span>
           </div>
+        </div>
+
+        {/* Total Earnings Banner */}
+        <div 
+          onClick={() => onNavigate('history')}
+          className="mt-3 p-3 rounded-lg bg-gradient-to-r from-emerald-950/40 via-[#0A0C10] to-[#0A0C10] border border-emerald-500/30 flex items-center justify-between cursor-pointer hover:border-emerald-500/60 transition-all"
+        >
+          <div className="flex items-center space-x-2.5">
+            <span className="text-base">💵</span>
+            <div>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 block">Total a Receber no Projeto</span>
+              <span className="text-lg font-mono font-black text-emerald-300">
+                R$ {exclusionStats.totalEarnings.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
+          <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider flex items-center space-x-1">
+            <span>Ver Relatório</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </span>
         </div>
       </div>
 

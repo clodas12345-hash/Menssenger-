@@ -114,6 +114,9 @@ export interface ExclusionRecord {
   chipName?: string;
   reason: 'blocked' | 'alreadyRan' | 'noZap';
   reasonLabel: 'Me Bloqueou' | 'Já Correu' | 'Sem Zap';
+  ranType?: 'lessThan30' | 'moreThan30';
+  ranDaysLabel?: 'Menos de 30 dias' | 'Mais de 30 dias';
+  earnings?: number; // 30 or 50
   date: string; // ISO date string
 }
 
@@ -121,6 +124,9 @@ export interface ExclusionCounters {
   blocked: number;
   alreadyRan: number;
   noZap: number;
+  lessThan30: number;
+  moreThan30: number;
+  totalEarnings: number;
   total: number;
   records: ExclusionRecord[];
 }

@@ -33,7 +33,7 @@ import {
 import { DispatchLogItem, AppSettings, ScheduledCampaign, ProjectArchive, Contact, ExclusionCounters } from '../types';
 import { formatPhoneDisplay, cleanChipName, matchContact, normalizeSearchText, matchPhoneNumber } from '../utils/whatsapp';
 import { downloadFileSafely } from '../utils/downloadHelper';
-import { getExclusionCounters, resetExclusionCounters } from '../utils/storage';
+import { getExclusionCounters, resetExclusionCounters, updateExclusionRecordType } from '../utils/storage';
 
 interface HistoryViewProps {
   logs: DispatchLogItem[];
@@ -2338,7 +2338,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
               setExclusionModalFilter('alreadyRan');
               setIsExclusionModalOpen(true);
             }}
-            className="p-3.5 rounded-xl bg-[#0A0C10] hover:bg-[#14171E] border border-amber-500/30 hover:border-amber-500/60 text-left transition-all group cursor-pointer"
+            className="p-3.5 rounded-xl bg-[#0A0C10] hover:bg-[#14171E] border border-amber-500/30 hover:border-amber-500/60 text-left transition-all group cursor-pointer space-y-2"
           >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Excluir já Correu</span>
@@ -2346,11 +2346,19 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                 🏃
               </span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between">
               <span className="text-2xl font-mono font-black text-amber-400 group-hover:scale-105 transition-transform">
                 {exclusionStats.alreadyRan}
               </span>
               <span className="text-[10px] text-gray-400 group-hover:text-amber-300">Ver lista →</span>
+            </div>
+            <div className="pt-2 border-t border-[#1F2229] grid grid-cols-2 gap-1 text-[10px] font-mono">
+              <div className="text-emerald-400" title="Menos de 30 dias (R$ 30 cada)">
+                &lt;30d: <strong>{exclusionStats.lessThan30 || 0}</strong> (R$ {(exclusionStats.lessThan30 || 0) * 30})
+              </div>
+              <div className="text-amber-300 text-right" title="Mais de 30 dias (R$ 50 cada)">
+                &gt;30d: <strong>{exclusionStats.moreThan30 || 0}</strong> (R$ {(exclusionStats.moreThan30 || 0) * 50})
+              </div>
             </div>
           </button>
 
@@ -2376,6 +2384,27 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
               <span className="text-[10px] text-gray-400 group-hover:text-blue-300">Ver lista →</span>
             </div>
           </button>
+        </div>
+
+        {/* Total Earnings Banner */}
+        <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/40 via-[#0A0C10] to-[#0A0C10] border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono font-bold text-sm">
+              💵
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+                Valor Total a Receber no Projeto (&lt;30d = R$ 30 | &gt;30d = R$ 50)
+              </span>
+              <div className="text-2xl font-mono font-black text-emerald-300 mt-0.5">
+                R$ {exclusionStats.totalEarnings.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </div>
+          </div>
+          <div className="text-xs text-gray-400 font-mono text-left sm:text-right">
+            <div>Menos de 30d: <strong className="text-white">{exclusionStats.lessThan30 || 0}</strong> motorista(s)</div>
+            <div>Mais de 30d: <strong className="text-white">{exclusionStats.moreThan30 || 0}</strong> motorista(s)</div>
+          </div>
         </div>
       </div>
 
@@ -2672,6 +2701,9 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
                     setIsTableExpanded(true);
+                  }}
+                  onFocus={() => {
+                    if (searchTerm) setSearchTerm('');
                   }}
                   placeholder="Buscar por contato, telefone, mensagem ou campanha..."
                   className="w-full bg-[#0A0C10] border border-[#1F2229] rounded-lg pl-10 pr-10 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-[#A88B4B]"
@@ -3805,13 +3837,49 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <span className="text-[10px] text-gray-500 font-mono block">
-                          {new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                        </span>
-                        <span className="text-[10px] text-gray-600 font-mono block">
-                          {new Date(item.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                      <div className="flex items-center space-x-3 shrink-0">
+                        {item.reason === 'alreadyRan' && (
+                          <div className="flex items-center space-x-1.5 bg-[#15181E] border border-[#1F2229] p-1 rounded-lg">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = updateExclusionRecordType(item.id, 'lessThan30');
+                                setExclusionStats(updated);
+                              }}
+                              className={`px-2 py-1 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                                item.ranType === 'lessThan30' || !item.ranType
+                                  ? 'bg-emerald-600 text-white shadow'
+                                  : 'text-gray-400 hover:text-white'
+                              }`}
+                              title="Mudar para Menos de 30 dias (R$ 30)"
+                            >
+                              &lt;30d (R$ 30)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = updateExclusionRecordType(item.id, 'moreThan30');
+                                setExclusionStats(updated);
+                              }}
+                              className={`px-2 py-1 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                                item.ranType === 'moreThan30'
+                                  ? 'bg-amber-600 text-white shadow'
+                                  : 'text-gray-400 hover:text-white'
+                              }`}
+                              title="Mudar para Mais de 30 dias (R$ 50)"
+                            >
+                              &gt;30d (R$ 50)
+                            </button>
+                          </div>
+                        )}
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] text-gray-500 font-mono block">
+                            {new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          </span>
+                          <span className="text-[10px] text-gray-600 font-mono block">
+                            {new Date(item.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))
