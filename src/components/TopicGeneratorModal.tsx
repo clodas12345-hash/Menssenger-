@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Sparkles, X, Loader2, MessageSquare, Megaphone, User, Hash, Plus, Trash2, Bot, Check, CheckSquare } from 'lucide-react';
 import { MessageTemplate } from '../types';
+import { ensureCorraEGanhePreserved, cleanMessagePhrasing } from '../utils/whatsapp';
 
 interface TopicGeneratorModalProps {
   isOpen: boolean;
@@ -28,6 +29,14 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
   const rephraseBodyText = (text: string, idx: number): string => {
     let res = text.trim();
+
+    // Protect "Corra e Ganhe" or "Corre e Ganhe" from regex synonym replacements (such as \bganhe\b)
+    const protections: string[] = [];
+    res = res.replace(/(corra|corre)\s+e\s+ganhe/gi, (match) => {
+      protections.push(match);
+      return `___PROTECTED_CORRA_E_GANHE_${protections.length - 1}___`;
+    });
+
     // Apply subtle, natural lexical variations per index while keeping numbers/facts/tense 100% intact and singular
     const rules: Array<[RegExp, string[]]> = [
       [/\bvocê tem\b/gi, ['você conta com', 'está disponível para você', 'já está liberado no seu perfil', 'você possui', 'está liberado para você']],
@@ -54,7 +63,12 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
       });
     }
 
-    return res;
+    // Restore protected "Corra e Ganhe" / "Corre e Ganhe"
+    protections.forEach((p, pIdx) => {
+      res = res.replace(`___PROTECTED_CORRA_E_GANHE_${pIdx}___`, p);
+    });
+
+    return ensureCorraEGanhePreserved(res, text);
   };
 
   const generateLocalVariations = (
@@ -73,65 +87,65 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
     const firstOption = {
       tag: 'Original e Direta',
-      content: `{saudacao}, {primeiro_nome}!${introLine}\n\n${b(0)}\n\nSe precisar de suporte com isso, conta comigo!`
+      content: `{saudacao}, {primeiro_nome}! 🚀${introLine}\n\n${b(0)}\n\nSe precisar de suporte com isso, conta comigo! 👍`
     };
 
     const diversePool = [
       {
         tag: 'Pergunta Engajadora',
-        content: `{saudacao}, {primeiro_nome}! Tudo certo por aí?${introLine}\n\n${b(1)}\n\nQualquer dúvida, me dá um alô!`
+        content: `{saudacao}, {primeiro_nome}! Tudo certo por aí? 💬${introLine}\n\n${b(1)}\n\nQualquer dúvida, me dá um alô! 📲`
       },
       {
         tag: 'Destaque Rápido',
-        content: `{saudacao}, {primeiro_nome}! 🚀${introLine}\n\n${b(2)}\n\nSe precisar de suporte com isso, conta comigo.`
+        content: `{saudacao}, {primeiro_nome}! 🚀${introLine}\n\n${b(2)}\n\nSe precisar de suporte com isso, conta comigo. 👍`
       },
       {
         tag: 'Formato em Tópico',
-        content: `Olá, {primeiro_nome}! {saudacao}!${introLine}\n\n📌 ${b(3)}\n\nBora aproveitar? Estou por aqui se precisar!`
+        content: `Olá, {primeiro_nome}! {saudacao}! 📌${introLine}\n\n${b(3)}\n\nBora aproveitar? Estou por aqui se precisar! 💡`
       },
       {
         tag: 'Parceria e Próxima',
-        content: `Fala, {primeiro_nome}! {saudacao}! Como estão os trabalhos hoje?${introLine}\n\n${b(4)}\n\nTamo junto, qualquer coisa me chama!`
+        content: `Fala, {primeiro_nome}! {saudacao}! Como estão as corridas hoje? 🚗${introLine}\n\n${b(4)}\n\nTamo junto, qualquer coisa me chama! 👊`
       },
       {
         tag: 'Foco no Resultado',
-        content: `{saudacao}, {primeiro_nome}!${introLine}\n\n${b(5)}\n\nAproveite para impulsionar seus ganhos! Conta comigo.`
+        content: `{saudacao}, {primeiro_nome}! 💰${introLine}\n\n${b(5)}\n\nAproveite para impulsionar seus ganhos! Conta comigo. ⚡`
       },
       {
         tag: 'Lembrete Prático',
-        content: `Oi, {primeiro_nome}! 👋 {saudacao}!${introLine}\n\n${b(6)}\n\nPrecisando de orientação, é só me chamar.`
+        content: `Oi, {primeiro_nome}! 👋 {saudacao}!${introLine}\n\n${b(6)}\n\nPrecisando de orientação, é só me chamar! 📲`
       },
       {
         tag: 'Exclusiva VIP',
-        content: `{saudacao}, {primeiro_nome}!${introLine}\n\n✨ *${cleanTopic}:* ${b(7)}\n\nFico à disposição se quiser saber mais!`
+        content: `{saudacao}, {primeiro_nome}! ✨${introLine}\n\n${b(7)}\n\nFico à disposição se quiser saber mais! 👍`
       },
       {
         tag: 'Curta e Sem Rodeios',
-        content: `{saudacao}, {primeiro_nome}!${introLine}\n\nRecado rápido para você: ${b(8)}\n\nQualquer coisa, me chama!`
+        content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\nPassando para te avisar: ${b(8)}\n\nQualquer coisa, me chama! 💬`
       },
       {
         tag: 'Consultiva e Atenciosa',
-        content: `{saudacao}, {primeiro_nome}! Espero que seu dia esteja ótimo!${introLine}\n\n${b(9)}\n\nPode contar comigo no que precisar!`
+        content: `{saudacao}, {primeiro_nome}! Espero que seu dia esteja ótimo! ☀️${introLine}\n\n${b(9)}\n\nPode contar comigo no que precisar! 🤝`
       },
       {
         tag: 'Alerta de Oportunidade',
-        content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\n${b(10)}\n\nQualquer dúvida estou online por aqui!`
+        content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\n${b(10)}\n\nQualquer dúvida estou online por aqui! 📲`
       },
       {
         tag: 'Conversa Natural',
-        content: `Oi, {primeiro_nome}, tudo bem? {saudacao}!${introLine}\n\n${b(11)}\n\nDepois me conta se deu tudo certo!`
+        content: `Oi, {primeiro_nome}, tudo bem? {saudacao}! 👋${introLine}\n\n${b(11)}\n\nDepois me conta se deu tudo certo! 👍`
       },
       {
         tag: 'Motivacional',
-        content: `{saudacao}, {primeiro_nome}! Excelente jornada hoje!${introLine}\n\n${b(12)}\n\nÓtimas corridas e pode contar comigo!`
+        content: `{saudacao}, {primeiro_nome}! Excelente jornada hoje! 🏁${introLine}\n\n${b(12)}\n\nÓtimas corridas e pode contar comigo! 🚗`
       },
       {
         tag: 'Check-in Rápido',
-        content: `Olá, {primeiro_nome}! {saudacao}!${introLine}\n\n👉 ${b(13)}\n\nEstou à disposição para te ajudar!`
+        content: `Olá, {primeiro_nome}! {saudacao}! 👉${introLine}\n\n${b(13)}\n\nEstou à disposição para te ajudar! 💡`
       },
       {
         tag: 'Fechamento de Meta',
-        content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯${introLine}\n\n${b(14)}\n\nSe precisar de apoio, fala comigo!`
+        content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯${introLine}\n\n${b(14)}\n\nSe precisar de apoio, fala comigo! 🤝`
       }
     ];
 
@@ -210,7 +224,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
       .replace(/,\s*!/g, '!')
       .replace(/;\s*;/g, ';');
 
-    return processed.trim();
+    return cleanMessagePhrasing(processed.trim(), _originalHook);
   };
 
   const handleGenerate = async () => {
@@ -244,7 +258,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
           return {
             ...t,
             title: t.title || `${cleanTopic} - Opção ${i + 1}`,
-            content: normalizePlaceholders(t.content || '', cleanHook),
+            content: cleanMessagePhrasing(normalizePlaceholders(t.content || '', cleanHook), cleanTopic),
             category: cleanTopic,
           };
         });
@@ -264,7 +278,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
       console.warn('Usando gerador inteligente local:', err);
       const localFallback = generateLocalVariations(cleanTopic, cleanHook, presentation, quantity).map(t => ({
         ...t,
-        content: normalizePlaceholders(t.content, cleanHook)
+        content: cleanMessagePhrasing(normalizePlaceholders(t.content, cleanHook), cleanTopic)
       }));
       setGeneratedResults(localFallback);
       setSelectedIndices(localFallback.map((_, i) => i));

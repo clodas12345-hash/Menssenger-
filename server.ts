@@ -88,9 +88,84 @@ const callGemini = async (prompt: string, config: any = {}) => {
   return null;
 };
 
+function ensureCorraEGanhePreserved(text: string, originalText?: string): string {
+  if (!text) return '';
+  let res = text;
+
+  // 1. Repair any corrupted forms created by synonym replacements or AI generation:
+  // e.g. "Corra e Garanta", "Corra e Receba", "Corra e Fature", "Corra e Conquiste", "Corra e Assegure", "Corra e Ganhar", "Corre e Garanta", etc.
+  res = res.replace(/(corra|corre)\s+e\s+(garanta|receba|fature|conquiste|assegure|ganhar|ganho)/gi, (match) => {
+    const isCorre = match.toLowerCase().startsWith('corre');
+    const isUpper = match[0] === match[0].toUpperCase();
+    if (isCorre) {
+      return isUpper ? 'Corre e Ganhe' : 'corre e ganhe';
+    }
+    return isUpper ? 'Corra e Ganhe' : 'corra e ganhe';
+  });
+
+  // 2. If originalText had "Corra e Ganhe" or "Corre e Ganhe", ensure it is preserved in the output
+  if (originalText && /(corra|corre)\s+e\s+ganhe/i.test(originalText)) {
+    const origMatch = originalText.match(/(corra|corre)\s+e\s+ganhe/i)?.[0] || 'Corra e Ganhe';
+    if (!/(corra|corre)\s+e\s+ganhe/i.test(res)) {
+      if (/(acelere|participe|campanha)\s+(para|e)\s+(ganhar|garantir|fature|receba|ganhe)/i.test(res)) {
+        res = res.replace(/(acelere|participe|campanha)\s+(para|e)\s+(ganhar|garantir|fature|receba|ganhe)/i, origMatch);
+      }
+    }
+  }
+
+  return res;
+}
+
+function cleanServerMessagePhrasing(content: string, topicName?: string): string {
+  if (!content) return '';
+  let res = content.trim();
+
+  // 1. Strip out topic name or topic headers if injected into the message body
+  if (topicName && topicName.trim()) {
+    const escapedTopic = topicName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const topicPrefixRegex = new RegExp(`[✨📌💡👉⚡]*\\s*\\*?${escapedTopic}\\*?\\s*[:\\-–—]?\\s*`, 'gi');
+    res = res.replace(topicPrefixRegex, '');
+  }
+
+  // Also remove generic headers like *Tópico:* or *Assunto:* or *Categoria:*
+  res = res.replace(/[✨📌💡👉⚡]*\s*\*?(tópico|assunto|categoria)\*?\s*[:\-–—]?\s*/gi, '');
+
+  // 2. Remove robotic or unnatural phrases ("tenho uma noticia pra vc", "tenho uma novidade", etc.)
+  res = res
+    .replace(/\btenho uma not[íi]cia para? (voc[êe]|vc)\b/gi, 'passando para te avisar')
+    .replace(/\btenho uma not[íi]cia\b/gi, 'passando para te avisar')
+    .replace(/\btenho uma novidade para? (voc[êe]|vc)\b/gi, 'passando rápido por aqui')
+    .replace(/\btenho uma novidade\b/gi, 'passando por aqui')
+    .replace(/\brecado r[áa]pido para? (voc[êe]|vc)[:\s]*/gi, 'passando para te avisar: ')
+    .replace(/\bnot[íi]cia importante[:\s]*/gi, 'aviso importante: ')
+    .replace(/\bminha casa\b/gi, 'meu canal')
+    .replace(/\bnossa casa\b/gi, 'nosso suporte');
+
+  // 3. Ensure friendly icon/emoji is present
+  const hasEmoji = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u.test(res);
+  if (!hasEmoji) {
+    if (res.includes('!')) {
+      res = res.replace('!', '! 🚀');
+    } else {
+      res = `${res} 👍`;
+    }
+  }
+
+  // 4. Ensure "Corra e Ganhe" is strictly preserved
+  return ensureCorraEGanhePreserved(res, topicName);
+}
+
 // Strategic Templates Fallback Generator
 function rephraseServerBodyText(text: string, idx: number): string {
   let res = text.trim();
+
+  // Protect "Corra e Ganhe" or "Corre e Ganhe" from regex synonym replacements (such as \bganhe\b)
+  const protections: string[] = [];
+  res = res.replace(/(corra|corre)\s+e\s+ganhe/gi, (match) => {
+    protections.push(match);
+    return `___PROTECTED_CORRA_E_GANHE_${protections.length - 1}___`;
+  });
+
   const rules: Array<[RegExp, string[]]> = [
     [/\bvocê tem\b/gi, ['você conta com', 'está disponível para você', 'já está liberado no seu perfil', 'você possui', 'está liberado para você']],
     [/\baproveite\b/gi, ['garanta já', 'não deixe passar', 'aproveite ao máximo', 'tire proveito', 'vem garantir']],
@@ -112,7 +187,13 @@ function rephraseServerBodyText(text: string, idx: number): string {
       });
     });
   }
-  return res;
+
+  // Restore protected "Corra e Ganhe" / "Corre e Ganhe"
+  protections.forEach((p, pIdx) => {
+    res = res.replace(`___PROTECTED_CORRA_E_GANHE_${pIdx}___`, p);
+  });
+
+  return cleanServerMessagePhrasing(res);
 }
 
 function generateFallbackTopicTemplates(
@@ -134,66 +215,66 @@ function generateFallbackTopicTemplates(
 
   const firstOption = {
     title: `${cleanTopic} - Opção 1 (Original e Direta)`,
-    content: `{saudacao}, {primeiro_nome}!${introLine}\n\n${b(0)}\n\nSe precisar de suporte com isso, conta comigo!`,
+    content: cleanServerMessagePhrasing(`{saudacao}, {primeiro_nome}! 🚀${introLine}\n\n${b(0)}\n\nSe precisar de suporte com isso, conta comigo! 👍`, cleanTopic),
     category: cleanTopic,
   };
 
   const diversePool = [
     {
       tag: 'Pergunta Engajadora',
-      content: `{saudacao}, {primeiro_nome}! Tudo certo por aí?${introLine}\n\n${b(1)}\n\nQualquer dúvida, me dá um alô!`,
+      content: `{saudacao}, {primeiro_nome}! Tudo certo por aí? 💬${introLine}\n\n${b(1)}\n\nQualquer dúvida, me dá um alô! 📲`,
     },
     {
       tag: 'Destaque Rápido',
-      content: `{saudacao}, {primeiro_nome}! 🚀${introLine}\n\n${b(2)}\n\nSe precisar de suporte com isso, conta comigo.`,
+      content: `{saudacao}, {primeiro_nome}! 🚀${introLine}\n\n${b(2)}\n\nSe precisar de suporte com isso, conta comigo. 👍`,
     },
     {
       tag: 'Formato em Tópico',
-      content: `Olá, {primeiro_nome}! {saudacao}!${introLine}\n\n📌 ${b(3)}\n\nBora aproveitar? Estou por aqui se precisar!`,
+      content: `Olá, {primeiro_nome}! {saudacao}! 📌${introLine}\n\n${b(3)}\n\nBora aproveitar? Estou por aqui se precisar! 💡`,
     },
     {
       tag: 'Parceria e Próxima',
-      content: `Fala, {primeiro_nome}! {saudacao}! Como estão os trabalhos hoje?${introLine}\n\n${b(4)}\n\nTamo junto, qualquer coisa me chama!`,
+      content: `Fala, {primeiro_nome}! {saudacao}! Como estão as corridas hoje? 🚗${introLine}\n\n${b(4)}\n\nTamo junto, qualquer coisa me chama! 👊`,
     },
     {
       tag: 'Foco no Resultado',
-      content: `{saudacao}, {primeiro_nome}!${introLine}\n\n${b(5)}\n\nAproveite para impulsionar seus ganhos! Conta comigo.`,
+      content: `{saudacao}, {primeiro_nome}! 💰${introLine}\n\n${b(5)}\n\nAproveite para impulsionar seus ganhos! Conta comigo. ⚡`,
     },
     {
       tag: 'Lembrete Prático',
-      content: `Oi, {primeiro_nome}! 👋 {saudacao}!${introLine}\n\n${b(6)}\n\nPrecisando de orientação, é só me chamar.`,
+      content: `Oi, {primeiro_nome}! 👋 {saudacao}!${introLine}\n\n${b(6)}\n\nPrecisando de orientação, é só me chamar! 📲`,
     },
     {
       tag: 'Exclusiva VIP',
-      content: `{saudacao}, {primeiro_nome}!${introLine}\n\n✨ *${cleanTopic}:* ${b(7)}\n\nFico à disposição se quiser saber mais!`,
+      content: `{saudacao}, {primeiro_nome}! ✨${introLine}\n\n${b(7)}\n\nFico à disposição se quiser saber mais! 👍`,
     },
     {
       tag: 'Curta e Sem Rodeios',
-      content: `{saudacao}, {primeiro_nome}!${introLine}\n\nRecado rápido para você: ${b(8)}\n\nQualquer coisa, me chama!`,
+      content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\nPassando para te avisar: ${b(8)}\n\nQualquer coisa, me chama! 💬`,
     },
     {
       tag: 'Consultiva e Atenciosa',
-      content: `{saudacao}, {primeiro_nome}! Espero que seu dia esteja ótimo!${introLine}\n\n${b(9)}\n\nPode contar comigo no que precisar!`,
+      content: `{saudacao}, {primeiro_nome}! Espero que seu dia esteja ótimo! ☀️${introLine}\n\n${b(9)}\n\nPode contar comigo no que precisar! 🤝`,
     },
     {
       tag: 'Alerta de Oportunidade',
-      content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\n${b(10)}\n\nQualquer dúvida estou online por aqui!`,
+      content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\n${b(10)}\n\nQualquer dúvida estou online por aqui! 📲`,
     },
     {
       tag: 'Conversa Natural',
-      content: `Oi, {primeiro_nome}, tudo bem? {saudacao}!${introLine}\n\n${b(11)}\n\nDepois me conta se deu tudo certo!`,
+      content: `Oi, {primeiro_nome}, tudo bem? {saudacao}! 👋${introLine}\n\n${b(11)}\n\nDepois me conta se deu tudo certo! 👍`,
     },
     {
       tag: 'Motivacional',
-      content: `{saudacao}, {primeiro_nome}! Excelente jornada hoje!${introLine}\n\n${b(12)}\n\nÓtimas corridas e pode contar comigo!`,
+      content: `{saudacao}, {primeiro_nome}! Excelente jornada hoje! 🏁${introLine}\n\n${b(12)}\n\nÓtimas corridas e pode contar comigo! 🚗`,
     },
     {
       tag: 'Check-in Rápido',
-      content: `Olá, {primeiro_nome}! {saudacao}!${introLine}\n\n👉 ${b(13)}\n\nEstou à disposição para te ajudar!`,
+      content: `Olá, {primeiro_nome}! {saudacao}! 👉${introLine}\n\n${b(13)}\n\nEstou à disposição para te ajudar! 💡`,
     },
     {
       tag: 'Fechamento de Meta',
-      content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯${introLine}\n\n${b(14)}\n\nSe precisar de apoio, fala comigo!`,
+      content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯${introLine}\n\n${b(14)}\n\nSe precisar de apoio, fala comigo! 🤝`,
     },
   ];
 
@@ -427,7 +508,7 @@ DIRETRIZES OBRIGATÓRIAS:
 1. Mantenha 100% fiel ao assunto, sentido, tempo verbal e informações que o usuário escreveu. NÃO invente novos brindes, valores ou prazos que não estavam no original.
 2. Mantenha a saudação e o nome ({saudacao}, {primeiro_nome}!) sempre no INÍCIO da mensagem (nunca jogue a saudação para o final).
 3. O remetente trabalha SOZINHO. Escreva SEMPRE na 1ª pessoa do singular ("eu", "comigo", "estou à disposição", "me chama"). NUNCA use plural como "nosso time", "nossa equipe", "estamos", "conosco" ou "separamos".
-4. PROIBIDO MUDAR TERMOS ESPECÍFICOS: Se o usuário escreveu "Corre e Ganhe", mantenha exatamente "Corre e Ganhe". Não altere frases-chave, nomes de campanhas ou termos técnicos fornecidos pelo usuário.
+4. REGRA ABSOLUTA DA EXPRESSÃO "Corra e Ganhe" / "Corre e Ganhe": A palavra/termo "Corra e Ganhe" (ou "Corre e Ganhe") JAMAIS pode ser substituída, alterada ou trocada por nenhum sinônimo! Se o usuário escreveu "Corra e Ganhe" ou "Corre e Ganhe", mantenha EXATAMENTE este termo em todas as variações sem nenhuma mudança.
 5. REQUISITOS DE VARIAÇÃO:
    - Use vocabulário e estrutura de frases MUITO DISTINTOS entre as 3 variações. NÃO use palavras ou construções semelhantes.
    - Adicione OBRIGATORIAMENTE pelo menos 2 emojis pertinentes em cada variação.
@@ -449,13 +530,16 @@ Responda EXCLUSIVAMENTE no formato JSON:
     if (text) {
       const data = JSON.parse(text);
       if (data.variations && Array.isArray(data.variations) && data.variations.length > 0) {
-        return res.json(data);
+        const cleaned = data.variations.map((v: string) => ensureCorraEGanhePreserved(v, originalMessage));
+        return res.json({ variations: cleaned });
       }
     }
-    return res.json({ variations: generateFallbackVariations(originalMessage) });
+    const fallback = generateFallbackVariations(originalMessage).map(v => ensureCorraEGanhePreserved(v, originalMessage));
+    return res.json({ variations: fallback });
   } catch (error: any) {
     console.warn("Usando fallback de variações devido a erro na IA:", error?.message || error);
-    return res.json({ variations: generateFallbackVariations(originalMessage) });
+    const fallback = generateFallbackVariations(originalMessage).map(v => ensureCorraEGanhePreserved(v, originalMessage));
+    return res.json({ variations: fallback });
   }
 });
 
@@ -480,8 +564,10 @@ DIRETRIZES RIGOROSAS:
 3. TRABALHO INDIVIDUAL (1ª PESSOA DO SINGULAR):
    - O remetente trabalha SOZINHO. Use SEMPRE o singular ("eu", "conta comigo", "me chama", "estou à disposição", "vou te ajudar").
    - É PROIBIDO usar plural como "nosso time", "nossa equipe", "estamos", "conosco", "separamos".
-4. FIDELIDADE E COERÊNCIA:
-   - Mantenha 100% a fidelidade aos fatos, valores, datas e tempos verbais que o usuário escreveu (NÃO troque "corridas nas próximas semanas" por "viagens realizadas").
+4. REGRA ABSOLUTA DA EXPRESSÃO "Corra e Ganhe" / "Corre e Ganhe":
+   - A palavra/nome de campanha "Corra e Ganhe" (ou "Corre e Ganhe") JAMAIS PODE SER SUBSTITUÍDA OU ALTERADA por nenhum sinônimo! NUNCA use "Corra e Garanta", "Corra e Receba", "Acelere e Ganhe", "Corra e Fature", etc. Mantenha EXATAMENTE a expressão "Corra e Ganhe" (ou "Corre e Ganhe") em 100% das opções!
+5. FIDELIDADE E COERÊNCIA:
+   - Mantenha 100% a fidelidade aos fatos, valores, datas e tempos verbais que o usuário escreveu.
 
 Responda EXCLUSIVAMENTE no formato JSON:
 {
@@ -498,15 +584,25 @@ Responda EXCLUSIVAMENTE no formato JSON:
     if (text) {
       const data = JSON.parse(text);
       if (data.templates && Array.isArray(data.templates) && data.templates.length > 0) {
-        return res.json(data);
+        const cleanedTemplates = data.templates.map((t: any) => ({
+          ...t,
+          content: ensureCorraEGanhePreserved(t.content, hook)
+        }));
+        return res.json({ templates: cleanedTemplates });
       }
     }
 
-    const fallbackTemplates = generateFallbackTopicTemplates(topicName, hook, presentation, quantity);
+    const fallbackTemplates = generateFallbackTopicTemplates(topicName, hook, presentation, quantity).map(t => ({
+      ...t,
+      content: ensureCorraEGanhePreserved(t.content, hook)
+    }));
     return res.json({ templates: fallbackTemplates });
   } catch (error: any) {
     console.warn("Usando fallback de tópicos estratégicos devido a erro na IA:", error?.message || error);
-    const fallbackTemplates = generateFallbackTopicTemplates(topicName, hook, presentation, quantity);
+    const fallbackTemplates = generateFallbackTopicTemplates(topicName, hook, presentation, quantity).map(t => ({
+      ...t,
+      content: ensureCorraEGanhePreserved(t.content, hook)
+    }));
     return res.json({ templates: fallbackTemplates });
   }
 });

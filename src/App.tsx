@@ -41,6 +41,7 @@ import {
   triggerVibration, 
   requestPersistentStorage, 
   requestNotificationPermission, 
+  getNotificationPermissionStatus,
   initializePushNotifications,
   ensureNotificationChannel,
   registerNotificationListeners,
@@ -97,6 +98,14 @@ export default function App() {
     try {
       testFirestoreConnection().catch(() => {});
       requestPersistentStorage().catch(() => {});
+      getNotificationPermissionStatus().then(status => {
+        setPermissionStatus(status === 'granted' ? 'granted' : status === 'denied' ? 'denied' : 'checking');
+        if (status === 'prompt') {
+          requestNotificationPermission().then(res => {
+            setPermissionStatus(res === 'granted' ? 'granted' : 'denied');
+          }).catch(() => {});
+        }
+      }).catch(() => {});
     } catch (err) {
       console.error('Erro na inicialização:', err);
     }

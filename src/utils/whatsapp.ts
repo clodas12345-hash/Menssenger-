@@ -205,10 +205,74 @@ export function replaceTemplateVariables(
       .replace(/\s+([!?,.])/g, '$1');
   }
 
-  // Soften and adapt approach based on identified gender (e.g. changing rough slang like "cara" to gentle tone for women)
-  processed = adaptApproachForGender(processed, gender, firstNameToUse);
+  return ensureCorraEGanhePreserved(processed.trim(), templateText);
+}
 
-  return processed.trim();
+export function cleanMessagePhrasing(content: string, topicName?: string): string {
+  if (!content) return '';
+  let res = content.trim();
+
+  // 1. Strip out topic name or topic headers if injected into the message body
+  if (topicName && topicName.trim()) {
+    const escapedTopic = topicName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const topicPrefixRegex = new RegExp(`[✨📌💡👉⚡]*\\s*\\*?${escapedTopic}\\*?\\s*[:\\-–—]?\\s*`, 'gi');
+    res = res.replace(topicPrefixRegex, '');
+  }
+
+  // Also remove generic headers like *Tópico:* or *Assunto:* or *Categoria:*
+  res = res.replace(/[✨📌💡👉⚡]*\s*\*?(tópico|assunto|categoria)\*?\s*[:\-–—]?\s*/gi, '');
+
+  // 2. Remove robotic or unnatural phrases specifically pointed out by the user ("tenho uma noticia pra vc", "tenho uma novidade", etc.)
+  res = res
+    .replace(/\btenho uma not[íi]cia para? (voc[êe]|vc)\b/gi, 'passando para te avisar')
+    .replace(/\btenho uma not[íi]cia\b/gi, 'passando para te avisar')
+    .replace(/\btenho uma novidade para? (voc[êe]|vc)\b/gi, 'passando rápido por aqui')
+    .replace(/\btenho uma novidade\b/gi, 'passando por aqui')
+    .replace(/\brecado r[áa]pido para? (voc[êe]|vc)[:\s]*/gi, 'passando para te avisar: ')
+    .replace(/\bnot[íi]cia importante[:\s]*/gi, 'aviso importante: ')
+    .replace(/\bminha casa\b/gi, 'meu canal')
+    .replace(/\bnossa casa\b/gi, 'nosso suporte');
+
+  // 3. Ensure friendly icon/emoji is present
+  const hasEmoji = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u.test(res);
+  if (!hasEmoji) {
+    if (res.includes('!')) {
+      res = res.replace('!', '! 🚀');
+    } else {
+      res = `${res} 👍`;
+    }
+  }
+
+  // 4. Ensure "Corra e Ganhe" is strictly preserved
+  return ensureCorraEGanhePreserved(res, topicName);
+}
+
+export function ensureCorraEGanhePreserved(text: string, originalText?: string): string {
+  if (!text) return '';
+  let res = text;
+
+  // 1. Repair any corrupted forms created by synonym replacements or AI generation:
+  // e.g. "Corra e Garanta", "Corra e Receba", "Corra e Fature", "Corra e Conquiste", "Corra e Assegure", "Corra e Ganhar", "Corre e Garanta", etc.
+  res = res.replace(/(corra|corre)\s+e\s+(garanta|receba|fature|conquiste|assegure|ganhar|ganho)/gi, (match) => {
+    const isCorre = match.toLowerCase().startsWith('corre');
+    const isUpper = match[0] === match[0].toUpperCase();
+    if (isCorre) {
+      return isUpper ? 'Corre e Ganhe' : 'corre e ganhe';
+    }
+    return isUpper ? 'Corra e Ganhe' : 'corra e ganhe';
+  });
+
+  // 2. If originalText had "Corra e Ganhe" or "Corre e Ganhe", ensure it is preserved in the output
+  if (originalText && /(corra|corre)\s+e\s+ganhe/i.test(originalText)) {
+    const origMatch = originalText.match(/(corra|corre)\s+e\s+ganhe/i)?.[0] || 'Corra e Ganhe';
+    if (!/(corra|corre)\s+e\s+ganhe/i.test(res)) {
+      if (/(acelere|participe|campanha)\s+(para|e)\s+(ganhar|garantir|fature|receba|ganhe)/i.test(res)) {
+        res = res.replace(/(acelere|participe|campanha)\s+(para|e)\s+(ganhar|garantir|fature|receba|ganhe)/i, origMatch);
+      }
+    }
+  }
+
+  return res;
 }
 
 export function buildWhatsAppLink(
