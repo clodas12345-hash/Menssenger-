@@ -90,7 +90,7 @@ jobs:
       run: |
         cd android
         chmod +x gradlew
-        ./gradlew assembleDebug
+        ./gradlew assembleDebug --stacktrace
 
     - name: Verificar Fingerprint da Assinatura do APK
       continue-on-error: true
