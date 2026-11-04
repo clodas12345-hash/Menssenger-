@@ -91,14 +91,26 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
   
   const totalSent = useMemo(() => {
     if (!isAppReady) return 0;
+    if (contacts.length === 0 && logs.length === 0) return 0;
     const currentSent = logs.filter((l) => l.status === 'enviado').length;
-    const calculatedTotal = currentSent + (settings.historicalSentCount || 0);
-    return Math.max(settings.totalSentCount || 0, calculatedTotal);
-  }, [logs, settings.historicalSentCount, settings.totalSentCount, isAppReady]);
+    return currentSent + (settings.historicalSentCount || 0);
+  }, [logs, settings.historicalSentCount, contacts.length, isAppReady]);
 
   const exclusionStats = useMemo(() => {
+    if (contacts.length === 0 && logs.length === 0) {
+      return {
+        blocked: 0,
+        alreadyRan: 0,
+        noZap: 0,
+        lessThan30: 0,
+        moreThan30: 0,
+        totalEarnings: 0,
+        total: 0,
+        records: []
+      };
+    }
     return getExclusionCounters();
-  }, [logs]);
+  }, [logs, contacts.length]);
 
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 

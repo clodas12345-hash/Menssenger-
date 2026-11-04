@@ -31,7 +31,7 @@ import {
   Car
 } from 'lucide-react';
 import { DispatchLogItem, AppSettings, ScheduledCampaign, ProjectArchive, Contact, ExclusionCounters } from '../types';
-import { formatPhoneDisplay, cleanChipName, matchContact, normalizeSearchText, matchPhoneNumber } from '../utils/whatsapp';
+import { formatPhoneDisplay, cleanChipName, matchContact, normalizeSearchText, matchPhoneNumber, safeConfirm } from '../utils/whatsapp';
 import { downloadFileSafely } from '../utils/downloadHelper';
 import { getExclusionCounters, resetExclusionCounters, updateExclusionRecordType, deleteExclusionRecord } from '../utils/storage';
 
@@ -3897,7 +3897,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                         <button
                           type="button"
                           onClick={() => {
-                            if (window.confirm(`Deseja remover "${item.contactName || item.phone}" do relatório de baixas?`)) {
+                            if (safeConfirm(`Deseja remover "${item.contactName || item.phone}" do relatório de baixas?`)) {
                               const updated = deleteExclusionRecord(item.id);
                               setExclusionStats(updated);
                             }
@@ -3930,7 +3930,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm('Atenção: Os contadores de exclusão nunca zeram automaticamente. Deseja realmente zerar manualmente todos os contadores de baixas e exclusões agora?')) {
+                        if (safeConfirm('Atenção: Deseja realmente zerar manualmente todos os contadores de baixas e exclusões agora?')) {
                           resetExclusionCounters();
                           setExclusionStats(getExclusionCounters());
                         }

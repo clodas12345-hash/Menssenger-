@@ -16,7 +16,17 @@ const STORAGE_KEYS = {
   DELETED_TOPICS: 'zap_deleted_topics_v1',
   TEMPLATES_INITIALIZED: 'zap_templates_initialized_v2',
   EXCLUSION_COUNTERS: 'zap_exclusion_counters_v1',
+  CHIP_DISPATCH_RECORDS: 'zap_chip_dispatch_records_v1',
 };
+
+export interface ChipDispatchRecord {
+  id: string;
+  chipId: string;
+  chipName?: string;
+  sentAt: string;
+  contactId?: string;
+  phone?: string;
+}
 
 export const DEFAULT_GROUPS: ContactGroup[] = [
   { id: 'grp_agenda', name: 'Agenda de Contatos', color: 'bg-slate-500' },
@@ -1357,6 +1367,61 @@ export function saveDispatchLogs(logs: DispatchLogItem[]): void {
   }
   logsCache = cappedLogs;
   saveToStorage(STORAGE_KEYS.LOGS, cappedLogs);
+
+  // Automatically preserve all sent dispatches in persistent chip history
+  const sentItems = cappedLogs.filter(l => l.status === 'enviado' && l.sentAt);
+  if (sentItems.length > 0) {
+    recordChipDispatches(sentItems);
+  }
+}
+
+export function getChipDispatchRecords(): ChipDispatchRecord[] {
+  const loaded = loadFromStorage<ChipDispatchRecord[]>(STORAGE_KEYS.CHIP_DISPATCH_RECORDS, []);
+  const nowMs = Date.now();
+  const maxRetentionMs = 7 * 24 * 60 * 60 * 1000; // keep last 7 days of chip activity
+  const valid = (loaded || []).filter(r => {
+    if (!r || !r.sentAt) return false;
+    const t = new Date(r.sentAt).getTime();
+    return !isNaN(t) && (nowMs - t) <= maxRetentionMs;
+  });
+  return valid;
+}
+
+export function recordChipDispatches(
+  records: Array<{ chipId?: string; chipName?: string; sentAt?: string | null; contactId?: string; phone?: string; id?: string }>
+): void {
+  if (!records || records.length === 0) return;
+  const existing = getChipDispatchRecords();
+  const existingKeys = new Set(
+    existing.map(e => e.id || `${e.chipId}_${e.sentAt}_${e.phone || ''}`)
+  );
+  const newItems: ChipDispatchRecord[] = [];
+
+  for (const r of records) {
+    if (!r.sentAt) continue;
+    const cid = r.chipId || 'chip_1';
+    const key = r.id || `${cid}_${r.sentAt}_${r.phone || ''}`;
+    if (!existingKeys.has(key)) {
+      existingKeys.add(key);
+      newItems.push({
+        id: r.id || `chip_disp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        chipId: cid,
+        chipName: r.chipName,
+        sentAt: r.sentAt,
+        contactId: r.contactId,
+        phone: r.phone,
+      });
+    }
+  }
+
+  if (newItems.length > 0) {
+    const combined = [...newItems, ...existing].slice(0, 3000);
+    saveToStorage(STORAGE_KEYS.CHIP_DISPATCH_RECORDS, combined);
+  }
+}
+
+export function clearChipDispatchRecords(): void {
+  saveToStorage(STORAGE_KEYS.CHIP_DISPATCH_RECORDS, []);
 }
 
 export function getGroups(): ContactGroup[] {

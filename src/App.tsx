@@ -32,7 +32,9 @@ import {
   renameTopicPermanently,
   clearDeletedTemplatesAndTopics,
   getExclusionCounters,
-  recordExclusion
+  recordExclusion,
+  resetExclusionCounters,
+  clearChipDispatchRecords
 } from './utils/storage';
 import { playNotificationSound, playDispatchAlertSound } from './utils/audio';
 import { 
@@ -883,12 +885,13 @@ export default function App() {
 
     if (config.resetLogs) {
       updateLogsState([]);
+      resetExclusionCounters();
       updateSettingsState({
         ...settings,
         totalSentCount: 0,
         historicalSentCount: 0,
       });
-      handleResetAllChips();
+      // Contador 24h do chip preservado - só apaga no botão
     }
     if (config.resetCampaigns) {
       updateCampaignsState([]);
@@ -977,7 +980,7 @@ export default function App() {
     saveProjectArchives(updatedArchives);
 
     if (resetData) {
-      // 1. Zera todos os registros de disparos ativos
+      // 1. Zera todos os registros de disparos ativos do ciclo
       updateLogsState([]);
 
       // 2. Zera contatos da lista ativa (já foram arquivados com segurança na pasta)
@@ -995,10 +998,27 @@ export default function App() {
         historicalSentCount: 0,
       });
 
-      // 5. Zera contadores em tempo real dos chips
-      handleResetAllChips();
+      // 5. Zera contadores de baixas e exclusões para o novo projeto
+      resetExclusionCounters();
 
-      showToast(`📁 Projeto "${newArchive.name}" finalizado! Todos os dados arquivados e o painel foi zerado com sucesso para iniciar do zero.`);
+      // NOTA: O contador 24h dos chips de mensagens NUNCA é apagado aqui.
+      // Conforme regra, o contador 24h de mensagens só deve ser apagado no botão dedicado do chip.
+
+      // 6. Zera contadores individuais de contatos no localStorage
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('sentCount_')) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      } catch (e) {
+        console.warn('Could not clear sentCount keys:', e);
+      }
+
+      showToast(`📁 Projeto "${newArchive.name}" finalizado! Enviadas e baixas zeradas. O contador 24h dos chips foi mantido intacto.`);
     } else {
       showToast(`📁 Projeto "${newArchive.name}" salvo na pasta de histórico com sucesso!`);
     }
@@ -1006,13 +1026,21 @@ export default function App() {
 
   const handleStartNewProjectFromZero = () => {
     const totalSentCurrent = Math.max(settings.totalSentCount || 0, logs.filter(l => l.status === 'enviado').length);
-    if (safeConfirm(`🚨 ATENÇÃO: Deseja zerar os dados atuais (${contacts.length} contatos e ${totalSentCurrent} enviadas) para iniciar o novo ciclo de 15 dias do zero?\n\nOs dados atuais serão salvos automaticamente em uma pasta de histórico antes de zerar.`)) {
+    const exclusionTotal = getExclusionCounters().total;
+    if (safeConfirm(`🚨 ZERAR DADOS PARA NOVO PROJETO?\n\nIsso irá zerar:\n• ${totalSentCurrent} enviadas (zerar para 0)\n• ${exclusionTotal} baixas & exclusões (zerar para 0)\n• ${contacts.length} contatos ativos\n\nTodos os dados deste projeto finalizado serão arquivados com segurança no seu histórico.`)) {
       handleCreateProjectArchive(
-        `Projeto 15 Dias - Finalizado em ${new Date().toLocaleDateString('pt-BR')}`,
+        `Projeto Finalizado em ${new Date().toLocaleDateString('pt-BR')}`,
         new Date(Date.now() - 15 * 86400000).toISOString().slice(0, 10),
         new Date().toISOString().slice(0, 10),
         true
       );
+    }
+  };
+
+  const handleResetExclusionsOnly = () => {
+    if (safeConfirm('Deseja zerar os contadores de baixas e exclusões para o novo projeto?')) {
+      resetExclusionCounters();
+      showToast('✅ Contadores de baixas zerados com sucesso!');
     }
   };
 
@@ -2138,7 +2166,17 @@ export default function App() {
             settings={settings}
             projectArchives={projectArchives}
             contacts={contacts}
-            onClearLogs={() => updateLogsState([])}
+            onClearLogs={() => {
+              updateLogsState([]);
+              resetExclusionCounters();
+              updateSettingsState({
+                ...settings,
+                totalSentCount: 0,
+                historicalSentCount: 0,
+              });
+              // Contador 24h de chip preservado - só apaga no botão
+              showToast('Histórico e contadores zerados. O contador 24h dos chips foi preservado.');
+            }}
             onDeleteLog={handleDeleteLog}
             onUpdateLog={handleUpdateLog}
             onDeleteMultipleLogs={handleDeleteMultipleLogs}

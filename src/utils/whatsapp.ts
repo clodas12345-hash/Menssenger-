@@ -1,9 +1,9 @@
 import { Contact } from '../types';
 import { formatPhoneDisplay } from './vcfParser';
-import { getSettings, getDispatchLogs } from './storage';
+import { getSettings, getDispatchLogs, getChipDispatchRecords } from './storage';
 import { detectGenderFromName, adaptApproachForGender, extractCleanFirstName, extractCleanFullName, isGenericOrInvalidName } from './gender';
 
-export { formatPhoneDisplay, detectGenderFromName, adaptApproachForGender, extractCleanFirstName, extractCleanFullName, isGenericOrInvalidName };
+export { formatPhoneDisplay, detectGenderFromName, adaptApproachForGender, extractCleanFirstName, extractCleanFullName, isGenericOrInvalidName, getChipDispatchRecords };
 
 export function getTimeBasedGreeting(dateObj: Date = new Date()): string {
   const hour = dateObj.getHours();
@@ -30,6 +30,14 @@ export function getMessageCount(contactId: string, phone?: string): number {
           l.status === 'enviado' &&
           ((contactId && l.contactId === contactId) || (phone && l.phone === phone))
       ).length;
+    }
+    const chipRecords = getChipDispatchRecords();
+    if (chipRecords && chipRecords.length > 0) {
+      const chipRecordsCount = chipRecords.filter(
+        (r) =>
+          ((contactId && r.contactId === contactId) || (phone && r.phone === phone))
+      ).length;
+      logsSentCount = Math.max(logsSentCount, chipRecordsCount);
     }
   } catch {
     // ignore storage read error
@@ -405,30 +413,46 @@ export function calculateChipReleaseTimes(
   // Filter logs for this chip in the last 24 hours first, then map and sort only the relevant ones
   const cleanTargetName = (chipCleanName || '').toLowerCase();
   
-  // Optimization: Iterate backwards as logs are generally chronological
+  // Optimization: Collect timestamps with deduplication across general logs and persistent chip records
   const filteredTimestamps: number[] = [];
-  const limitPlusBuffer = 24 * 60 * 60 * 1000 + 3600000; // 24h + 1h buffer
+  const seenKeys = new Set<string>();
 
-  for (let i = logs.length - 1; i >= 0; i--) {
-    const l = logs[i];
-    if (l.status !== 'enviado' || !l.sentAt) continue;
-    
-    // Quick chip check before expensive date parsing
+  const processItem = (l: any) => {
+    if (!l || !l.sentAt) return;
+    if (l.status && l.status !== 'enviado') return;
+
     let isTargetChip = false;
     if (l.chipId === chipId) isTargetChip = true;
     else if (cleanTargetName && l.chipName && cleanChipName(l.chipName).toLowerCase() === cleanTargetName) isTargetChip = true;
     else if (!l.chipId && !l.chipName && (chipId === 'chip_1' || cleanTargetName.includes('business'))) isTargetChip = true;
-    
-    if (!isTargetChip) continue;
+
+    if (!isTargetChip) return;
 
     const timestamp = new Date(l.sentAt).getTime();
-    
-    if (timestamp < twentyFourHoursAgoMs) continue;
-    
-    // CRITICAL: Ignore logs sent before the last manual reset
-    if (timestamp < resetTimestampMs) continue;
-    
-    filteredTimestamps.push(timestamp);
+    if (isNaN(timestamp) || timestamp < twentyFourHoursAgoMs || timestamp < resetTimestampMs) return;
+
+    const key = l.id || `${l.chipId || chipId}_${l.sentAt}_${l.phone || ''}`;
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      filteredTimestamps.push(timestamp);
+    }
+  };
+
+  if (logs && Array.isArray(logs)) {
+    for (let i = logs.length - 1; i >= 0; i--) {
+      processItem(logs[i]);
+    }
+  }
+
+  try {
+    const chipRecords = getChipDispatchRecords();
+    if (chipRecords && Array.isArray(chipRecords)) {
+      for (let i = chipRecords.length - 1; i >= 0; i--) {
+        processItem(chipRecords[i]);
+      }
+    }
+  } catch {
+    // Ignore storage read error
   }
 
   // Sort by timestamp ascending (oldest first)
