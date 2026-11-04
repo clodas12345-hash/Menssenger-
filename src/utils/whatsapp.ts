@@ -209,7 +209,7 @@ export function replaceTemplateVariables(
       .replace(/\b(Olá|Oi|Fala)\s*,\s*([!?.])/gi, '$1$2')
       .replace(/\b(Olá|Oi|Fala)\s*,\s*/gi, '$1, ')
       .replace(/,\s*,/g, ',')
-      .replace(/\s{2,}/g, ' ')
+      .replace(/[ \t]{2,}/g, ' ')
       .replace(/\s+([!?,.])/g, '$1');
   }
 
@@ -230,14 +230,11 @@ export function cleanMessagePhrasing(content: string, topicName?: string): strin
   // Also remove generic headers like *Tópico:* or *Assunto:* or *Categoria:*
   res = res.replace(/[✨📌💡👉⚡]*\s*\*?(tópico|assunto|categoria)\*?\s*[:\-–—]?\s*/gi, '');
 
-  // 2. Remove robotic or unnatural phrases specifically pointed out by the user ("tenho uma noticia pra vc", "tenho uma novidade", etc.)
+  // 2. Remove robotic or unnatural phrases specifically pointed out by the user ("tenho uma noticia pra vc", etc.)
   res = res
     .replace(/\btenho uma not[íi]cia para? (voc[êe]|vc)\b/gi, 'passando para te avisar')
-    .replace(/\btenho uma not[íi]cia\b/gi, 'passando para te avisar')
     .replace(/\btenho uma novidade para? (voc[êe]|vc)\b/gi, 'passando rápido por aqui')
-    .replace(/\btenho uma novidade\b/gi, 'passando por aqui')
     .replace(/\brecado r[áa]pido para? (voc[êe]|vc)[:\s]*/gi, 'passando para te avisar: ')
-    .replace(/\bnot[íi]cia importante[:\s]*/gi, 'aviso importante: ')
     .replace(/\bminha casa\b/gi, 'meu canal')
     .replace(/\bnossa casa\b/gi, 'nosso suporte');
 

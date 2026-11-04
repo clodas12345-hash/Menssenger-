@@ -240,42 +240,6 @@ function generateFallbackTopicTemplates(
       tag: 'Foco no Resultado',
       content: `{saudacao}, {primeiro_nome}! 💰${introLine}\n\n${b(5)}\n\nAproveite para impulsionar seus ganhos! Conta comigo. ⚡`,
     },
-    {
-      tag: 'Lembrete Prático',
-      content: `Oi, {primeiro_nome}! 👋 {saudacao}!${introLine}\n\n${b(6)}\n\nPrecisando de orientação, é só me chamar! 📲`,
-    },
-    {
-      tag: 'Exclusiva VIP',
-      content: `{saudacao}, {primeiro_nome}! ✨${introLine}\n\n${b(7)}\n\nFico à disposição se quiser saber mais! 👍`,
-    },
-    {
-      tag: 'Curta e Sem Rodeios',
-      content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\nPassando para te avisar: ${b(8)}\n\nQualquer coisa, me chama! 💬`,
-    },
-    {
-      tag: 'Consultiva e Atenciosa',
-      content: `{saudacao}, {primeiro_nome}! Espero que seu dia esteja ótimo! ☀️${introLine}\n\n${b(9)}\n\nPode contar comigo no que precisar! 🤝`,
-    },
-    {
-      tag: 'Alerta de Oportunidade',
-      content: `{saudacao}, {primeiro_nome}! ⚡${introLine}\n\n${b(10)}\n\nQualquer dúvida estou online por aqui! 📲`,
-    },
-    {
-      tag: 'Conversa Natural',
-      content: `Oi, {primeiro_nome}, tudo bem? {saudacao}! 👋${introLine}\n\n${b(11)}\n\nDepois me conta se deu tudo certo! 👍`,
-    },
-    {
-      tag: 'Motivacional',
-      content: `{saudacao}, {primeiro_nome}! Excelente jornada hoje! 🏁${introLine}\n\n${b(12)}\n\nÓtimas corridas e pode contar comigo! 🚗`,
-    },
-    {
-      tag: 'Check-in Rápido',
-      content: `Olá, {primeiro_nome}! {saudacao}! 👉${introLine}\n\n${b(13)}\n\nEstou à disposição para te ajudar! 💡`,
-    },
-    {
-      tag: 'Fechamento de Meta',
-      content: `{saudacao}, {primeiro_nome}! Bora fechar a meta com chave de ouro? 🎯${introLine}\n\n${b(14)}\n\nSe precisar de apoio, fala comigo! 🤝`,
-    },
   ];
 
   const shuffled = [...diversePool].sort(() => Math.random() - 0.5);
@@ -283,12 +247,12 @@ function generateFallbackTopicTemplates(
     firstOption,
     ...shuffled.map((item, idx) => ({
       title: `${cleanTopic} - Opção ${idx + 2} (${item.tag})`,
-      content: item.content,
+      content: cleanServerMessagePhrasing(item.content, cleanTopic),
       category: cleanTopic,
     }))
   ];
 
-  return fullList.slice(0, Math.max(1, Math.min(quantity, fullList.length)));
+  return fullList.slice(0, Math.max(1, Math.min(15, quantity)));
 }
 
 // Fallback General Templates

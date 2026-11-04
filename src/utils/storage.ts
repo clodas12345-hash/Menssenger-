@@ -1096,6 +1096,16 @@ export function addDeletedTopic(topicName: string): void {
   saveToStorage(STORAGE_KEYS.DELETED_TOPICS, Array.from(current));
 }
 
+export function removeDeletedTopic(topicName: string): void {
+  if (!topicName || typeof topicName !== 'string' || !topicName.trim()) return;
+  const current = getDeletedTopics();
+  const lower = topicName.trim().toLowerCase();
+  if (current.has(lower)) {
+    current.delete(lower);
+    saveToStorage(STORAGE_KEYS.DELETED_TOPICS, Array.from(current));
+  }
+}
+
 export function clearDeletedTemplatesAndTopics(): void {
   localStorage.removeItem(STORAGE_KEYS.DELETED_TEMPLATE_IDS);
   localStorage.removeItem(STORAGE_KEYS.DELETED_TOPICS);
@@ -1150,8 +1160,6 @@ export function getTemplates(): MessageTemplate[] {
       }
     }
 
-    // Notice: We DO NOT overwrite user edits with initialById! User's custom edits to title/content/variations are respected!
-
     const isSystem = t.id.startsWith('tmpl_');
     const key = `${t.category || ''}::${t.title || ''}::${t.content.trim()}`.toLowerCase();
 
@@ -1188,6 +1196,22 @@ export function saveTemplates(templates: MessageTemplate[]): void {
   templatesCache = templates;
   saveToStorage(STORAGE_KEYS.TEMPLATES, templates);
   localStorage.setItem(STORAGE_KEYS.TEMPLATES_INITIALIZED, 'true');
+
+  // Unmark categories of currently saved templates from deletedTopics
+  const activeCategories = new Set(templates.map((t) => (t.category || '').trim().toLowerCase()).filter(Boolean));
+  if (activeCategories.size > 0) {
+    const deleted = getDeletedTopics();
+    let changed = false;
+    activeCategories.forEach((cat) => {
+      if (deleted.has(cat)) {
+        deleted.delete(cat);
+        changed = true;
+      }
+    });
+    if (changed) {
+      saveToStorage(STORAGE_KEYS.DELETED_TOPICS, Array.from(deleted));
+    }
+  }
 }
 
 export function deleteTemplatePermanently(id: string): MessageTemplate[] {

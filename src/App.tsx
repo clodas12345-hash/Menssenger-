@@ -29,6 +29,7 @@ import {
   DEFAULT_GROUPS,
   addDeletedTemplateIds,
   addDeletedTopic,
+  removeDeletedTopic,
   renameTopicPermanently,
   clearDeletedTemplatesAndTopics,
   getExclusionCounters,
@@ -1420,15 +1421,18 @@ export default function App() {
   };
 
   const handleSaveTopicWithTemplates = (topicName: string, generatedTemplates: Omit<MessageTemplate, 'id' | 'createdAt'>[]) => {
+    const catName = topicName.trim() || 'Tópico Estratégico';
+    removeDeletedTopic(catName);
     const newTemplates: MessageTemplate[] = generatedTemplates.map((gt, idx) => ({
       ...gt,
-      id: `ai_topic_${Date.now()}_${idx}`,
+      category: catName,
+      id: `ai_topic_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
       createdAt: new Date().toISOString(),
       vehicleType: 'carro'
     }));
 
     updateTemplatesState([...newTemplates, ...templates]);
-    showToast(`Tópico "${topicName}" criado com ${newTemplates.length} mensagens!`);
+    showToast(`✅ Tópico "${catName}" salvo com ${newTemplates.length} mensagem(ns)!`);
     navigateToTab('templates');
   };
 

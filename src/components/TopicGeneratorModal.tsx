@@ -164,20 +164,14 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     if (!text) return '';
     let processed = text.trim();
 
-    // 1. First, normalize common placeholders
-    // Name placeholders
+    // 1. Normalize explicit placeholder tokens (without touching regular words or names in sentences)
     const namePattern = /\{\{\s*(primeiro_nome|primeironome|nome|name|first_name|firstname)\s*\}\}|\{\s*(primeiro_nome|primeironome|nome|name|first_name|firstname)\s*\}|\[\s*(primeiro_nome|primeironome|primeiro\s+nome|nome|name|first_name|firstname|nome\s+do\s+contato|nome\s+do\s+motorista|contato|motorista)\s*\]|<\s*(primeiro_nome|primeironome|nome|name|first_name|firstname)\s*>|%\s*(primeiro_nome|primeironome|nome|name|first_name|firstname)\s*%/gi;
     processed = processed.replace(namePattern, '{primeiro_nome}');
 
-    // Greeting placeholders
     const greetingPattern = /\{\{\s*sauda[çc][ãa]o(?:_horario)?\s*\}\}|\{\s*sauda[çc][ãa]o(?:_horario)?\s*\}|\[\s*sauda[çc][ãa]o(?:\s+do\s+hor[áa]rio)?\s*\]|<\s*sauda[çc][ãa]o(?:_horario)?\s*>|%\s*sauda[çc][ãa]o(?:_horario)?\s*%/gi;
     processed = processed.replace(greetingPattern, '{saudacao}');
 
-    // 2. If the AI generated literal sample names or greetings at the start, normalize them
-    processed = processed.replace(/\b(Olá|Oi|Bom dia|Boa tarde|Boa noite)[,!\s]+(Fulano|Maria|João|Cláudio|Motorista|Parceiro|Amigo)\b/gi, '{saudacao}, {primeiro_nome}');
-    processed = processed.replace(/^(Bom dia|Boa tarde|Boa noite)\b/i, '{saudacao}');
-
-    // 3. Enforce 1st person singular (never plural "nosso time", "nossa equipe", "estamos", "conosco")
+    // 2. Enforce 1st person singular (never plural "nosso time", "nossa equipe", "estamos", "conosco")
     processed = processed
       .replace(/\bConte com (o )?nosso time\b/gi, 'Pode contar comigo')
       .replace(/\bconte com (o )?nosso time\b/gi, 'pode contar comigo')
@@ -192,27 +186,25 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
       .replace(/\bseparamos para você\b/gi, 'está disponível para você')
       .replace(/\bviagens realizadas\s+(nas?\s+próximas?)/gi, 'corridas $1');
 
-    // 4. Prevent duplicate placeholders
+    // 3. Prevent duplicate consecutive placeholders
     processed = processed.replace(/\{saudacao\}[,!\s]*\{saudacao\}/gi, '{saudacao}');
     processed = processed.replace(/\{primeiro_nome\}[,!\s]*\{primeiro_nome\}/gi, '{primeiro_nome}');
 
-    // 5. Ensure greeting and {primeiro_nome} are always at the beginning (never only at the bottom)
+    // 4. Ensure greeting and {primeiro_nome} are at the start of the template
     const firstLine = processed.split('\n')[0] || '';
     const hasGreetingInFirstLine = /\{saudacao\}|\b(olá|oi|fala)\b/i.test(firstLine);
     const hasNameInFirstLine = firstLine.includes('{primeiro_nome}');
 
     if (!hasGreetingInFirstLine && !hasNameInFirstLine) {
-      // Remove trailing "{saudacao}, {primeiro_nome}!" if it was placed at the bottom
       processed = processed.replace(/\n+\s*\{saudacao\}[,!\s]*\{primeiro_nome\}[,!\s]*/gi, '\n\n');
       processed = `{saudacao}, {primeiro_nome}!\n\n${processed.trim()}`;
     } else if (!hasNameInFirstLine) {
-      processed = processed.replace(/\{primeiro_nome\}/g, '').trim();
       if (processed.startsWith('{saudacao}')) {
         processed = processed.replace(/^\{saudacao\}[,!\s]*/, '{saudacao}, {primeiro_nome}! ');
       } else {
-        processed = `{saudacao}, {primeiro_nome}! ${processed}`;
+        processed = `{saudacao}, {primeiro_nome}!\n\n${processed.trim()}`;
       }
-    } else if (! processed.includes('{saudacao}')) {
+    } else if (!processed.includes('{saudacao}')) {
       processed = `{saudacao}, ${processed}`;
     }
 
@@ -301,7 +293,13 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
   const handleSaveAll = () => {
     if (generatedResults.length === 0) return;
-    onSaveTopic(topicName, generatedResults);
+    const catName = topicName.trim() || 'Tópico Estratégico';
+    const formatted = generatedResults.map((item, idx) => ({
+      ...item,
+      title: item.title || `${catName} - Opção ${idx + 1}`,
+      category: catName,
+    }));
+    onSaveTopic(catName, formatted);
     handleReset();
     onClose();
   };
@@ -309,7 +307,13 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
   const handleSaveSelected = () => {
     const chosen = generatedResults.filter((_, idx) => selectedIndices.includes(idx));
     if (chosen.length === 0) return;
-    onSaveTopic(topicName, chosen);
+    const catName = topicName.trim() || 'Tópico Estratégico';
+    const formatted = chosen.map((item, idx) => ({
+      ...item,
+      title: item.title || `${catName} - Opção ${idx + 1}`,
+      category: catName,
+    }));
+    onSaveTopic(catName, formatted);
     handleReset();
     onClose();
   };
