@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sparkles, X, Loader2, MessageSquare, Megaphone, User, Hash, Plus, Trash2, Bot, Check, CheckSquare } from 'lucide-react';
 import { MessageTemplate } from '../types';
-import { ensureCorraEGanhePreserved, cleanMessagePhrasing } from '../utils/whatsapp';
+import { ensureCorraEGanhePreserved, cleanMessagePhrasing, ensureUserHookPreserved } from '../utils/whatsapp';
 
 interface TopicGeneratorModalProps {
   isOpen: boolean;
@@ -216,7 +216,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
       .replace(/,\s*!/g, '!')
       .replace(/;\s*;/g, ';');
 
-    return cleanMessagePhrasing(processed.trim(), _originalHook);
+    return cleanMessagePhrasing(processed.trim(), topicName);
   };
 
   const handleGenerate = async () => {
@@ -247,10 +247,12 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
       }
       if (data.templates && Array.isArray(data.templates) && data.templates.length > 0) {
         let adjustedTemplates = data.templates.map((t: any, i: number) => {
+          const rawContent = t.content || '';
+          const preserved = ensureUserHookPreserved(rawContent, cleanHook);
           return {
             ...t,
             title: t.title || `${cleanTopic} - Opção ${i + 1}`,
-            content: cleanMessagePhrasing(normalizePlaceholders(t.content || '', cleanHook), cleanTopic),
+            content: cleanMessagePhrasing(normalizePlaceholders(preserved, cleanHook), cleanTopic),
             category: cleanTopic,
           };
         });
@@ -270,7 +272,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
       console.warn('Usando gerador inteligente local:', err);
       const localFallback = generateLocalVariations(cleanTopic, cleanHook, presentation, quantity).map(t => ({
         ...t,
-        content: cleanMessagePhrasing(normalizePlaceholders(t.content, cleanHook), cleanTopic)
+        content: ensureUserHookPreserved(cleanMessagePhrasing(normalizePlaceholders(t.content, cleanHook), cleanTopic), cleanHook)
       }));
       setGeneratedResults(localFallback);
       setSelectedIndices(localFallback.map((_, i) => i));

@@ -120,15 +120,15 @@ function cleanServerMessagePhrasing(content: string, topicName?: string): string
   if (!content) return '';
   let res = content.trim();
 
-  // 1. Strip out topic name or topic headers if injected into the message body
-  if (topicName && topicName.trim()) {
+  // 1. Strip out explicit topic header at start of line if present (e.g. "*CG 05/00:* ")
+  if (topicName && topicName.trim() && topicName.trim().length <= 60) {
     const escapedTopic = topicName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const topicPrefixRegex = new RegExp(`[✨📌💡👉⚡]*\\s*\\*?${escapedTopic}\\*?\\s*[:\\-–—]?\\s*`, 'gi');
+    const topicPrefixRegex = new RegExp(`^[✨📌💡👉⚡]*\\s*\\*?${escapedTopic}\\*?\\s*[:\\-–—]\\s*`, 'gi');
     res = res.replace(topicPrefixRegex, '');
   }
 
-  // Also remove generic headers like *Tópico:* or *Assunto:* or *Categoria:*
-  res = res.replace(/[✨📌💡👉⚡]*\s*\*?(tópico|assunto|categoria)\*?\s*[:\-–—]?\s*/gi, '');
+  // Also remove generic headers like *Tópico:* or *Assunto:* or *Categoria:* at start of line
+  res = res.replace(/^[✨📌💡👉⚡]*\s*\*?(tópico|assunto|categoria)\*?\s*[:\-–—]\s*/gi, '');
 
   // 2. Remove robotic or unnatural phrases ("tenho uma noticia pra vc", "tenho uma novidade", etc.)
   res = res
@@ -512,26 +512,25 @@ app.post("/api/ai/generate-topic-templates", async (req, res) => {
   const { topicName, hook, presentation, quantity = 5 } = req.body;
   try {
     const prompt = `Você é um consultor e redator profissional de comunicação estratégica para WhatsApp.
-O usuário informou o tópico da campanha e uma mensagem/frase de impacto. Sua tarefa é gerar EXATAMENTE ${quantity} opções de mensagens prontas para envio.
+O usuário informou o tópico da campanha e o TEXTO COMPLETO DA MENSAGEM DO USUÁRIO. Sua tarefa é gerar EXATAMENTE ${quantity} opções de mensagens prontas para envio.
 
 CONTEXTO:
 - Tópico / Campanha: "${topicName}"
-- Texto Original do Usuário: "${hook}"
+- TEXTO COMPLETO DO USUÁRIO: "${hook}"
 - Apresentação do Remetente: "${presentation || 'Não informada'}"
 
 DIRETRIZES RIGOROSAS:
 1. GERE EXATAMENTE ${quantity} OPÇÕES DE MENSAGENS!
-2. ESTRUTURA OBRIGATÓRIA DE CADA MENSAGEM:
-   - Início: SEMPRE comece com a saudação e o nome ({saudacao}, {primeiro_nome}!). NUNCA coloque a saudação no final da mensagem!
-   - Meio: Se houver apresentação do remetente, coloque-a logo após a saudação inicial, seguida da mensagem/frase de impacto conectada ao tópico "${topicName}".
-   - Final: Encerre colocando-se à disposição no SINGULAR.
-3. TRABALHO INDIVIDUAL (1ª PESSOA DO SINGULAR):
-   - O remetente trabalha SOZINHO. Use SEMPRE o singular ("eu", "conta comigo", "me chama", "estou à disposição", "vou te ajudar").
-   - É PROIBIDO usar plural como "nosso time", "nossa equipe", "estamos", "conosco", "separamos".
-4. REGRA ABSOLUTA DA EXPRESSÃO "Corra e Ganhe" / "Corre e Ganhe":
-   - A palavra/nome de campanha "Corra e Ganhe" (ou "Corre e Ganhe") JAMAIS PODE SER SUBSTITUÍDA OU ALTERADA por nenhum sinônimo! NUNCA use "Corra e Garanta", "Corra e Receba", "Acelere e Ganhe", "Corra e Fature", etc. Mantenha EXATAMENTE a expressão "Corra e Ganhe" (ou "Corre e Ganhe") em 100% das opções!
-5. FIDELIDADE E COERÊNCIA:
-   - Mantenha 100% a fidelidade aos fatos, valores, datas e tempos verbais que o usuário escreveu.
+2. PROIBIDO RESUMIR OU CORTAR O TEXTO DO USUÁRIO! CADA UMA das opções geradas DEVE MANTER O TEXTO COMPLETO DO USUÁRIO ("${hook}"), preservando todas as frases, detalhes e quebras de linha.
+3. ESTRUTURA OBRIGATÓRIA DE CADA MENSAGEM:
+   - Início: {saudacao}, {primeiro_nome}!
+   - Meio: O TEXTO COMPLETO DO USUÁRIO na íntegra.
+   - Final: Encerramento amigável no singular (ex: "Se precisar de suporte com isso, conta comigo! 👍").
+4. TRABALHO INDIVIDUAL (1ª PESSOA DO SINGULAR):
+   - O remetente trabalha SOZINHO. Use SEMPRE o singular ("eu", "conta comigo", "me chama", "estou à disposição").
+   - É PROIBIDO usar plural ("nosso time", "nossa equipe", "estamos", "conosco").
+5. REGRA ABSOLUTA DA EXPRESSÃO "Corra e Ganhe" / "Corre e Ganhe":
+   - Mantenha EXATAMENTE a expressão "Corra e Ganhe" (ou "Corre e Ganhe") em 100% das opções!
 
 Responda EXCLUSIVAMENTE no formato JSON:
 {

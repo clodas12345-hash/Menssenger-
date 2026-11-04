@@ -220,15 +220,15 @@ export function cleanMessagePhrasing(content: string, topicName?: string): strin
   if (!content) return '';
   let res = content.trim();
 
-  // 1. Strip out topic name or topic headers if injected into the message body
-  if (topicName && topicName.trim()) {
+  // 1. Strip out explicit topic prefix header at start of line if present (e.g. "*CG 05/00:* ")
+  if (topicName && topicName.trim() && topicName.trim().length <= 60) {
     const escapedTopic = topicName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const topicPrefixRegex = new RegExp(`[✨📌💡👉⚡]*\\s*\\*?${escapedTopic}\\*?\\s*[:\\-–—]?\\s*`, 'gi');
+    const topicPrefixRegex = new RegExp(`^[✨📌💡👉⚡]*\\s*\\*?${escapedTopic}\\*?\\s*[:\\-–—]\\s*`, 'gi');
     res = res.replace(topicPrefixRegex, '');
   }
 
-  // Also remove generic headers like *Tópico:* or *Assunto:* or *Categoria:*
-  res = res.replace(/[✨📌💡👉⚡]*\s*\*?(tópico|assunto|categoria)\*?\s*[:\-–—]?\s*/gi, '');
+  // Also remove generic headers like *Tópico:* or *Assunto:* or *Categoria:* at start of line
+  res = res.replace(/^[✨📌💡👉⚡]*\s*\*?(tópico|assunto|categoria)\*?\s*[:\-–—]\s*/gi, '');
 
   // 2. Remove robotic or unnatural phrases specifically pointed out by the user ("tenho uma noticia pra vc", etc.)
   res = res
@@ -250,6 +250,36 @@ export function cleanMessagePhrasing(content: string, topicName?: string): strin
 
   // 4. Ensure "Corra e Ganhe" is strictly preserved
   return ensureCorraEGanhePreserved(res, topicName);
+}
+
+export function ensureUserHookPreserved(content: string, hook: string): string {
+  if (!hook || !hook.trim() || !content) return content;
+  const cleanHookText = hook.trim();
+  
+  const hookWords = cleanHookText
+    .toLowerCase()
+    .replace(/[^a-záàâãéèêíïóôõöúçñ0-9\s]/gi, '')
+    .split(/\s+/)
+    .filter((w) => w.length > 3);
+  
+  if (hookWords.length === 0) return content;
+
+  const contentLower = content.toLowerCase();
+  const matchedWords = hookWords.filter((w) => contentLower.includes(w));
+  const matchRatio = matchedWords.length / hookWords.length;
+
+  if (matchRatio < 0.5) {
+    const greetingMatch = content.match(/^(\{saudacao\}|\{primeiro_nome\}|olá|oi|bom dia|boa tarde|boa noite)[^!\n]*[!\n]*/i);
+    const greeting = greetingMatch ? greetingMatch[0].trim() : '{saudacao}, {primeiro_nome}!';
+    
+    const lines = content.trim().split('\n').filter(Boolean);
+    const lastLine = lines.length > 1 ? lines[lines.length - 1] : 'Se precisar de suporte com isso, conta comigo! 👍';
+    const signOff = /suporte|dúvida|chama|alô|disposição|conta comigo/i.test(lastLine) ? lastLine : 'Se precisar de suporte com isso, conta comigo! 👍';
+
+    return `${greeting}\n\n${cleanHookText}\n\n${signOff}`;
+  }
+
+  return content;
 }
 
 export function ensureCorraEGanhePreserved(text: string, originalText?: string): string {
