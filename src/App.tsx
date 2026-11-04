@@ -671,38 +671,55 @@ export default function App() {
 
   const updateLogsState = (newLogs: DispatchLogItem[]) => {
     // PERFORMANCE OPTIMIZATION: Prune logs if they exceed 1200 items
-    // This prevents local storage overflow and keeps calculations (like the 24h counter) extremely fast
+    // Accurately transfers pruned sent messages to historicalSentCount without any loss or double counting
     if (newLogs.length > 1200) {
       const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
       
-      // Keep everything from the last 24h (critical for the counter)
+      // Preserve all logs from the last 24h (critical for real-time chip rate limits)
       const recentLogs = newLogs.filter(l => l.sentAt && new Date(l.sentAt).getTime() >= twentyFourHoursAgo);
       const olderLogs = newLogs.filter(l => !l.sentAt || new Date(l.sentAt).getTime() < twentyFourHoursAgo);
       
-      // Limit older logs to 300 items to preserve some recent history
-      const keptOlder = olderLogs.slice(-300);
-      const prunedOlder = olderLogs.slice(0, -300);
+      // Keep up to 300 older logs for historical context
+      const maxOlderToKeep = 300;
+      const olderCount = olderLogs.length;
+      const splitIndex = Math.max(0, olderCount - maxOlderToKeep);
       
-      // Save pruned "enviado" count to historicalSentCount so the dashboard doesn't lose data
+      const keptOlder = olderLogs.slice(splitIndex);
+      const prunedOlder = olderLogs.slice(0, splitIndex);
+      
+      // Calculate sent dispatches in pruned logs to add to historicalSentCount
       const prunedSentCount = prunedOlder.filter(l => l.status === 'enviado').length;
       const prunedLogs = [...keptOlder, ...recentLogs];
       const keptSentCount = prunedLogs.filter(l => l.status === 'enviado').length;
+      
       const newHist = (settings.historicalSentCount || 0) + prunedSentCount;
-      const newTotal = Math.max(settings.totalSentCount || 0, newHist + keptSentCount);
+      const newTotal = newHist + keptSentCount;
 
-      if (prunedSentCount > 0 || settings.totalSentCount !== newTotal) {
-        const updatedSettings = {
-          ...settings,
-          historicalSentCount: newHist,
-          totalSentCount: newTotal,
-        };
-        setSettings(updatedSettings);
-        saveSettings(updatedSettings);
-      }
+      const updatedSettings = {
+        ...settings,
+        historicalSentCount: newHist,
+        totalSentCount: newTotal,
+      };
+
+      setSettings(updatedSettings);
+      saveSettings(updatedSettings);
       
       setLogs(prunedLogs);
       saveDispatchLogs(prunedLogs);
       return;
+    }
+
+    // Keep totalSentCount strictly in sync with historicalSentCount + active sent dispatches count
+    const activeSentCount = newLogs.filter(l => l.status === 'enviado').length;
+    const expectedTotal = (settings.historicalSentCount || 0) + activeSentCount;
+
+    if (settings.totalSentCount !== expectedTotal) {
+      const updatedSettings = {
+        ...settings,
+        totalSentCount: expectedTotal,
+      };
+      setSettings(updatedSettings);
+      saveSettings(updatedSettings);
     }
 
     setLogs(newLogs);

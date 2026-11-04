@@ -1360,8 +1360,8 @@ export function saveCampaigns(campaigns: ScheduledCampaign[]): void {
 export function getDispatchLogs(): DispatchLogItem[] {
   if (logsCache) return logsCache;
   const loaded = loadFromStorage<DispatchLogItem[]>(STORAGE_KEYS.LOGS, []);
-  if (Array.isArray(loaded) && loaded.length > 1000) {
-    logsCache = loaded.slice(0, 1000);
+  if (Array.isArray(loaded) && loaded.length > 1200) {
+    logsCache = loaded.slice(0, 1200);
     saveToStorage(STORAGE_KEYS.LOGS, logsCache);
   } else {
     logsCache = loaded || [];
@@ -1370,18 +1370,19 @@ export function getDispatchLogs(): DispatchLogItem[] {
 }
 
 export function saveDispatchLogs(logs: DispatchLogItem[]): void {
-  // Cap logs to 1000 most recent items to avoid localStorage quota errors & freeze
+  // Cap logs to 1200 most recent items to avoid storage quota errors
   let cappedLogs = logs;
-  if (logs.length > 1000) {
-    const keptLogs = logs.slice(0, 1000);
-    const discardedLogs = logs.slice(1000);
-    const discardedSent = discardedLogs.filter(l => l.status === 'enviado').length;
+  if (logs.length > 1200) {
+    const splitIndex = logs.length - 1200;
+    const keptLogs = logs.slice(splitIndex);
+    const discardedLogs = logs.slice(0, splitIndex);
+    const discardedSent = discardedLogs.filter((l) => l.status === 'enviado').length;
     if (discardedSent > 0) {
       try {
         const curSettings = getSettings();
         const newHist = (curSettings.historicalSentCount || 0) + discardedSent;
-        const currentKeptSent = keptLogs.filter(l => l.status === 'enviado').length;
-        const newTotal = Math.max(curSettings.totalSentCount || 0, newHist + currentKeptSent);
+        const currentKeptSent = keptLogs.filter((l) => l.status === 'enviado').length;
+        const newTotal = newHist + currentKeptSent;
         saveSettings({ ...curSettings, historicalSentCount: newHist, totalSentCount: newTotal });
       } catch (err) {
         console.error('Failed to update settings in saveDispatchLogs:', err);
