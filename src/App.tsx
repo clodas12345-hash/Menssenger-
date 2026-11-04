@@ -98,6 +98,12 @@ export default function App() {
     try {
       testFirestoreConnection().catch(() => {});
       requestPersistentStorage().catch(() => {});
+      ensureNotificationChannel().catch(() => {});
+      initializePushNotifications().catch(() => {});
+      registerNotificationListeners((campaignId: string) => {
+        // Handle notification click if needed
+        console.log('Opened campaign from notification:', campaignId);
+      });
       getNotificationPermissionStatus().then(status => {
         setPermissionStatus(status === 'granted' ? 'granted' : status === 'denied' ? 'denied' : 'checking');
         if (status === 'prompt') {
