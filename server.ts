@@ -522,14 +522,17 @@ CONTEXTO:
 DIRETRIZES RIGOROSAS:
 1. GERE EXATAMENTE ${quantity} OPÇÕES DE MENSAGENS!
 2. PROIBIDO RESUMIR OU CORTAR O TEXTO DO USUÁRIO! CADA UMA das opções geradas DEVE MANTER O TEXTO COMPLETO DO USUÁRIO ("${hook}"), preservando todas as frases, detalhes e quebras de linha.
-3. ESTRUTURA OBRIGATÓRIA DE CADA MENSAGEM:
+3. PERSONALIZAÇÃO E RIQUEZA (TONALIDADE ROBUSTA):
+   - Adicione variações ricas de vocabulário, tornando as mensagens mais profissionais, persuasivas e envolventes.
+   - Use emojis relevantes no início, meio e fim das frases para tornar a leitura dinâmica e visual, garantindo que os emojis sejam específicos ao contexto da frase (ex: 🚀 para velocidade/sucesso, 🚗/🚕 para transporte, 💰/💳 para financeiro, ⚡/⚡ para atenção).
+4. ESTRUTURA OBRIGATÓRIA DE CADA MENSAGEM:
    - Início: {saudacao}, {primeiro_nome}!
    - Meio: O TEXTO COMPLETO DO USUÁRIO na íntegra.
    - Final: Encerramento amigável no singular (ex: "Se precisar de suporte com isso, conta comigo! 👍").
-4. TRABALHO INDIVIDUAL (1ª PESSOA DO SINGULAR):
+5. TRABALHO INDIVIDUAL (1ª PESSOA DO SINGULAR):
    - O remetente trabalha SOZINHO. Use SEMPRE o singular ("eu", "conta comigo", "me chama", "estou à disposição").
    - É PROIBIDO usar plural ("nosso time", "nossa equipe", "estamos", "conosco").
-5. REGRA ABSOLUTA DA EXPRESSÃO "Corra e Ganhe" / "Corre e Ganhe":
+6. REGRA ABSOLUTA DA EXPRESSÃO "Corra e Ganhe" / "Corre e Ganhe":
    - Mantenha EXATAMENTE a expressão "Corra e Ganhe" (ou "Corre e Ganhe") em 100% das opções!
 
 Responda EXCLUSIVAMENTE no formato JSON:
