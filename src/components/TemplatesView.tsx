@@ -285,12 +285,12 @@ const TemplateCard: React.FC<TemplateCardProps> = React.memo(({
             <button
               type="button"
               onClick={() => setIsDeleting(true)}
-              className="px-3.5 py-2 min-h-[40px] bg-red-500/15 hover:bg-red-600 text-red-400 hover:text-white rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center space-x-2 border border-red-500/40 shadow-sm cursor-pointer active:scale-95"
+              className="px-2 py-2 min-h-[40px] bg-red-500/15 hover:bg-red-600 text-red-400 hover:text-white rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center space-x-1 border border-red-500/40 shadow-sm cursor-pointer active:scale-95"
               title="Excluir mensagem"
               aria-label="Excluir mensagem"
             >
-              <Trash2 className="w-4 h-4" />
-              <span className="font-bold">Excluir</span>
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Excluir</span>
             </button>
           )}
         </div>

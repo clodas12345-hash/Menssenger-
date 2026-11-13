@@ -576,6 +576,7 @@ export default function App() {
   const navigateToTab = useCallback((tab: string) => {
     setActiveTab(tab);
     activeTabRef.current = tab;
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
   // Lógica unificada do botão voltar sem loops de recarga
@@ -1270,11 +1271,11 @@ export default function App() {
     });
   }, []);
 
-  const handleDeleteContact = React.useCallback((id: string) => {
+  const handleDeleteContact = React.useCallback((id: string, skipRecordExclusion: boolean = false) => {
     setContacts((prev) => {
       const targetId = String(id).trim();
       const target = prev.find((c) => String(c.id).trim() === targetId);
-      if (target) {
+      if (target && !skipRecordExclusion) {
         recordExclusion(target, 'deleted');
       }
       const updated = prev.filter((c) => String(c.id).trim() !== targetId);

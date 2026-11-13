@@ -26,7 +26,7 @@ import {
 import { replaceTemplateVariables, buildWhatsAppLink, openWhatsAppLink, safeConfirm, cleanChipName, incrementMessageCount } from '../utils/whatsapp';
 import { playSuccessChime } from '../utils/audio';
 import { toDatetimeLocal, getNextDayFirstSlotIfPast19 } from '../utils/dateParser';
-import { getTodayDateString } from '../utils/storage';
+import { getTodayDateString, recordExclusion } from '../utils/storage';
 import { copyImageDataUrlToClipboard, shareImageFile, downloadImageFile, isWebShareFileSupported } from '../utils/imageSharing';
 import { RealTimeCounter } from './RealTimeCounter';
 import { sendAppNotification } from '../utils/permissions';
@@ -476,8 +476,12 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
       onUpdateCampaignProgress(campaign.id, 0, 0, logItem, 1);
     }
 
+    if (actionName === 'Me bloqueou') {
+      recordExclusion(contactToUse, 'blocked');
+    }
+
     if (deleteContact && onDeleteContact) {
-      onDeleteContact(contactToUse.id);
+      onDeleteContact(contactToUse.id, actionName === 'Me bloqueou');
     }
 
     setPendingConfirmState(null);
@@ -622,6 +626,13 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
                       className="w-full text-left px-3.5 py-2.5 text-xs font-extrabold text-red-400 hover:bg-red-950/40 rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
                     >
                       <XCircle className="w-4 h-4 text-red-500" /> Sem Carro (Excluir)
+                    </button>
+
+                    <button
+                      onClick={() => handleSkipWithCustomAction('Me bloqueou', true)}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-extrabold text-red-400 hover:bg-red-950/40 rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
+                    >
+                      <XCircle className="w-4 h-4 text-red-500" /> Me bloqueou (Excluir)
                     </button>
 
                     <button

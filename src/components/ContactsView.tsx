@@ -107,6 +107,11 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
   onNavigateToNewCampaign,
   onScheduleCampaign,
 }) => {
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
   // Filters and search states
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
