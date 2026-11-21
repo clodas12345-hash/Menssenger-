@@ -28,7 +28,8 @@ import {
 } from 'lucide-react';
 import { loadFromStorage, saveToStorage, getContacts, getSettings } from '../utils/storage';
 import { Contact } from '../types';
-import { buildWhatsAppLink, openWhatsAppLink, safeConfirm } from '../utils/whatsapp';
+import { buildWhatsAppLink, openWhatsAppLink } from '../utils/whatsapp';
+import { showAlert, showConfirm } from '../utils/dialog';
 import { copyImageDataUrlToClipboard, shareImageFile, formatCardWhatsAppMessage } from '../utils/imageSharing';
 
 export interface CardItem {
@@ -230,7 +231,7 @@ export const CardsView: React.FC<CardsViewProps> = React.memo(({ onNavigate }) =
 
   const handleAddByUrl = () => {
     if (!imageUrlInput.trim()) {
-      alert('Por favor, informe o link/URL da imagem.');
+      void showAlert('Por favor, informe o link/URL da imagem.');
       return;
     }
 
@@ -326,7 +327,7 @@ export const CardsView: React.FC<CardsViewProps> = React.memo(({ onNavigate }) =
         setSaveStatusMsg(`🔗 Link da imagem copiado!`);
         setTimeout(() => setSaveStatusMsg(null), 3000);
       } catch (e) {
-        alert('Não foi possível copiar a imagem.');
+        void showAlert('Não foi possível copiar a imagem.');
       }
     }
   };
@@ -362,7 +363,7 @@ export const CardsView: React.FC<CardsViewProps> = React.memo(({ onNavigate }) =
       setSaveStatusMsg(`✅ Texto e Foto do card copiados! Pressione Ctrl+V no WhatsApp para colar.`);
       setTimeout(() => setSaveStatusMsg(null), 5000);
     } catch (e) {
-      alert('Erro ao copiar dados dos cards.');
+      void showAlert('Erro ao copiar dados dos cards.');
     }
   };
 
@@ -411,12 +412,12 @@ export const CardsView: React.FC<CardsViewProps> = React.memo(({ onNavigate }) =
     const isTodayMonday = new Date().getDay() === 1;
 
     if (isMe) {
-      alert('⚠️ Envio bloqueado: Não é permitido enviar mensagens para si mesmo.');
+      await showAlert('⚠️ Envio bloqueado: Não é permitido enviar mensagens para si mesmo.');
       return;
     }
 
     if (isMondayMsg && !isTodayMonday) {
-      alert('⚠️ Envio bloqueado: Esta é uma mensagem de segunda-feira, mas hoje não é segunda-feira.');
+      await showAlert('⚠️ Envio bloqueado: Esta é uma mensagem de segunda-feira, mas hoje não é segunda-feira.');
       return;
     }
 
@@ -1017,8 +1018,8 @@ export const CardsView: React.FC<CardsViewProps> = React.memo(({ onNavigate }) =
             <div className="flex justify-end space-x-3 pt-3 border-t border-[#1F2229]">
               <button
                 type="button"
-                onClick={() => {
-                  if (safeConfirm('Deseja realmente cancelar?')) {
+                onClick={async () => {
+                  if (await showConfirm('Deseja realmente cancelar?', { title: 'Cancelar Edição', variant: 'warning', confirmText: 'Sim, Cancelar' })) {
                     setEditingCard(null);
                   }
                 }}
@@ -1101,8 +1102,8 @@ export const CardsView: React.FC<CardsViewProps> = React.memo(({ onNavigate }) =
             <div className="flex justify-end space-x-3 pt-3 border-t border-[#1F2229]">
               <button
                 type="button"
-                onClick={() => {
-                  if (safeConfirm('Deseja realmente cancelar?')) {
+                onClick={async () => {
+                  if (await showConfirm('Deseja realmente cancelar?', { title: 'Cancelar Envio', variant: 'warning', confirmText: 'Sim, Cancelar' })) {
                     setIsContactSendModalOpen(false);
                   }
                 }}

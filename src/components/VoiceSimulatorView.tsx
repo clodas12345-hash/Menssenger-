@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { MessageTemplate, Contact } from '../types';
 import { replaceTemplateVariables, getTimeBasedGreeting, buildWhatsAppLink } from '../utils/whatsapp';
+import { showAlert, showConfirm } from '../utils/dialog';
 
 interface VoiceSimulatorViewProps {
   templates: MessageTemplate[];
@@ -96,7 +97,7 @@ export const VoiceSimulatorView: React.FC<VoiceSimulatorViewProps> = React.memo(
 
   const handleSendAudioToWhatsApp = async (phrase: RecordedVoicePhrase) => {
     if (!targetContact.phone) {
-      alert('Selecione ou insira um contato com número de telefone para enviar.');
+      await showAlert('Selecione ou insira um contato com número de telefone para enviar.');
       return;
     }
 
@@ -319,7 +320,7 @@ export const VoiceSimulatorView: React.FC<VoiceSimulatorViewProps> = React.memo(
       startAudioAnalyzer(stream);
     } catch (err) {
       console.error('Erro ao acessar microfone:', err);
-      alert('Permissão de microfone negada ou indisponível. Verifique as configurações do navegador.');
+      void showAlert('Permissão de microfone negada ou indisponível. Verifique as configurações do navegador.');
     }
   };
 
@@ -351,8 +352,8 @@ export const VoiceSimulatorView: React.FC<VoiceSimulatorViewProps> = React.memo(
     audio.onended = () => setPlayingPhraseId(null);
   };
 
-  const handleDeletePhrase = (id: string) => {
-    if (confirm('Deseja realmente excluir este áudio/frase salva?') || (window.self !== window.top)) {
+  const handleDeletePhrase = async (id: string) => {
+    if (await showConfirm('Deseja realmente excluir este áudio/frase salva?', { title: 'Excluir Áudio', variant: 'danger', confirmText: 'Excluir' })) {
       const updated = myVoicePhrases.filter((p) => p.id !== id);
       saveVoiceLibrary(updated);
     }
@@ -366,7 +367,7 @@ export const VoiceSimulatorView: React.FC<VoiceSimulatorViewProps> = React.memo(
   // Play Speech Synthesis
   const handlePlaySpeech = () => {
     if (!('speechSynthesis' in window)) {
-      alert('Seu navegador não suporta reprodução por voz sintética.');
+      void showAlert('Seu navegador não suporta reprodução por voz sintética.');
       return;
     }
 

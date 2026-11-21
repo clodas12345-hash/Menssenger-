@@ -23,7 +23,8 @@ import {
   Activity,
   AlertTriangle
 } from 'lucide-react';
-import { replaceTemplateVariables, buildWhatsAppLink, openWhatsAppLink, safeConfirm, cleanChipName, incrementMessageCount } from '../utils/whatsapp';
+import { replaceTemplateVariables, buildWhatsAppLink, openWhatsAppLink, cleanChipName, incrementMessageCount } from '../utils/whatsapp';
+import { showAlert, showConfirm } from '../utils/dialog';
 import { playSuccessChime } from '../utils/audio';
 import { toDatetimeLocal, getNextDayFirstSlotIfPast19 } from '../utils/dateParser';
 import { getTodayDateString, recordExclusion } from '../utils/storage';
@@ -301,7 +302,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
     const currentSentCount = getChipSentCount(chipToUse.id, chipToUse.name);
     
     if (currentSentCount >= limit) {
-      alert(`🛑 ENVIO BLOQUEADO: O chip "${cleanChipName(chipToUse.name)}" atingiu o limite de ${limit}/${limit} mensagens nas últimas 24h.\n\nAguarde a liberação de novas vagas (baseado no horário dos seus envios de ontem) para continuar.`);
+      await showAlert(`🛑 ENVIO BLOQUEADO: O chip "${cleanChipName(chipToUse.name)}" atingiu o limite de ${limit}/${limit} mensagens nas últimas 24h.\n\nAguarde a liberação de novas vagas (baseado no horário dos seus envios de ontem) para continuar.`, { title: 'Limite Diário Atingido', variant: 'danger' });
       return;
     }
 
@@ -381,7 +382,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
     setPendingConfirmState(null);
   };
 
-  const handleAlreadySent = () => {
+  const handleAlreadySent = async () => {
     const contactToUse = pendingConfirmState ? pendingConfirmState.contact : currentContact;
     const messageToUse = pendingConfirmState ? pendingConfirmState.messageText : currentMessageText;
     const cChipId = pendingConfirmState ? pendingConfirmState.chipId : targetChip.id;
@@ -390,7 +391,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
     if (!contactToUse) return;
     
     let wasDeleted = false;
-    if (confirm(`O contato "${contactToUse.name}" será marcado como Já Enviado.\n\nDeseja remover este contato da sua lista (não tem WhatsApp)?`)) {
+    if (await showConfirm(`O contato "${contactToUse.name}" será marcado como Já Enviado.\n\nDeseja remover este contato da sua lista (não tem WhatsApp)?`, { title: 'Marcar como Já Enviado', variant: 'warning', confirmText: 'Remover da Lista', cancelText: 'Manter na Lista' })) {
       if (onDeleteContact) {
         onDeleteContact(contactToUse.id);
         wasDeleted = true;

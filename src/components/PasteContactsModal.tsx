@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Clipboard, X, CheckCircle2, Users, AlertCircle, Sparkles, Tag, Smartphone, Briefcase, Headphones, Filter, Heart } from 'lucide-react';
 import { Contact, ContactGroup } from '../types';
 import { cleanPhoneNumber, formatPhoneDisplay } from '../utils/vcfParser';
-import { safeConfirm, detectGenderFromName } from '../utils/whatsapp';
+import { detectGenderFromName } from '../utils/whatsapp';
+import { showConfirm } from '../utils/dialog';
 import { processContactName } from '../utils/contactProcessor';
 
 interface PasteContactsModalProps {
@@ -725,8 +726,8 @@ export const PasteContactsModal: React.FC<PasteContactsModalProps> = ({
           <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
             <button
               type="button"
-              onClick={() => {
-                if (parsedContacts.length > 0 && !safeConfirm('Deseja realmente cancelar a importação de contatos?')) {
+              onClick={async () => {
+                if (parsedContacts.length > 0 && !(await showConfirm('Deseja realmente cancelar a importação de contatos?', { title: 'Cancelar Importação', variant: 'warning', confirmText: 'Sim, Cancelar' }))) {
                   return;
                 }
                 onClose();

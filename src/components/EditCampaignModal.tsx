@@ -27,6 +27,7 @@ import { loadFromStorage, getSettings, getTemplates } from '../utils/storage';
 import { parseLocalDatetimeString, toDatetimeLocal, getTodayDateLocal, isWithinBusinessHours, clampDateToBusinessHours, advanceNextBusinessSlot, getNextDayFirstSlotIfPast19 } from '../utils/dateParser';
 import { TimeSelect } from './TimeSelect';
 import { cleanChipName } from '../utils/whatsapp';
+import { showAlert } from '../utils/dialog';
 
 interface EditCampaignModalProps {
   isOpen: boolean;
@@ -367,13 +368,13 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
     const perHour = Math.max(1, Number(splitContactsPerHour) || 20);
     const totalContacts = campaign.contactIds || [];
     if (totalContacts.length === 0) {
-      alert('Não há contatos cadastrados para esta campanha.');
+      void showAlert('Não há contatos cadastrados para esta campanha.');
       return;
     }
 
     const startDate = parseLocalDatetimeString(scheduledAtLocal);
     if (isNaN(startDate.getTime())) {
-      alert('Informe uma data e horário inicial válidos.');
+      void showAlert('Informe uma data e horário inicial válidos.');
       return;
     }
 
@@ -438,18 +439,18 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
     e.preventDefault();
 
     if (!title.trim()) {
-      alert('Por favor, informe o título do agendamento.');
+      void showAlert('Por favor, informe o título do agendamento.');
       return;
     }
 
     if (!scheduledAtLocal) {
-      alert('Por favor, selecione uma data e horário válidos.');
+      void showAlert('Por favor, selecione uma data e horário válidos.');
       return;
     }
 
     let scheduledDateObj = parseLocalDatetimeString(scheduledAtLocal);
     if (isNaN(scheduledDateObj.getTime())) {
-      alert('Data e horário inválidos.');
+      void showAlert('Data e horário inválidos.');
       return;
     }
 

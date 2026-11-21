@@ -29,7 +29,8 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { Contact, MessageTemplate, ScheduledCampaign, ContactGroup, CardItem, DispatchLogItem } from '../types';
-import { replaceTemplateVariables, formatPhoneDisplay, safeConfirm, cleanChipName, matchPhoneNumber, matchContact, isCategorySimilar } from '../utils/whatsapp';
+import { replaceTemplateVariables, formatPhoneDisplay, cleanChipName, matchPhoneNumber, matchContact, isCategorySimilar } from '../utils/whatsapp';
+import { showAlert, showConfirm } from '../utils/dialog';
 import { isContactedToday, getSettings, loadFromStorage } from '../utils/storage';
 import { isContactSkipped, isNotSentInLastThreeDays, getRegisteredChipForGroup } from '../utils/rules';
 import { parseLocalDatetimeString, toDatetimeLocal, getTodayDateLocal, isWithinBusinessHours, clampDateToBusinessHours, advanceNextBusinessSlot } from '../utils/dateParser';
@@ -214,7 +215,7 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
   const handleSelectAllSkipped = () => {
     const skippedIds = availableContacts.filter(c => isContactSkipped(c, logs)).map(c => c.id);
     if (skippedIds.length === 0) {
-      alert('Nenhum contato pulado encontrado atualmente.');
+      void showAlert('Nenhum contato pulado encontrado atualmente.');
       return;
     }
     setSelectedContactIds(Array.from(new Set([...selectedContactIds, ...skippedIds])));
@@ -337,8 +338,8 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
   const [selectedChipId, setSelectedChipId] = useState<string>(() => draft?.selectedChipId ?? '');
 
   // Cancel Handler
-  const handleCancelDraft = () => {
-    if (safeConfirm('Deseja realmente cancelar este agendamento e voltar ao painel? Todos os dados não salvos serão perdidos.')) {
+  const handleCancelDraft = async () => {
+    if (await showConfirm('Deseja realmente cancelar este agendamento e voltar ao painel? Todos os dados não salvos serão perdidos.', { title: 'Cancelar Agendamento', variant: 'warning', confirmText: 'Sim, Cancelar' })) {
       isFinishing.current = true;
       localStorage.removeItem('zap_campaign_draft_v1');
       onNavigate('dashboard');
@@ -807,7 +808,7 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
     });
 
     if (pool.length === 0) {
-      alert('Nenhuma mensagem criada encontrada para seleção aleatória.');
+      void showAlert('Nenhuma mensagem criada encontrada para seleção aleatória.');
       return;
     }
 
@@ -874,11 +875,11 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
   const handleRedistributeSchedules = () => {
     const totalContacts = selectedContactIds.length;
     if (totalContacts === 0) {
-      alert('⚠️ Nenhum contato selecionado.');
+      void showAlert('⚠️ Nenhum contato selecionado.');
       return;
     }
     if (schedules.length === 0) {
-      alert('⚠️ Nenhum horário agendado.');
+      void showAlert('⚠️ Nenhum horário agendado.');
       return;
     }
     const countPerSlot = Math.ceil(totalContacts / schedules.length);
@@ -891,33 +892,33 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
 
   const targetContacts = availableContacts.filter(c => selectedContactIds.includes(c.id));
 
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = async () => {
     if (selectedContactIds.length === 0) {
-      alert('⚠️ Por favor, selecione pelo menos 1 contato no Passo 1 para realizar o agendamento.');
+      await showAlert('⚠️ Por favor, selecione pelo menos 1 contato no Passo 1 para realizar o agendamento.');
       setStep(1);
       return;
     }
 
     if (!customContent.trim()) {
-      alert('⚠️ Por favor, escolha um modelo de mensagem ou digite um texto no Passo 2.');
+      await showAlert('⚠️ Por favor, escolha um modelo de mensagem ou digite um texto no Passo 2.');
       setStep(2);
       return;
     }
 
     if (schedules.length === 0 || schedules.some(s => !s.datetime)) {
-      alert('⚠️ Por favor, defina a data e horário do agendamento no Passo 3.');
+      await showAlert('⚠️ Por favor, defina a data e horário do agendamento no Passo 3.');
       return;
     }
 
     const invalidSchedule = schedules.find(s => !s.datetime || isNaN(parseLocalDatetimeString(s.datetime).getTime()));
     if (invalidSchedule) {
-      alert('⚠️ Por favor, informe uma data e horário válidos para todos os agendamentos.');
+      await showAlert('⚠️ Por favor, informe uma data e horário válidos para todos os agendamentos.');
       return;
     }
 
     const pastSchedule = schedules.find(s => parseLocalDatetimeString(s.datetime).getTime() < Date.now() - 30000);
     if (pastSchedule) {
-      alert('⚠️ O agendamento deve ser definido para uma data e horário no futuro (a partir do momento atual).');
+      await showAlert('⚠️ O agendamento deve ser definido para uma data e horário no futuro (a partir do momento atual).');
       return;
     }
 
@@ -928,7 +929,7 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
     const campaignsToCreate = distributedSchedules.filter(sch => sch.contactIds.length > 0);
 
     if (campaignsToCreate.length === 0) {
-      alert('⚠️ Por favor, atribua pelo menos 1 contato para os horários de disparo.');
+      await showAlert('⚠️ Por favor, atribua pelo menos 1 contato para os horários de disparo.');
       return;
     }
 
@@ -977,10 +978,10 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
     }
 
     onScheduleCampaign(campaigns);
-    alert(`✅ Campanha "${title}" agendada com sucesso!
-
-${campaigns.length} disparo(s) para um total de ${campaigns.reduce((sum, c) => sum + c.contactIds.length, 0)} contato(s).
-${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para envio posterior.` : ''}`);
+    await showAlert(
+      `✅ Campanha "${title}" agendada com sucesso!\n\n${campaigns.length} disparo(s) para um total de ${campaigns.reduce((sum, c) => sum + c.contactIds.length, 0)} contato(s).${remainingCount > 0 ? `\n⚠️ ${remainingCount} contato(s) ficaram de fora para envio posterior.` : ''}`,
+      { title: 'Campanha Agendada', variant: 'success', confirmText: 'OK' }
+    );
     onNavigate('dashboard');
   };
 

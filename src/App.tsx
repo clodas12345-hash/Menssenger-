@@ -51,7 +51,9 @@ import {
   getCampaignImmediateId,
   triggerPushMessageNotification
 } from "./utils/permissions";
-import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime, formatPhoneDisplay, safeConfirm } from './utils/whatsapp';
+import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime, formatPhoneDisplay } from './utils/whatsapp';
+import { showAlert, showConfirm } from './utils/dialog';
+import { ModernDialogHost } from './components/ModernDialogHost';
 import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
 import { processContactName, enrichContacts, isIgnoredSequenceTag, isInvalidCategoryName } from './utils/contactProcessor';
@@ -289,7 +291,7 @@ export default function App() {
     const isMe = cleanName === 'me' || cleanName === 'eu' || cleanName === 'mim';
 
     if (isMe) {
-      alert('⚠️ Envio bloqueado: Não é permitido enviar mensagens para si mesmo.');
+      void showAlert('⚠️ Envio bloqueado: Não é permitido enviar mensagens para si mesmo.');
       return;
     }
 
@@ -1043,10 +1045,10 @@ export default function App() {
     }
   };
 
-  const handleStartNewProjectFromZero = () => {
+  const handleStartNewProjectFromZero = async () => {
     const totalSentCurrent = Math.max(settings.totalSentCount || 0, logs.filter(l => l.status === 'enviado').length);
     const exclusionTotal = getExclusionCounters().total;
-    if (safeConfirm(`🚨 ZERAR DADOS PARA NOVO PROJETO?\n\nIsso irá zerar:\n• ${totalSentCurrent} enviadas (zerar para 0)\n• ${exclusionTotal} baixas & exclusões (zerar para 0)\n• ${contacts.length} contatos ativos\n\nTodos os dados deste projeto finalizado serão arquivados com segurança no seu histórico.`)) {
+    if (await showConfirm(`🚨 ZERAR DADOS PARA NOVO PROJETO?\n\nIsso irá zerar:\n• ${totalSentCurrent} enviadas (zerar para 0)\n• ${exclusionTotal} baixas & exclusões (zerar para 0)\n• ${contacts.length} contatos ativos\n\nTodos os dados deste projeto finalizado serão arquivados com segurança no seu histórico.`, { title: 'Novo Projeto', variant: 'danger', confirmText: 'Zerar e Arquivar' })) {
       handleCreateProjectArchive(
         `Projeto Finalizado em ${new Date().toLocaleDateString('pt-BR')}`,
         new Date(Date.now() - 15 * 86400000).toISOString().slice(0, 10),
@@ -1056,8 +1058,8 @@ export default function App() {
     }
   };
 
-  const handleResetExclusionsOnly = () => {
-    if (safeConfirm('Deseja zerar os contadores de baixas e exclusões para o novo projeto?')) {
+  const handleResetExclusionsOnly = async () => {
+    if (await showConfirm('Deseja zerar os contadores de baixas e exclusões para o novo projeto?', { title: 'Zerar Contadores', variant: 'warning', confirmText: 'Zerar Contadores' })) {
       resetExclusionCounters();
       showToast('✅ Contadores de baixas zerados com sucesso!');
     }
@@ -2457,6 +2459,7 @@ export default function App() {
           </div>
         </div>
       )}
+      <ModernDialogHost />
     </div>
   );
 }

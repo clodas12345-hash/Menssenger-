@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShieldAlert, CheckCircle2, EyeOff, Settings, AlertTriangle, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react';
 import { AppSettings, DispatchLogItem } from '../types';
 import { getTodayDateString } from '../utils/storage';
+import { showConfirm } from '../utils/dialog';
 
 interface DailyLimitWidgetProps {
   settings: AppSettings;
@@ -167,9 +168,9 @@ export const DailyLimitWidget: React.FC<DailyLimitWidgetProps> = ({
             {onReportBlocked24h && !isBlocked24h && (
               <button
                 type="button"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  if (confirm('Marcar que seu WhatsApp foi bloqueado? O sistema pausará todos os envios por 24 horas.')) {
+                  if (await showConfirm('Marcar que seu WhatsApp foi bloqueado? O sistema pausará todos os envios por 24 horas.', { title: 'Pausar Envios (24h)', variant: 'danger', confirmText: 'Pausar por 24h' })) {
                     onReportBlocked24h();
                   }
                 }}

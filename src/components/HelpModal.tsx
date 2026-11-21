@@ -24,6 +24,7 @@ import {
   Database,
   Upload
 } from 'lucide-react';
+import { showAlert } from '../utils/dialog';
 import { Contact, DispatchLogItem, ScheduledCampaign, MessageTemplate, AppSettings, ContactGroup } from '../types';
 import { restoreFromBackup } from '../utils/storage';
 import { downloadFileSafely, handleDownloadBackup } from '../utils/downloadHelper';
@@ -78,10 +79,10 @@ export const HelpModal: React.FC<HelpModalProps> = ({
             if (onRefreshData) onRefreshData();
           }, 600);
         } else {
-          alert(`Erro ao restaurar: ${result.error}`);
+          void showAlert(`Erro ao restaurar: ${result.error}`);
         }
       } catch (err) {
-        alert('Arquivo JSON inválido.');
+        void showAlert('Arquivo JSON inválido.');
       }
     };
     reader.readAsText(file);

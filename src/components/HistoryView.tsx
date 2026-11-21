@@ -31,7 +31,8 @@ import {
   Car
 } from 'lucide-react';
 import { DispatchLogItem, AppSettings, ScheduledCampaign, ProjectArchive, Contact, ExclusionCounters } from '../types';
-import { formatPhoneDisplay, cleanChipName, matchContact, normalizeSearchText, matchPhoneNumber, safeConfirm } from '../utils/whatsapp';
+import { formatPhoneDisplay, cleanChipName, matchContact, normalizeSearchText, matchPhoneNumber } from '../utils/whatsapp';
+import { showAlert, showConfirm } from '../utils/dialog';
 import { downloadFileSafely } from '../utils/downloadHelper';
 import { getExclusionCounters, resetExclusionCounters, updateExclusionRecordType, deleteExclusionRecord } from '../utils/storage';
 
@@ -1409,7 +1410,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                   type="button"
                   onClick={() => {
                     if (!projectNameInput.trim()) {
-                      alert('Por favor, informe o Nome do Projeto para salvar a pasta no histórico.');
+                      void showAlert('Por favor, informe o Nome do Projeto para salvar a pasta no histórico.');
                       return;
                     }
                     if (onCreateProjectArchive) {
@@ -1652,8 +1653,8 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
 
                             <button
                               type="button"
-                              onClick={() => {
-                                if (confirm(`Tem certeza que deseja excluir a pasta do projeto "${project.name}" do histórico?`)) {
+                              onClick={async () => {
+                                if (await showConfirm(`Tem certeza que deseja excluir a pasta do projeto "${project.name}" do histórico?`, { title: 'Excluir Projeto', variant: 'danger', confirmText: 'Excluir Pasta' })) {
                                   if (onDeleteProjectArchive) {
                                     onDeleteProjectArchive(project.id);
                                   }
@@ -3896,8 +3897,8 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
 
                         <button
                           type="button"
-                          onClick={() => {
-                            if (safeConfirm(`Deseja remover "${item.contactName || item.phone}" do relatório de baixas?`)) {
+                          onClick={async () => {
+                            if (await showConfirm(`Deseja remover "${item.contactName || item.phone}" do relatório de baixas?`, { title: 'Remover do Relatório', variant: 'danger', confirmText: 'Remover' })) {
                               const updated = deleteExclusionRecord(item.id);
                               setExclusionStats(updated);
                             }
@@ -3929,8 +3930,8 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                   {exclusionStats.total > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        if (safeConfirm('Atenção: Deseja realmente zerar manualmente todos os contadores de baixas e exclusões agora?')) {
+                      onClick={async () => {
+                        if (await showConfirm('Atenção: Deseja realmente zerar manualmente todos os contadores de baixas e exclusões agora?', { title: 'Zerar Contadores', variant: 'danger', confirmText: 'Zerar Tudo' })) {
                           resetExclusionCounters();
                           setExclusionStats(getExclusionCounters());
                         }

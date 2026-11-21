@@ -20,7 +20,8 @@ import {
   CheckSquare
 } from 'lucide-react';
 import { MessageTemplate, Contact } from '../types';
-import { AVAILABLE_VARIABLES, replaceTemplateVariables, safeConfirm, matchPhoneNumber, matchContact } from '../utils/whatsapp';
+import { AVAILABLE_VARIABLES, replaceTemplateVariables, matchPhoneNumber, matchContact } from '../utils/whatsapp';
+import { showAlert, showConfirm } from '../utils/dialog';
 import { TOPICS_LIST } from '../data/topics';
 import { getSettings, saveSettings, getDispatchLogs } from '../utils/storage';
 
@@ -138,8 +139,8 @@ const TemplateCard: React.FC<TemplateCardProps> = React.memo(({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (confirm('Deseja remover todas as variações extras desta mensagem e deixar apenas a original?')) {
+                  onClick={async () => {
+                    if (await showConfirm('Deseja remover todas as variações extras desta mensagem e deixar apenas a original?', { title: 'Remover Variações', variant: 'danger', confirmText: 'Remover Variações' })) {
                       onUpdateTemplate({ ...tmpl, variations: [] });
                     }
                   }}
@@ -405,7 +406,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
     });
 
     if (candidateTexts.length === 0) {
-      alert('Nenhum texto válido encontrado nas mensagens selecionadas.');
+      void showAlert('Nenhum texto válido encontrado nas mensagens selecionadas.');
       return;
     }
 
@@ -465,7 +466,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
     });
 
     if (candidateTexts.length === 0) {
-      alert('Nenhuma mensagem com conteúdo válido encontrada nesta campanha/tópico.');
+      void showAlert('Nenhuma mensagem com conteúdo válido encontrada nesta campanha/tópico.');
       return;
     }
 
@@ -500,7 +501,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
     });
 
     if (candidateTexts.length === 0) {
-      alert('Nenhuma mensagem com conteúdo válido encontrada nesta campanha/tópico.');
+      void showAlert('Nenhuma mensagem com conteúdo válido encontrada nesta campanha/tópico.');
       return;
     }
 
@@ -540,7 +541,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
     const oldName = editingTopic.oldName.trim();
     const newName = editingTopic.currentName.trim();
     if (!newName) {
-      alert('O nome do tópico não pode ficar vazio.');
+      void showAlert('O nome do tópico não pode ficar vazio.');
       return;
     }
     if (oldName === newName) {
@@ -720,8 +721,8 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
   };
 
   // Clear all messages from Aba Moto leaving only topics
-  const handleClearMotoMessages = () => {
-    if (confirm('Deseja apagar todas as mensagens da Aba Moto e deixar apenas os Tópicos vazios?') || (window.self !== window.top)) {
+  const handleClearMotoMessages = async () => {
+    if (await showConfirm('Deseja apagar todas as mensagens da Aba Moto e deixar apenas os Tópicos vazios?', { title: 'Limpar Aba Moto', variant: 'danger', confirmText: 'Apagar Mensagens' })) {
       templates.forEach((t) => {
         if (t.vehicleType === 'moto') {
           onDeleteTemplate(t.id);
@@ -772,7 +773,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
     });
 
     if (pool.length === 0) {
-      alert('Nenhuma mensagem criada encontrada para sorteio.');
+      void showAlert('Nenhuma mensagem criada encontrada para sorteio.');
       return;
     }
 
@@ -1576,8 +1577,8 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
               <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-[#1F2229] mt-auto pb-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (safeConfirm('Deseja realmente cancelar? As alterações não salvas serão perdidas.')) {
+                  onClick={async () => {
+                    if (await showConfirm('Deseja realmente cancelar? As alterações não salvas serão perdidas.', { title: 'Cancelar Edição', variant: 'warning', confirmText: 'Sim, Cancelar' })) {
                       setIsCreating(false);
                       setEditingTemplate(null);
                     }

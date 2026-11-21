@@ -43,7 +43,7 @@ import {
   Key
 } from 'lucide-react';
 import { AppSettings, WhatsAppChip, DispatchLogItem, Contact, ScheduledCampaign, MessageTemplate, ContactGroup, NotificationPreferences } from '../types';
-import { safeConfirm } from '../utils/whatsapp';
+import { showAlert, showConfirm } from '../utils/dialog';
 import { restoreFromBackup, resetAppExceptArchives } from '../utils/storage';
 import { downloadFileSafely, handleDownloadBackup } from '../utils/downloadHelper';
 import { BackupDownloadModal } from './BackupDownloadModal';
@@ -273,7 +273,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleDeleteChip = (id: string) => {
     if (chips.length <= 1) {
-      alert('Você precisa manter pelo menos um chip cadastrado.');
+      void showAlert('Você precisa manter pelo menos um chip cadastrado.');
       return;
     }
     const updated = chips.filter(c => c.id !== id);
@@ -306,10 +306,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             setImportStatus(null);
           }, 800);
         } else {
-          alert(`Erro ao restaurar: ${result.error}`);
+          void showAlert(`Erro ao restaurar: ${result.error}`);
         }
       } catch (err) {
-        alert('Arquivo JSON inválido.');
+        void showAlert('Arquivo JSON inválido.');
       }
     };
     reader.readAsText(file);
@@ -1150,9 +1150,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       ) : onReportBlocked24h ? (
                         <button
                           type="button"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            if (confirm('Deseja acionar a pausa de emergência de 24 horas para proteção do chip?')) {
+                            if (await showConfirm('Deseja acionar a pausa de emergência de 24 horas para proteção do chip?', { title: 'Pausa de Emergência (24h)', variant: 'danger', confirmText: 'Pausar por 24h' })) {
                               onReportBlocked24h();
                             }
                           }}
@@ -1225,8 +1225,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             {onResetChipLogs && (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (confirm(`Zerar o histórico de envios do chip "${chip.name}"?`)) {
+                                onClick={async () => {
+                                  if (await showConfirm(`Zerar o histórico de envios do chip "${chip.name}"?`, { title: 'Zerar Histórico do Chip', variant: 'danger', confirmText: 'Zerar Histórico' })) {
                                     onResetChipLogs(chip.id);
                                   }
                                 }}
@@ -1782,13 +1782,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </p>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (safeConfirm('🚨 ATENÇÃO EXTREMA: Deseja realmente zerar todo o aplicativo?\n\nIsso apagará contatos ativos, campanhas e histórico ativo, mas as pastas de projetos salvos no histórico NÃO serão apagadas.')) {
+                    onClick={async () => {
+                      if (await showConfirm('🚨 ATENÇÃO EXTREMA: Deseja realmente zerar todo o aplicativo?\n\nIsso apagará contatos ativos, campanhas e histórico ativo, mas as pastas de projetos salvos no histórico NÃO serão apagadas.', { title: 'Zerar Aplicativo', variant: 'danger', confirmText: 'Zerar Tudo' })) {
                         resetAppExceptArchives();
                         sendAppNotification('♻️ Aplicativo Zerado', {
                           body: 'O aplicativo foi reiniciado para o estado inicial. Os arquivos salvos foram preservados.'
                         });
-                        alert('✅ Aplicativo zerado com sucesso! O painel foi reiniciado mantendo apenas as pastas de arquivos salvos.');
+                        await showAlert('✅ Aplicativo zerado com sucesso! O painel foi reiniciado mantendo apenas as pastas de arquivos salvos.', { title: 'Aplicativo Reiniciado', variant: 'success', confirmText: 'OK' });
                         onClose();
                         if (onRefreshData) onRefreshData();
                         window.location.reload();
@@ -1839,8 +1839,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="px-5 py-3.5 border-t border-[#1E222B] bg-[#0A0C10] shrink-0 flex items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => {
-                if (safeConfirm('Deseja realmente descartar as alterações não salvas?')) {
+              onClick={async () => {
+                if (await showConfirm('Deseja realmente descartar as alterações não salvas?', { title: 'Descartar Alterações', variant: 'warning', confirmText: 'Descartar' })) {
                   onClose();
                 }
               }}

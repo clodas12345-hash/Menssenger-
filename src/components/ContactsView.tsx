@@ -45,7 +45,8 @@ import {
 } from 'lucide-react';
 import { Contact, ContactGroup, DispatchLogItem, ScheduledCampaign, AppSettings, ProjectArchive, MessageTemplate, CardItem } from '../types';
 import { formatPhoneDisplay, cleanPhoneNumber, downloadVcfFile, parseVcfContent } from '../utils/vcfParser';
-import { cleanChipName, getExpectedGroup, safeConfirm, detectGenderFromName, replaceTemplateVariables, matchPhoneNumber, matchContact, normalizeSearchText, isCategorySimilar } from '../utils/whatsapp';
+import { cleanChipName, getExpectedGroup, detectGenderFromName, replaceTemplateVariables, matchPhoneNumber, matchContact, normalizeSearchText, isCategorySimilar } from '../utils/whatsapp';
+import { showAlert, showConfirm } from '../utils/dialog';
 import { isContactedToday, getTemplates, loadFromStorage, getSettings, saveSettings, getTodayDateString, recordExclusion } from '../utils/storage';
 import { isContactSkipped, isNotSentInLastThreeDays, getRegisteredChipForGroup } from '../utils/rules';
 import { enrichContacts, processContactName, isIgnoredSequenceTag, isInvalidCategoryName } from '../utils/contactProcessor';
@@ -536,12 +537,12 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
     setSelectedIds([]);
   };
 
-  const handleDeleteAllContacts = () => {
+  const handleDeleteAllContacts = async () => {
     if (contacts.length === 0) {
-      alert('Sua lista de contatos já está vazia.');
+      void showAlert('Sua lista de contatos já está vazia.');
       return;
     }
-    if (safeConfirm(`🚨 ATENÇÃO: Tem certeza que deseja EXCLUIR TODOS os ${contacts.length} contatos? Esta ação é irreversível e limpará toda sua agenda.`)) {
+    if (await showConfirm(`🚨 ATENÇÃO: Tem certeza que deseja EXCLUIR TODOS os ${contacts.length} contatos? Esta ação é irreversível e limpará toda sua agenda.`, { title: 'Excluir Todos os Contatos', variant: 'danger', confirmText: 'Excluir Todos' })) {
       if (onReplaceAllContacts) {
         onReplaceAllContacts([]);
       } else {
@@ -556,7 +557,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
   // VCF Export and Import
   const handleExportVcf = () => {
     if (contacts.length === 0) {
-      alert('Nenhum contato para exportar.');
+      void showAlert('Nenhum contato para exportar.');
       return;
     }
     downloadVcfFile(contacts, 'agenda_contatos_whatsapp.vcf');
@@ -573,7 +574,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
       if (text) {
         const parsed = parseVcfContent(text, defaultCountryCode);
         if (parsed.length === 0) {
-          alert('Nenhum contato válido encontrado no arquivo.');
+          void showAlert('Nenhum contato válido encontrado no arquivo.');
           return;
         }
         if (onAddMultipleContacts) {
@@ -589,7 +590,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
   };
 
   // Remove Duplicates
-  const handleRemoveDuplicates = () => {
+  const handleRemoveDuplicates = async () => {
     const seen = new Set<string>();
     const unique: Contact[] = [];
     let removedCount = 0;
@@ -609,11 +610,11 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
     });
 
     if (removedCount === 0) {
-      alert('Nenhum contato duplicado encontrado.');
+      void showAlert('Nenhum contato duplicado encontrado.');
       return;
     }
 
-    if (safeConfirm(`Encontrados ${removedCount} contatos duplicados por número de telefone.\nDeseja removê-los agora?`)) {
+    if (await showConfirm(`Encontrados ${removedCount} contatos duplicados por número de telefone.\nDeseja removê-los agora?`, { title: 'Remover Duplicados', variant: 'warning', confirmText: 'Remover Duplicados' })) {
       if (onReplaceAllContacts) {
         onReplaceAllContacts(unique);
       } else if (onDeleteMultipleContacts) {
@@ -625,13 +626,13 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
     }
   };
 
-  const handleOptimizeAllContacts = () => {
+  const handleOptimizeAllContacts = async () => {
     if (contacts.length === 0) {
-      alert('Não há contatos para otimizar.');
+      void showAlert('Não há contatos para otimizar.');
       return;
     }
 
-    if (safeConfirm(`Deseja otimizar os nomes e grupos de todos os ${contacts.length} contatos?\n\nIsso removerá tags de campanha dos nomes e os agrupará automaticamente (ex: CG 05/50, Guapó, etc.).`)) {
+    if (await showConfirm(`Deseja otimizar os nomes e grupos de todos os ${contacts.length} contatos?\n\nIsso removerá tags de campanha dos nomes e os agrupará automaticamente (ex: CG 05/50, Guapó, etc.).`, { title: 'Otimizar Agenda', variant: 'info', confirmText: 'Otimizar Agora' })) {
       const optimized = enrichContacts(contacts);
       if (onReplaceAllContacts) {
         onReplaceAllContacts(optimized);
@@ -675,7 +676,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
   // Suggest Category and Dynamic Fields with AI for single contact form
   const handleSuggestSingleWithAi = async () => {
     if (!formName.trim() && !formPhone.trim()) {
-      alert('Digite ao menos o nome do contato (com ou sem tags) para a IA analisar.');
+      void showAlert('Digite ao menos o nome do contato (com ou sem tags) para a IA analisar.');
       return;
     }
 
@@ -720,7 +721,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
       }
     } catch (err: any) {
       console.error(err);
-      alert(err.message || 'Erro ao sugerir com IA');
+      void showAlert(err.message || 'Erro ao sugerir com IA');
     } finally {
       setIsAiSuggestingSingle(false);
     }
@@ -730,7 +731,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
   const handleSaveContactForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || !formPhone.trim()) {
-      alert('Nome e Telefone são obrigatórios.');
+      void showAlert('Nome e Telefone são obrigatórios.');
       return;
     }
 
@@ -804,13 +805,13 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
   // Quick Schedule execution
   const handleExecuteQuickSchedule = () => {
     if (selectedIds.length === 0) {
-      alert('Selecione pelo menos 1 contato para agendar.');
+      void showAlert('Selecione pelo menos 1 contato para agendar.');
       return;
     }
 
     const selectedTemplate = availableTemplates.find(t => t.id === quickTemplateId);
     if (!selectedTemplate) {
-      alert('Selecione um modelo de mensagem válido.');
+      void showAlert('Selecione um modelo de mensagem válido.');
       return;
     }
 

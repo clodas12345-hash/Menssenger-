@@ -23,7 +23,7 @@ import {
   FolderArchive
 } from 'lucide-react';
 import { Contact, MessageTemplate, ScheduledCampaign, DispatchLogItem, AppSettings } from '../types';
-import { replaceTemplateVariables, safeConfirm, cleanChipName } from '../utils/whatsapp';
+import { replaceTemplateVariables, cleanChipName } from '../utils/whatsapp';
 import { getSettings, getExclusionCounters } from '../utils/storage';
 import { RealTimeCounter } from './RealTimeCounter';
 
